@@ -1,0 +1,70 @@
+[project]
+name = "maxsmartcity"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy]>=2.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+    "ty>=0.0.82",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+
+line-length = 100
+
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".hg",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    ".venv", "venv", "__pycache__",
+    "build", "dist", "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle
+    "F",      # Pyflakes: ошибки, unused imports/variables
+    "I",      # isort: порядок импортов
+    "UP",     # pyupgrade: современный синтаксис Python
+    "B",      # flake8-bugbear: потенциальные баги
+    "SIM",    # упрощение конструкций
+    "C4",     # comprehensions
+    "PIE",    # ненужные/подозрительные конструкции
+    "RUF",    # собственные правила Ruff
+    "PERF",   # потенциальные проблемы производительности
+    "ASYNC",  # ошибки в async-коде
+    "BLE",    # flake8-blind-except: запрет except Exception без уважительной причины
+    "ANN",    # flake8-annotations
+]
+ignore = [
+    "RUF001",
+    "RUF002",
+    "RUF003",
+     # Эти правила конфиктуют или пересекаются с formatter
+    "E111",
+    "E114",
+    "E117"
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["maxsmartcity"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

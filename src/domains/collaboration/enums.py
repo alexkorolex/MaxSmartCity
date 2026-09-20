@@ -1,0 +1,48 @@
+from enum import StrEnum
+
+
+class AssignmentRole(StrEnum):
+    OWNER = "OWNER"
+    EXECUTOR = "EXECUTOR"
+    CO_EXECUTOR = "CO_EXECUTOR"
+    OBSERVER = "OBSERVER"
+    ESCALATION_TARGET = "ESCALATION_TARGET"
+
+
+class AssignmentStatus(StrEnum):
+    PROPOSED = "PROPOSED"
+    ACCEPTED = "ACCEPTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    BLOCKED = "BLOCKED"
+    COMPLETED = "COMPLETED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+    MONITORING = "MONITORING"
+
+
+class WorkItemStatus(StrEnum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    BLOCKED = "BLOCKED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class CommentVisibility(StrEnum):
+    INTERNAL = "INTERNAL"
+    PUBLIC = "PUBLIC"
+
+
+class TransferStatus(StrEnum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    CLARIFICATION_REQUIRED = "CLARIFICATION_REQUIRED"
+    CANCELLED = "CANCELLED"
+
+
+class CollaborationLinkType(StrEnum):
+    MAX = "MAX"
+    VIDEO = "VIDEO"
+    INTERNAL = "INTERNAL"
+    OTHER = "OTHER"

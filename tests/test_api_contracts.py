@@ -1,0 +1,58 @@
+from typing import Any
+from uuid import uuid4
+
+import pytest
+from litestar import Litestar, post
+from litestar.dto import DTOData
+from litestar.testing import TestClient
+
+from src.domains.incidents.models import Incident
+from src.domains.incidents.schemas import IncidentCreateDTO
+from src.main import create_app
+
+
+@pytest.fixture
+def api_schema() -> dict[str, Any]:
+    app = create_app("postgresql+asyncpg://test:test@localhost:5432/test")
+    return app.openapi_schema.to_schema()
+
+
+def test_crud_schemas_are_generated_from_domain_models(api_schema: dict[str, Any]) -> None:
+    schemas = api_schema["components"]["schemas"]
+    for path in ("/identity/organizations", "/geo/addresses", "/reports/categories"):
+        create = api_schema["paths"][path]["post"]
+        update = api_schema["paths"][f"{path}/{{item_id}}"]["patch"]
+        create_ref = create["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+        update_ref = update["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+        response_ref = create["responses"]["201"]["content"]["application/json"]["schema"]["$ref"]
+        properties = schemas[create_ref.rsplit("/", 1)[1]]["properties"]
+        assert not {"id", "created_at", "updated_at", "_sentinel"}.intersection(properties)
+        assert "id" in schemas[response_ref.rsplit("/", 1)[1]]["properties"]
+        assert not schemas[update_ref.rsplit("/", 1)[1]].get("required")
+
+
+def test_aggregate_routes_do_not_allow_unrestricted_mutations(api_schema: dict[str, Any]) -> None:
+    for path in ("/incidents", "/reports", "/collaboration/assignments", "/collaboration/work-items"):
+        assert "get" in api_schema["paths"][path]
+        assert "post" not in api_schema["paths"][path]
+        assert "patch" not in api_schema["paths"][f"{path}/{{item_id}}"]
+
+
+@pytest.mark.parametrize("field", ["id", "version", "status", "created_at", "unknown_field"])
+def test_incident_dto_rejects_server_managed_fields(field: str) -> None:
+    @post("/", dto=IncidentCreateDTO, sync_to_thread=False)
+    def accept_incident(data: DTOData[Incident]) -> dict[str, object]:
+        return {"title": data.create_instance().title}
+
+    with TestClient(Litestar(route_handlers=[accept_incident])) as client:
+        response = client.post(
+            "/", json={"title": "Water leak", "category_id": str(uuid4()), field: "invalid"}
+        )
+        assert response.status_code == 400
+
+
+def test_spatial_columns_have_string_dto_contracts(api_schema: dict[str, Any]) -> None:
+    request = api_schema["paths"]["/geo/addresses"]["post"]["requestBody"]
+    reference = request["content"]["application/json"]["schema"]["$ref"]
+    properties = api_schema["components"]["schemas"][reference.rsplit("/", 1)[1]]["properties"]
+    assert {"type": "string"} in properties["point"]["oneOf"]

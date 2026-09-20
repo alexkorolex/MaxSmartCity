@@ -1,0 +1,18 @@
+{
+  "version": "city-incidents-draft-v1",
+  "status": "DRAFT_REQUIRES_TEAM_APPROVAL",
+  "owner": "product-and-domain-team",
+  "categories": [
+    {"id": "water", "title": "Водоснабжение"},
+    {"id": "electricity", "title": "Электроснабжение"},
+    {"id": "building", "title": "Многоквартирный дом"},
+    {"id": "road_and_yard", "title": "Дороги и дворы"},
+    {"id": "waste", "title": "Отходы"},
+    {"id": "emergency", "title": "Потенциально опасная ситуация"},
+    {"id": "city_infrastructure", "title": "Городская инфраструктура"},
+    {"id": "non_incident", "title": "Не является сообщением об инциденте"},
+    {"id": "needs_clarification", "title": "Недостаточно информации"},
+    {"id": "other", "title": "Другое"}
+  ],
+  "todo": "TODO[team]: agree hierarchy, subcategories, multi-label policy and stable IDs"
+}

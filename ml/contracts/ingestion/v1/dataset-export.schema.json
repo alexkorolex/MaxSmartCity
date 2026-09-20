@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/ingestion/v1/dataset-export.json",
+  "title": "Versioned ingestion export consumed by ML",
+  "type": "object",
+  "required": ["schema_version", "export_id", "created_at", "entities"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "export_id": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "valid_at": {"type": ["string", "null"], "format": "date-time"},
+    "entities": {
+      "type": "object",
+      "required": ["addresses", "organizations", "external_events"],
+      "properties": {
+        "addresses": {"type": "array", "items": {"type": "object"}},
+        "organizations": {"type": "array", "items": {"type": "object"}},
+        "external_events": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": false,
+  "description": "TODO[ingestion]: agree exact canonical entity payloads while preserving source and temporal provenance"
+}

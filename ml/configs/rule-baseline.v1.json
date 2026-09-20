@@ -1,0 +1,14 @@
+{
+  "version": "rule-incident-baseline-v1",
+  "taxonomy_version": "city-incidents-draft-v1",
+  "score_semantics": "normalized heuristic, not calibrated probability",
+  "automation_enabled": false,
+  "close_in_time_seconds": 86400,
+  "weights": {
+    "same_location": 3.0,
+    "same_category": 2.0,
+    "close_in_time": 1.0,
+    "inactive_penalty": -4.0
+  },
+  "todo": "TODO[ml-evaluation]: benchmark and tune only on validation data; never select automation threshold by hand"
+}

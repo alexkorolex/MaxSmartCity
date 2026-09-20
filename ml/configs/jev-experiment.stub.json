@@ -1,0 +1,27 @@
+{
+  "status": "NOT_READY",
+  "experiment": "incident-jev-draft-v1",
+  "task": "incident_pair_ranking",
+  "taxonomy_version": "city-incidents-draft-v1",
+  "dataset": {
+    "version": null,
+    "hash": null,
+    "todo": "TODO[ml-data]: fill after synthetic and Gold dataset acceptance"
+  },
+  "model": {
+    "type": "nli_cross_encoder",
+    "base_model": null,
+    "todo": "TODO[model]: select a Russian/multilingual base model on the RTX 3060 host"
+  },
+  "training": {
+    "seed": 20260920,
+    "epochs": null,
+    "batch_size": null,
+    "todo": "TODO[model]: choose after a memory smoke test on RTX 3060"
+  },
+  "calibration": {
+    "method": null,
+    "automation_target_precision": 0.98,
+    "todo": "TODO[ml-evaluation]: fit only on validation predictions"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "version": "synthetic-city-v2",
+  "schema_version": 1,
+  "taxonomy_version": "city-incidents-draft-v1",
+  "city_id": "demo-city",
+  "streets": ["улица Ленина", "Советская улица", "проспект Мира", "Садовая улица"],
+  "styles": [
+    "{problem} по адресу {street}, дом {house}",
+    "У нас опять {problem}! {street} {house}",
+    "Подскажите, когда исправят: {problem}, д. {house} на {street}",
+    "{problem} уже {duration} часа, адрес {street} {house}"
+  ],
+  "noise_phrases": [
+    "спасибо",
+    "а когда праздник?",
+    "привет",
+    "что происходит?",
+    "меня всё бесит"
+  ],
+  "archetypes": [
+    {
+      "id": "no-water",
+      "category_id": "water",
+      "organization_id": "demo-water-supplier",
+      "organization_type": "WATER_SUPPLIER",
+      "phrases": ["нет холодной воды", "воды нет", "кран сухой"]
+    },
+    {
+      "id": "power-outage",
+      "category_id": "electricity",
+      "organization_id": "demo-electricity-provider",
+      "organization_type": "ELECTRICITY",
+      "phrases": ["отключили свет", "нет электричества", "в доме темно"]
+    },
+    {
+      "id": "waste-overflow",
+      "category_id": "waste",
+      "organization_id": "demo-administration",
+      "organization_type": "ADMINISTRATION",
+      "phrases": ["не вывезли мусор", "переполнены баки"]
+    },
+    {
+      "id": "road-damage",
+      "category_id": "road_and_yard",
+      "organization_id": "demo-administration",
+      "organization_type": "ADMINISTRATION",
+      "phrases": ["яма на дороге", "провалился асфальт"]
+    }
+  ],
+  "todo": [
+    "TODO[team]: replace draft category IDs after taxonomy approval",
+    "TODO[ingestion]: replace demo addresses and organizations with canonical export",
+    "TODO[ml-data]: add more styles, OOD cases and a multi-incident stress generator"
+  ]
+}

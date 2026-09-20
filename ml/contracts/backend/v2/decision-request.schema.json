@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/decision-request.json",
+  "title": "ML DecisionRequest v2 draft",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "request_id",
+    "report",
+    "candidate_incidents",
+    "candidate_organizations",
+    "allowed_actions"
+  ],
+  "properties": {
+    "contract_version": {"const": "2.0.0-draft"},
+    "request_id": {"type": "string", "minLength": 1},
+    "deadline_ms": {"type": "integer", "minimum": 1},
+    "report": {
+      "type": "object",
+      "required": ["report_id", "text", "created_at"],
+      "properties": {
+        "report_id": {"type": "string", "minLength": 1},
+        "text": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "fias_guid": {"type": ["string", "null"]},
+        "category_hint": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "candidate_incidents": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "candidate_organizations": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "allowed_actions": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "external_context": {"type": "object"}
+  },
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "required": ["id", "attributes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "attributes": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

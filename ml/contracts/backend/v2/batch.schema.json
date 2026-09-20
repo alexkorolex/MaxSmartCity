@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/batch.json",
+  "title": "ML batch decision v2 draft",
+  "type": "object",
+  "oneOf": [
+    {
+      "required": ["batch_id", "deadline_ms", "requests"],
+      "properties": {
+        "batch_id": {"type": "string"},
+        "deadline_ms": {"type": "integer", "minimum": 1},
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {"$ref": "decision-request.schema.json"}
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["batch_id", "items"],
+      "properties": {
+        "batch_id": {"type": "string"},
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["request_id"],
+            "properties": {
+              "request_id": {"type": "string"},
+              "response": {"$ref": "decision-response.schema.json"},
+              "error": {"$ref": "error.schema.json"}
+            },
+            "oneOf": [
+              {"required": ["response"], "not": {"required": ["error"]}},
+              {"required": ["error"], "not": {"required": ["response"]}}
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

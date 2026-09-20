@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/job-events.json",
+  "title": "Asynchronous ML decision events",
+  "type": "object",
+  "required": ["event_id", "event_type", "occurred_at", "request_id"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "event_type": {"enum": ["ml.decision.requested", "ml.decision.completed", "ml.decision.failed"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "request_id": {"type": "string"},
+    "causation_event_id": {"type": "string"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "request": {"$ref": "decision-request.schema.json"},
+    "response": {"$ref": "decision-response.schema.json"},
+    "error": {"$ref": "error.schema.json"}
+  },
+  "oneOf": [
+    {
+      "properties": {"event_type": {"const": "ml.decision.requested"}},
+      "required": ["attempt", "request"]
+    },
+    {
+      "properties": {"event_type": {"const": "ml.decision.completed"}},
+      "required": ["causation_event_id", "response"]
+    },
+    {
+      "properties": {"event_type": {"const": "ml.decision.failed"}},
+      "required": ["causation_event_id", "error"]
+    }
+  ],
+  "additionalProperties": false
+}

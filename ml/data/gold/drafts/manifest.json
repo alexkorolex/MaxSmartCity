@@ -1,0 +1,11 @@
+{
+  "dataset_name": "gold-report-draft-seed",
+  "dataset_version": "draft-v1",
+  "status": "DRAFT_NOT_GOLD",
+  "annotation_version": "gold-report-v1",
+  "taxonomy_version": "city-incidents-draft-v1",
+  "record_count": 20,
+  "file": "reports.seed.jsonl",
+  "sha256": "69d83f87bbc534834c9568af6b83810a95277c4b13cbf0a37d850d0af9770b98",
+  "required_next_step": "human annotation and independent review"
+}

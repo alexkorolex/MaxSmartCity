@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/artifacts/v1/model-manifest.json",
+  "title": "ML Model Artifact Manifest v1",
+  "type": "object",
+  "required": ["model_name", "model_version", "base_model", "dataset_version", "dataset_hash", "taxonomy_version", "training_seed", "git_commit", "training_config_hash", "calibration_version", "created_at"],
+  "properties": {
+    "model_name": {"type": "string"},
+    "model_version": {"type": "string"},
+    "base_model": {"type": "string"},
+    "dataset_version": {"type": "string"},
+    "dataset_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "taxonomy_version": {"type": "string"},
+    "training_seed": {"type": "integer"},
+    "git_commit": {"type": "string"},
+    "training_config_hash": {"type": "string"},
+    "calibration_version": {"type": ["string", "null"]},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

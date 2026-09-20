@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/error.json",
+  "title": "ML error envelope v2",
+  "type": "object",
+  "required": ["code", "message", "retryable"],
+  "properties": {
+    "request_id": {"type": ["string", "null"]},
+    "code": {
+      "enum": [
+        "INVALID_INPUT",
+        "INPUT_TOO_LONG",
+        "UNKNOWN_CONTRACT_VERSION",
+        "FORBIDDEN_CANDIDATE",
+        "MODEL_NOT_READY",
+        "MODEL_UNAVAILABLE",
+        "TIMEOUT",
+        "BATCH_OVERFLOW"
+      ]
+    },
+    "message": {"type": "string"},
+    "retryable": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

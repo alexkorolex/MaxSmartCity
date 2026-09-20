@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Reproducible local ML stress artifacts (keep configs/manifests documented in ml/README.md)
+ml/data/synthetic/stress-*/
+.idea/

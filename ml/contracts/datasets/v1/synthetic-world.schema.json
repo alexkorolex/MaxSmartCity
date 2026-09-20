@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/datasets/v1/synthetic-world.json",
+  "title": "Synthetic world dataset v1",
+  "type": "object",
+  "required": ["scenarios", "houses", "organizations", "external_events", "incidents", "reports", "decisions", "counterfactuals"],
+  "properties": {
+    "scenarios": {"type": "array", "items": {"type": "object"}},
+    "houses": {"type": "array", "items": {"type": "object"}},
+    "organizations": {"type": "array", "items": {"type": "object"}},
+    "external_events": {"type": "array", "items": {"type": "object"}},
+    "incidents": {"type": "array", "items": {"type": "object"}},
+    "reports": {"type": "array", "items": {"type": "object"}},
+    "decisions": {"type": "array", "items": {"type": "object"}},
+    "counterfactuals": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false
+}

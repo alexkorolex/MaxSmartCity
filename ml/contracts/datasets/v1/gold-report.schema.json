@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/datasets/v1/gold-report.json",
+  "title": "Human report annotation v1",
+  "type": "object",
+  "required": [
+    "annotation_version",
+    "example_id",
+    "text",
+    "category_ids",
+    "subcategory_ids",
+    "entities",
+    "danger_signals",
+    "needs_clarification",
+    "ambiguity",
+    "source",
+    "review_status",
+    "annotator",
+    "reviewer"
+  ],
+  "properties": {
+    "annotation_version": {"const": "gold-report-v1"},
+    "example_id": {"type": "string", "minLength": 1},
+    "text": {"type": "string", "minLength": 1},
+    "category_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "subcategory_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "type", "value"],
+        "properties": {
+          "start": {"type": "integer", "minimum": 0},
+          "end": {"type": "integer", "minimum": 1},
+          "type": {"type": "string"},
+          "value": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "danger_signals": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "needs_clarification": {"type": "boolean"},
+    "ambiguity": {"type": "boolean"},
+    "source": {"enum": ["HUMAN_AUTHORED", "REAL_ANONYMIZED"]},
+    "review_status": {"enum": ["DRAFT", "REVIEWED", "FROZEN"]},
+    "annotator": {"type": "string"},
+    "reviewer": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

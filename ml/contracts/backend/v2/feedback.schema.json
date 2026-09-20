@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/feedback.json",
+  "title": "Operator feedback for an ML decision",
+  "type": "object",
+  "required": ["feedback_id", "decision_id", "occurred_at", "feedback_type", "prediction", "operator_action"],
+  "properties": {
+    "feedback_id": {"type": "string"},
+    "decision_id": {"type": "string"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "feedback_type": {
+      "enum": [
+        "ACCEPTED",
+        "OVERRIDDEN",
+        "REPORT_DETACHED",
+        "REPORT_ATTACHED",
+        "INCIDENT_MERGED",
+        "INCIDENT_SPLIT",
+        "ORGANIZATION_CHANGED",
+        "RESOLUTION_DISPUTED"
+      ]
+    },
+    "prediction": {"type": "object"},
+    "operator_action": {"type": "object"},
+    "metadata": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

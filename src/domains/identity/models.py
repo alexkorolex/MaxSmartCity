@@ -43,6 +43,8 @@ class OperatorUser(Entity):
     display_name: Mapped[str] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    keycloak_subject: Mapped[str | None] = mapped_column(String(64), unique=True)
+    max_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
 
 
 class Organization(Entity):
@@ -60,6 +62,19 @@ class Organization(Entity):
         )
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+
+
+class Department(Entity):
+    __tablename__ = "department"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_department_organization_code"),
+        {"schema": "identity"},
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("identity.organization.id"), index=True)
+    code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Role(Association):
@@ -98,6 +113,7 @@ class OrganizationMember(Entity):
     )
 
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("identity.organization.id"), index=True)
+    department_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.department.id"), index=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("identity.operator_user.id"), index=True)
     role_id: Mapped[UUID] = mapped_column(ForeignKey("identity.role.id"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

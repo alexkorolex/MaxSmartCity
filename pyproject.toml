@@ -9,6 +9,7 @@ dependencies = [
     "alembic>=1.16",
     "asyncpg>=0.30",
     "geoalchemy2>=0.18",
+    "httpx>=0.28.1",
     "litestar-autowire[dishka,queues]>=0.2.0",
     "python-dotenv>=1.2.3",
     "litestar-granian>=0.16.0",

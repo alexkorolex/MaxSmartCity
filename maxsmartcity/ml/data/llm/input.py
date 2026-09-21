@@ -36,9 +36,7 @@ def _parse_fact(raw: dict[str, Any]) -> ScenarioFact:
         street=_string(location, "street"),
         house_number=_string(location, "house_number"),
         source_dataset_id=_string(source, "dataset_id"),
-        source_attributes=tuple(
-            sorted((str(key), str(value)) for key, value in source_attributes.items())
-        ),
+        source_attributes=tuple(sorted((str(key), str(value)) for key, value in source_attributes.items())),
         context_tags=_strings(raw, "context_tags", allow_empty=True),
         danger_signals=_strings(raw, "danger_signals", allow_empty=True),
         needs_clarification=_boolean(raw, "needs_clarification"),

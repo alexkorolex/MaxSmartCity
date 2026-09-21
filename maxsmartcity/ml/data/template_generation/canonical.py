@@ -57,9 +57,7 @@ class CanonicalTemplateSeedGenerator:
             msg = f"seed overrides reference unknown facts: {sorted(unknown_overrides)}"
             raise ValueError(msg)
         curated_ids = {
-            fact.scenario_spec_id
-            for fact in facts
-            if fact.source_dataset_id == "ml-data-curated-facts"
+            fact.scenario_spec_id for fact in facts if fact.source_dataset_id == "ml-data-curated-facts"
         }
         missing_overrides = curated_ids - set(overrides)
         if missing_overrides:
@@ -185,11 +183,7 @@ def _parse_override(raw: object) -> CanonicalSeedOverride:
 
 def _string_tuple(payload: dict[str, Any], key: str) -> tuple[str, ...]:
     value = payload.get(key)
-    if (
-        not isinstance(value, list)
-        or not value
-        or not all(isinstance(item, str) and item for item in value)
-    ):
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
         msg = f"{key} must be a string list"
         raise ValueError(msg)
     return tuple(value)

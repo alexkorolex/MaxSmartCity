@@ -13,9 +13,7 @@ def test_gold_v2_expansion_is_balanced_deterministic_and_grounded() -> None:
     assert len(frames) == 80
     assert len(examples) == 160
     assert len({frame.scenario_id for frame in frames}) == 80
-    assert all(
-        sum(example.frame_id == frame.scenario_id for example in examples) == 2 for frame in frames
-    )
+    assert all(sum(example.frame_id == frame.scenario_id for example in examples) == 2 for frame in frames)
     assert all(
         frame.house_number in example.text and frame.street in example.text
         for frame in frames

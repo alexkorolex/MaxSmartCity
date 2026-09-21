@@ -126,17 +126,13 @@ def _preserves_negated_danger(text: str) -> bool:
 def _matches_declared_style(text: str, style_id: str) -> bool:
     if style_id == "caps":
         letters = [character for character in text if character.isalpha()]
-        return (
-            bool(letters)
-            and sum(character.isupper() for character in letters) / len(letters) >= 0.7
-        )
+        return bool(letters) and sum(character.isupper() for character in letters) / len(letters) >= 0.7
     if style_id == "emoji":
         return re.search(r"[\u2600-\u27bf\U0001f300-\U0001faff]", text) is not None
     if style_id == "self_correction":
         normalized = _normalize(text)
         return any(
-            marker in normalized
-            for marker in ("точнее", "вернее", "то есть", "нет поправлюсь", "ой нет")
+            marker in normalized for marker in ("точнее", "вернее", "то есть", "нет поправлюсь", "ой нет")
         )
     if style_id == "short":
         return len(text) <= 140

@@ -110,20 +110,17 @@ def test_template_preview_has_no_creative_style_markers() -> None:
 
 def test_canonical_template_seeds_cover_every_fact_twice(tmp_path: Path) -> None:
     facts = load_scenario_facts(CANONICAL_FACTS_PATH)
-    examples = CanonicalTemplateSeedGenerator(
-        load_canonical_seed_config(CANONICAL_CONFIG_PATH)
-    ).generate(facts)
+    examples = CanonicalTemplateSeedGenerator(load_canonical_seed_config(CANONICAL_CONFIG_PATH)).generate(
+        facts
+    )
 
     assert len(facts) == 181
     assert len(examples) == 362
     assert len({example.frame_id for example in examples}) == 181
     assert all(
-        sum(candidate.frame_id == example.frame_id for candidate in examples) == 2
-        for example in examples
+        sum(candidate.frame_id == example.frame_id for candidate in examples) == 2 for example in examples
     )
-    assert all(
-        example.house_number in example.text for example in examples if example.address_required
-    )
+    assert all(example.house_number in example.text for example in examples if example.address_required)
     assert all(
         not example.street and not example.house_number
         for example in examples
@@ -215,8 +212,7 @@ def test_paraphrase_validator_respects_location_scope_and_negation() -> None:
                 True,
             ),
             GeneratedVariant(
-                f"По адресу {smoke.street}, дом {smoke.house_number}, "
-                "ощущается дым, огня не видно.",
+                f"По адресу {smoke.street}, дом {smoke.house_number}, ощущается дым, огня не видно.",
                 "natural",
                 True,
             ),
@@ -252,14 +248,12 @@ def test_paraphrase_validator_preserves_spark_negation_and_forbids_added_address
         spark_example,
         (
             GeneratedVariant(
-                f"По адресу {example.street}, дом {example.house_number}, "
-                "нет света, искрения в щитке нет.",
+                f"По адресу {example.street}, дом {example.house_number}, нет света, искрения в щитке нет.",
                 "neutral",
                 True,
             ),
             GeneratedVariant(
-                f"В доме {example.house_number} на {example.street} отключился свет, "
-                "щиток не искрит.",
+                f"В доме {example.house_number} на {example.street} отключился свет, щиток не искрит.",
                 "natural",
                 True,
             ),

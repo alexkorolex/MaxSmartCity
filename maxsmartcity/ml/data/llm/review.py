@@ -93,9 +93,7 @@ def write_review_queue(path: Path, rows: tuple[dict[str, str], ...]) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=REVIEW_FIELDS, extrasaction="raise")
         writer.writeheader()
-        writer.writerows(
-            {key: _spreadsheet_safe(value) for key, value in row.items()} for row in rows
-        )
+        writer.writerows({key: _spreadsheet_safe(value) for key, value in row.items()} for row in rows)
 
 
 def build_review_summary(rows: tuple[dict[str, str], ...]) -> dict[str, Any]:
@@ -104,12 +102,8 @@ def build_review_summary(rows: tuple[dict[str, str], ...]) -> dict[str, Any]:
         "candidate_count": len(rows),
         "scenario_count": len({row["scenario_spec_id"] for row in rows}),
         "counts": {
-            "source_dataset_ids": dict(
-                sorted(Counter(row["source_dataset_id"] for row in rows).items())
-            ),
-            "generation_passes": dict(
-                sorted(Counter(row["generation_pass"] for row in rows).items())
-            ),
+            "source_dataset_ids": dict(sorted(Counter(row["source_dataset_id"] for row in rows).items())),
+            "generation_passes": dict(sorted(Counter(row["generation_pass"] for row in rows).items())),
             "styles": dict(sorted(Counter(row["style_id"] for row in rows).items())),
         },
         "allowed_review_decisions": ["ACCEPT", "REJECT", "EDIT"],

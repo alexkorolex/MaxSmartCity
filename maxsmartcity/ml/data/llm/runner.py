@@ -87,9 +87,7 @@ class LlmGenerationRunner:
         progress_path = output_dir / "generations.jsonl"
         records = _load_records(progress_path)
         completed = {
-            str(record["task_key"])
-            for record in records
-            if self._record_matches_current_run(record)
+            str(record["task_key"]) for record in records if self._record_matches_current_run(record)
         }
         for task in tasks:
             if task.key in completed:
@@ -297,9 +295,7 @@ def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _write_payloads(path: Path, payloads: list[dict[str, Any]]) -> str:
-    content = "".join(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n" for payload in payloads
-    )
+    content = "".join(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n" for payload in payloads)
     path.write_text(content, encoding="utf-8", newline="\n")
     return hashlib.sha256(content.encode()).hexdigest()
 

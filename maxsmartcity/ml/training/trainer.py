@@ -61,9 +61,7 @@ def _git_commit() -> str:
     return result.stdout.strip()
 
 
-def _primary_correctness(
-    y_true: np.ndarray, probabilities: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+def _primary_correctness(y_true: np.ndarray, probabilities: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     top_indices = np.argmax(probabilities, axis=1)
     confidences = np.max(probabilities, axis=1)
     correctness = y_true[np.arange(len(y_true)), top_indices].astype(float)
@@ -113,8 +111,7 @@ class CategoryTrainer:
             for name, examples in splits.items()
         }
         y_true = {
-            name: binarizer.transform([item.labels for item in examples])
-            for name, examples in splits.items()
+            name: binarizer.transform([item.labels for item in examples]) for name, examples in splits.items()
         }
         validation_confidence, validation_correctness = _primary_correctness(
             y_true["validation"], probabilities["validation"]
@@ -129,9 +126,7 @@ class CategoryTrainer:
         abstain_threshold = max(selected_abstain_threshold, self._config.label_threshold)
         threshold_selection["selected_before_label_floor"] = selected_abstain_threshold
         threshold_selection["threshold"] = abstain_threshold
-        threshold_selection["label_threshold_floor_applied"] = (
-            abstain_threshold != selected_abstain_threshold
-        )
+        threshold_selection["label_threshold_floor_applied"] = abstain_threshold != selected_abstain_threshold
         validation_accepted = validation_confidence >= abstain_threshold
         effective_coverage = float(np.mean(validation_accepted))
         effective_accuracy = (
@@ -146,9 +141,7 @@ class CategoryTrainer:
             and effective_accuracy >= self._config.automation_precision_target
         )
 
-        majority_label = Counter(label for item in train for label in item.labels).most_common(1)[
-            0
-        ][0]
+        majority_label = Counter(label for item in train for label in item.labels).most_common(1)[0][0]
         majority_index = labels.index(majority_label)
         majority_metrics: dict[str, Any] = {"label": majority_label, "splits": {}}
         for name in ("validation", "test"):
@@ -247,9 +240,7 @@ class CategoryTrainer:
         model_path = target / "model.joblib"
         metrics_path = target / "metrics.json"
         joblib.dump(bundle, model_path)
-        metrics_path.write_text(
-            json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         manifest = {
             "model_name": "category-tfidf-logreg",
             "model_version": self._config.model_version,

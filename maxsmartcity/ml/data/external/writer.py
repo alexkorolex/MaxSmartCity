@@ -21,8 +21,7 @@ class ExternalScenarioWriter:
         output_dir.mkdir(parents=True, exist_ok=True)
         scenario_path = output_dir / "scenarios.jsonl"
         lines = [
-            json.dumps(_scenario_payload(item), ensure_ascii=False, sort_keys=True)
-            for item in scenarios
+            json.dumps(_scenario_payload(item), ensure_ascii=False, sort_keys=True) for item in scenarios
         ]
         content = "\n".join(lines) + "\n"
         scenario_path.write_text(content, encoding="utf-8", newline="\n")

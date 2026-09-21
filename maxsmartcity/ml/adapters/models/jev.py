@@ -76,6 +76,4 @@ def _render_incident_hypothesis(candidate: IncidentCandidate) -> str:
         "priority": candidate.priority,
         "started_at": candidate.started_at.isoformat(),
     }
-    return "Сообщение относится к инциденту: " + json.dumps(
-        details, ensure_ascii=False, sort_keys=True
-    )
+    return "Сообщение относится к инциденту: " + json.dumps(details, ensure_ascii=False, sort_keys=True)

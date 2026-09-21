@@ -15,8 +15,7 @@ def write_template_preview(
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     jsonl = "".join(
-        json.dumps(asdict(example), ensure_ascii=False, sort_keys=True) + "\n"
-        for example in examples
+        json.dumps(asdict(example), ensure_ascii=False, sort_keys=True) + "\n" for example in examples
     )
     jsonl_path = output_dir / "examples.jsonl"
     jsonl_path.write_text(jsonl, encoding="utf-8", newline="\n")

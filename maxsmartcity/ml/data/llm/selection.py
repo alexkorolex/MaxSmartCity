@@ -150,9 +150,7 @@ def _diverse_sample(
     for fact in candidates:
         grouped[fact.subcategory_id].append(fact)
     for subcategory, items in grouped.items():
-        buckets[subcategory] = deque(
-            sorted(items, key=lambda item: _stable_key(seed, item.scenario_spec_id))
-        )
+        buckets[subcategory] = deque(sorted(items, key=lambda item: _stable_key(seed, item.scenario_spec_id)))
     subcategories = sorted(buckets, key=lambda item: _stable_key(seed, item))
     selected: list[ScenarioFact] = []
     while len(selected) < count:
@@ -187,11 +185,7 @@ def _parse_quota(raw: object) -> SelectionQuota:
 
 def _string_tuple(payload: dict[str, Any], key: str) -> tuple[str, ...]:
     value = payload.get(key)
-    if (
-        not isinstance(value, list)
-        or not value
-        or not all(isinstance(item, str) and item for item in value)
-    ):
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
         msg = f"{key} must be a non-empty string list"
         raise ValueError(msg)
     return tuple(value)

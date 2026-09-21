@@ -1,11 +1,215 @@
 services:
-  ml-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      ML_ARTIFACT_DIR: /app/ml/artifacts/category-tfidf-logreg-v2
-      ML_MAX_INPUT_CHARACTERS: ${ML_MAX_INPUT_CHARACTERS:-4000}
-    ports:
-      - "${ML_PORT:-8000}:8000"
-    restart: unless-stopped
+    db:
+      image: postgis/postgis:17-3.4-alpine
+      environment:
+        "POSTGRES_PASSWORD": ${DB_PASSWORD}
+        "POSTGRES_USER": ${DB_USER}
+        "POSTGRES_DB": ${DB_NAME}
+        "POSTGRES_PORT": ${DB_PORT}
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      ports:
+        - ${DB_PORT}:${DB_PORT}
+      security_opt:
+        - no-new-privileges:true
+
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+    redis:
+      image: redis:7-alpine
+      command: redis-server --save "" --appendonly no
+      ports:
+        - ${REDIS_PORT}:6379
+      security_opt:
+        - no-new-privileges:true
+
+      healthcheck:
+        test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+    migrate:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      environment:
+        DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      command: ["alembic", "upgrade", "head"]
+      depends_on:
+        db:
+          condition: service_healthy
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 50
+      mem_limit: 256m
+      restart: "no"
+
+    backend:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      environment:
+        DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+        REDIS_URL: redis://redis:6379/0
+        WEB_CONCURRENCY: 2
+        KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
+        KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI}
+        KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL}
+        KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+        KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE}
+        KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+        KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+        KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+        KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+        RESIDENT_JWT_SECRET: ${RESIDENT_JWT_SECRET}
+        BOT_SHARED_SECRET: ${BOT_SHARED_SECRET}
+        ML_SERVICE_URL: ${ML_SERVICE_URL}
+        ML_REQUEST_TIMEOUT_SECONDS: ${ML_REQUEST_TIMEOUT_SECONDS:-5}
+      ports:
+        - ${APP_PORT}:8000
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        migrate:
+          condition: service_completed_successfully
+        keycloak:
+          condition: service_healthy
+        ml-service:
+          condition: service_healthy
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 512m
+      mem_reservation: 256m
+      cpus: "1.0"
+
+    ml-service:
+      build:
+        context: .
+        dockerfile: Dockerfile.ml
+      environment:
+        ML_MAX_INPUT_CHARACTERS: ${ML_MAX_INPUT_CHARACTERS:-4000}
+      ports:
+        - ${ML_PORT}:8000
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 512m
+      mem_reservation: 256m
+      cpus: "1.0"
+      restart: unless-stopped
+
+    keycloak:
+      image: quay.io/keycloak/keycloak:26.0
+      command: ["start-dev", "--import-realm", "--health-enabled=true"]
+      environment:
+        KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+        KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+        KC_HOSTNAME: ${KEYCLOAK_BASE_URL}
+      volumes:
+        - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+        - keycloak_data:/opt/keycloak/data
+      ports:
+        - ${KEYCLOAK_PORT}:8080
+      security_opt:
+        - no-new-privileges:true
+      tmpfs:
+        - /tmp
+      mem_limit: 768m
+      pids_limit: 150
+
+      healthcheck:
+        test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 30s
+
+    loki:
+      image: grafana/loki:3.3.2
+      command: -config.file=/etc/loki/local-config.yaml
+      volumes:
+        - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+        - loki_data:/loki
+      ports:
+        - ${LOKI_PORT}:3100
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 512m
+      pids_limit: 100
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+    promtail:
+      image: grafana/promtail:3.3.2
+      command: -config.file=/etc/promtail/promtail-config.yaml
+      volumes:
+        - ./observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 256m
+      pids_limit: 50
+      depends_on:
+        loki:
+          condition: service_healthy
+
+    grafana:
+      image: grafana/grafana:11.4.0
+      environment:
+        GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+        GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+      volumes:
+        - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+        - grafana_data:/var/lib/grafana
+      ports:
+        - ${GRAFANA_PORT}:3000
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      mem_limit: 256m
+      pids_limit: 50
+      depends_on:
+        loki:
+          condition: service_healthy
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+volumes:
+  postgres_data:
+  keycloak_data:
+  loki_data:
+  grafana_data:

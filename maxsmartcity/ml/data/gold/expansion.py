@@ -144,8 +144,7 @@ class GoldV2ExpansionWriter:
             json.dumps(asdict(frame), ensure_ascii=False, sort_keys=True) + "\n" for frame in frames
         )
         seed_content = "".join(
-            json.dumps(asdict(example), ensure_ascii=False, sort_keys=True) + "\n"
-            for example in examples
+            json.dumps(asdict(example), ensure_ascii=False, sort_keys=True) + "\n" for example in examples
         )
         frame_path.write_text(frame_content, encoding="utf-8", newline="\n")
         seed_path.write_text(seed_content, encoding="utf-8", newline="\n")
@@ -155,9 +154,7 @@ class GoldV2ExpansionWriter:
             "example_count": len(examples),
             "profile_count": len({frame.scenario_id.rsplit("-", 1)[0] for frame in frames}),
             "routing_counts": _counts(frame.routing_outcome for frame in frames),
-            "primary_category_counts": _counts(
-                frame.primary_category or "NONE" for frame in frames
-            ),
+            "primary_category_counts": _counts(frame.primary_category or "NONE" for frame in frames),
             "files": {
                 "frames.jsonl": _hash(frame_content.encode()),
                 "examples.jsonl": _hash(seed_content.encode()),
@@ -224,11 +221,7 @@ def _addresses(payload: dict[str, Any]) -> tuple[tuple[str, str], ...]:
         raise ValueError(msg)
     result: list[tuple[str, str]] = []
     for item in raw:
-        if (
-            not isinstance(item, list)
-            or len(item) != 2
-            or not all(isinstance(x, str) for x in item)
-        ):
+        if not isinstance(item, list) or len(item) != 2 or not all(isinstance(x, str) for x in item):
             msg = "every address must contain street and house number"
             raise ValueError(msg)
         result.append((item[0], item[1]))

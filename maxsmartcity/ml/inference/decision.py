@@ -81,9 +81,7 @@ class ArtifactDecisionModel:
             ),
             action_ranking=RankingResult(
                 abstain_reason=(
-                    "NO_ACTION_CANDIDATES"
-                    if not request.action_candidates
-                    else "ACTION_MODEL_NOT_CONFIGURED"
+                    "NO_ACTION_CANDIDATES" if not request.action_candidates else "ACTION_MODEL_NOT_CONFIGURED"
                 )
             ),
             requires_manual_review=prediction.abstain or incident_ranking.abstain,

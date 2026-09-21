@@ -76,9 +76,7 @@ class GoldV2Migrator:
         if override is not None:
             return override
         outcomes = {
-            outcome
-            for label, outcome in self._config.routing_labels.items()
-            if label in category_ids
+            outcome for label, outcome in self._config.routing_labels.items() if label in category_ids
         }
         if len(outcomes) > 1:
             msg = f"conflicting routing labels: {sorted(outcomes)}"
@@ -171,9 +169,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> dict[str, Any]:
-    content = "".join(
-        json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n" for record in records
-    )
+    content = "".join(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n" for record in records)
     path.write_text(content, encoding="utf-8", newline="\n")
     return {"record_count": len(records), "sha256": hashlib.sha256(content.encode()).hexdigest()}
 

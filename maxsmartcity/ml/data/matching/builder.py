@@ -82,9 +82,7 @@ class MatchingDatasetBuilder:
             candidate_ids = [str(item) for item in decision["candidate_incident_ids"]]
             unknown = (target_ids | set(candidate_ids)) - set(incident_by_id)
             if unknown:
-                raise ValueError(
-                    f"Unknown incident IDs in {decision['decision_id']}: {sorted(unknown)}"
-                )
+                raise ValueError(f"Unknown incident IDs in {decision['decision_id']}: {sorted(unknown)}")
             queries.append(
                 {
                     "query_id": report_id,
@@ -119,9 +117,7 @@ class MatchingDatasetBuilder:
                         "candidate_incident_id": candidate_id,
                         "candidate_text": self._incident_text(incident, addresses_by_scenario),
                         "label": "MATCH" if is_match else "NO_MATCH",
-                        "negative_type": None
-                        if is_match
-                        else self._negative_type(report, incident),
+                        "negative_type": None if is_match else self._negative_type(report, incident),
                     }
                 )
 
@@ -155,8 +151,7 @@ class MatchingDatasetBuilder:
             "limitations": [
                 "Synthetic benchmark; not a replacement for frozen human-reviewed pairs.",
                 "Candidates are generated from a small closed synthetic incident universe.",
-                "Query scenarios are split safely, but the candidate corpus is shared "
-                "across splits.",
+                "Query scenarios are split safely, but the candidate corpus is shared across splits.",
                 "Backend/ingestion canonical snapshots must replace demo IDs before integration.",
             ],
         }
@@ -166,9 +161,7 @@ class MatchingDatasetBuilder:
         return manifest
 
     @staticmethod
-    def _incident_text(
-        incident: dict[str, Any], addresses_by_scenario: dict[str, list[str]]
-    ) -> str:
+    def _incident_text(incident: dict[str, Any], addresses_by_scenario: dict[str, list[str]]) -> str:
         addresses = addresses_by_scenario.get(str(incident["scenario_id"]), [])
         rendered_addresses = "; ".join(addresses) if addresses else "адрес не указан"
         return (

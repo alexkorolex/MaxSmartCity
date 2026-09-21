@@ -37,9 +37,7 @@ class GoldV2Assembler:
         for seed in seeds:
             seeds_by_frame.setdefault(seed.frame_id, []).append(seed)
         candidates = _load_candidates(candidate_paths)
-        normalized = {
-            _normalize(record["text"]) for records in splits.values() for record in records
-        }
+        normalized = {_normalize(record["text"]) for records in splits.values() for record in records}
         for frame in frames:
             records = self._expansion_records(
                 frame,
@@ -55,9 +53,7 @@ class GoldV2Assembler:
         for record in records:
             record["review_status"] = "REVIEWED"
             record["reviewer"] = self._reviewer
-            record["notes"] = (
-                "Gold v1 text retained; labels migrated and audited against backend-aligned v2."
-            )
+            record["notes"] = "Gold v1 text retained; labels migrated and audited against backend-aligned v2."
         return records
 
     def _expansion_records(
@@ -67,9 +63,7 @@ class GoldV2Assembler:
         candidates: list[dict[str, Any]],
         normalized: set[str],
     ) -> list[dict[str, Any]]:
-        matching_candidates = [
-            item for item in candidates if item.get("base_problem") == frame.problem
-        ]
+        matching_candidates = [item for item in candidates if item.get("base_problem") == frame.problem]
         matching_candidates.sort(key=lambda item: item.get("style_id") != "neutral")
         sources = [
             *[(seed.text, "SYNTHETIC_TEMPLATE", seed.example_id, None) for seed in seeds[:1]],
@@ -91,9 +85,7 @@ class GoldV2Assembler:
         if len(selected) != 2:
             msg = f"could not select two unique texts for {frame.scenario_id}"
             raise ValueError(msg)
-        return [
-            self._expansion_record(frame, source, index) for index, source in enumerate(selected)
-        ]
+        return [self._expansion_record(frame, source, index) for index, source in enumerate(selected)]
 
     def _expansion_record(
         self,
@@ -191,9 +183,7 @@ def write_candidate_snapshot(
     *, frames_path: Path, candidate_paths: tuple[Path, ...], output_path: Path
 ) -> Path:
     """Persist only candidates that belong to the versioned expansion frames."""
-    expected_problem = {
-        str(item["scenario_id"]): str(item["problem"]) for item in _read_jsonl(frames_path)
-    }
+    expected_problem = {str(item["scenario_id"]): str(item["problem"]) for item in _read_jsonl(frames_path)}
     selected: dict[str, dict[str, Any]] = {}
     for path in candidate_paths:
         for item in _read_jsonl(path):
@@ -242,9 +232,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> dict[str, Any]:
-    content = "".join(
-        json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n" for record in records
-    )
+    content = "".join(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n" for record in records)
     path.write_text(content, encoding="utf-8", newline="\n")
     return {"record_count": len(records), "sha256": hashlib.sha256(content.encode()).hexdigest()}
 

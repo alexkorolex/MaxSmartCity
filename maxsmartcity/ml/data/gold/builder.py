@@ -91,9 +91,7 @@ class ReviewedDatasetBuilder:
         candidate_paths: tuple[Path, ...],
     ) -> tuple[GoldReportAnnotation, ...]:
         facts = load_scenario_facts(canonical_path)
-        seeds = CanonicalTemplateSeedGenerator(
-            load_canonical_seed_config(seed_config_path)
-        ).generate(facts)
+        seeds = CanonicalTemplateSeedGenerator(load_canonical_seed_config(seed_config_path)).generate(facts)
         first_seeds: dict[str, TemplateExample] = {}
         for seed in seeds:
             first_seeds.setdefault(seed.frame_id, seed)
@@ -124,9 +122,7 @@ class ReviewedDatasetBuilder:
             else:
                 candidate = candidates.get(fact.scenario_spec_id)
                 if candidate is None:
-                    msg = (
-                        f"missing {self._config.preferred_style} candidate: {fact.scenario_spec_id}"
-                    )
+                    msg = f"missing {self._config.preferred_style} candidate: {fact.scenario_spec_id}"
                     raise ValueError(msg)
                 text = required_string(candidate, "text")
                 source_id = required_string(candidate, "candidate_id")
@@ -192,9 +188,7 @@ class ReviewedDatasetWriter:
             "test": [],
         }
         split_overrides = dict(config.split_overrides)
-        scenario_ids = {
-            record.scenario_spec_id for record in records if record.scenario_spec_id is not None
-        }
+        scenario_ids = {record.scenario_spec_id for record in records if record.scenario_spec_id is not None}
         if set(split_overrides) - scenario_ids:
             unknown = sorted(set(split_overrides) - scenario_ids)
             msg = f"split overrides reference unknown scenarios: {unknown}"
@@ -284,9 +278,7 @@ def _parse_override(raw: object) -> TextOverride:
     )
 
 
-def _assert_two_records_per_scenario(
-    records: tuple[GoldReportAnnotation, ...], scenario_count: int
-) -> None:
+def _assert_two_records_per_scenario(records: tuple[GoldReportAnnotation, ...], scenario_count: int) -> None:
     counts = Counter(item.scenario_spec_id for item in records)
     if len(counts) != scenario_count or set(counts.values()) != {2}:
         msg = "reviewed dataset must contain exactly two texts per scenario"
@@ -303,8 +295,7 @@ def _assert_unique_texts(records: tuple[GoldReportAnnotation, ...]) -> None:
 
 def _assert_split_isolation(splits: dict[str, list[GoldReportAnnotation]]) -> None:
     groups = [
-        {record.scenario_spec_id for record in splits[name]}
-        for name in ("train", "validation", "test")
+        {record.scenario_spec_id for record in splits[name]} for name in ("train", "validation", "test")
     ]
     if groups[0] & groups[1] or groups[0] & groups[2] or groups[1] & groups[2]:
         msg = "scenario leakage detected in reviewed dataset splits"

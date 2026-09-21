@@ -135,12 +135,8 @@ class TemplateParaphraseValidator:
         example: TemplateExample,
         variants: tuple[GeneratedVariant, ...],
     ) -> tuple[tuple[GeneratedVariant, tuple[str, ...]], ...]:
-        style_counts = {
-            style: sum(item.style_id == style for item in variants) for style in self.styles
-        }
-        return tuple(
-            (variant, self._errors(example, variant, style_counts)) for variant in variants
-        )
+        style_counts = {style: sum(item.style_id == style for item in variants) for style in self.styles}
+        return tuple((variant, self._errors(example, variant, style_counts)) for variant in variants)
 
     @property
     def styles(self) -> tuple[str, ...]:
@@ -174,9 +170,7 @@ class TemplateParaphraseValidator:
             errors.append("UNSUPPORTED_TIME")
         if self._invented_urgency.search(text):
             errors.append("UNSUPPORTED_URGENCY")
-        if self._unsupported_intensity.search(text) and not self._unsupported_intensity.search(
-            example.text
-        ):
+        if self._unsupported_intensity.search(text) and not self._unsupported_intensity.search(example.text):
             errors.append("UNSUPPORTED_INTENSITY")
         organization_allowed = (
             "misleading_organization_mention" in example.context_tags
@@ -186,9 +180,7 @@ class TemplateParaphraseValidator:
             errors.append("UNSUPPORTED_ORGANIZATION")
         if re.search(r"[!?]{2,}|\.{3,}", text):
             errors.append("EXCESSIVE_PUNCTUATION")
-        if example.address_required and not contains_address(
-            text, example.street, example.house_number
-        ):
+        if example.address_required and not contains_address(text, example.street, example.house_number):
             errors.append("REQUIRED_ADDRESS_MISSING")
         if not example.address_required and re.search(
             r"\b(?:(?:дом|д\.)\s*\d+|улиц\w*|ул\.\s|проспект\w*|переул\w*|шоссе)\b",
@@ -466,9 +458,7 @@ def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _write_jsonl(path: Path, payloads: list[dict[str, Any]]) -> None:
-    content = "".join(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n" for payload in payloads
-    )
+    content = "".join(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n" for payload in payloads)
     path.write_text(content, encoding="utf-8", newline="\n")
 
 

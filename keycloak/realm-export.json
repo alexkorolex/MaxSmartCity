@@ -1,0 +1,112 @@
+{
+  "realm": "maxsmartcity",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Full administrative access across all organizations"
+      },
+      {
+        "name": "housing_worker",
+        "description": "Housing/utility organization staff (power grid, water, emergency)"
+      },
+      {
+        "name": "district_admin",
+        "description": "District administration (uprava) staff"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "maxsmartcity-backend",
+      "name": "MaxSmartCity backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "maxsmartcity-backend-dev-secret",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "maxsmartcity-backend",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin_test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin_test",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
+      "requiredActions": [],
+      "email": "admin_test@maxsmartcity.local",
+      "firstName": "admin_test",
+      "lastName": "Test"
+    },
+    {
+      "username": "housing_test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "housing_test",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "housing_worker"
+      ],
+      "requiredActions": [],
+      "email": "housing_test@maxsmartcity.local",
+      "firstName": "housing_test",
+      "lastName": "Test"
+    },
+    {
+      "username": "uprava_test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "uprava_test",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "district_admin"
+      ],
+      "requiredActions": [],
+      "email": "uprava_test@maxsmartcity.local",
+      "firstName": "uprava_test",
+      "lastName": "Test"
+    }
+  ]
+}

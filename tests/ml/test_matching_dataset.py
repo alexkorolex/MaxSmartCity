@@ -5,9 +5,7 @@ from maxsmartcity.ml.data.matching import MatchingDatasetBuilder
 
 
 def _write(path: Path, rows: list[dict[str, object]]) -> None:
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
-    )
+    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
 
 
 def test_matching_builder_creates_qrels_and_hard_negatives(tmp_path: Path) -> None:

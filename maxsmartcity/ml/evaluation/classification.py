@@ -15,9 +15,7 @@ from sklearn.metrics import (
 )
 
 
-def expected_calibration_error(
-    confidences: np.ndarray, correctness: np.ndarray, bins: int = 10
-) -> float:
+def expected_calibration_error(confidences: np.ndarray, correctness: np.ndarray, bins: int = 10) -> float:
     edges = np.linspace(0.0, 1.0, bins + 1)
     value = 0.0
     for lower, upper in pairwise(edges):

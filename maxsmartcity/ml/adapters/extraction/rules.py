@@ -84,9 +84,7 @@ class RuleFeatureExtractor:
             values["problem_continues"] = continues
 
         missing = tuple(
-            field
-            for field in ("raw_address", "entrance", "floor", "duration")
-            if field not in values
+            field for field in ("raw_address", "entrance", "floor", "duration") if field not in values
         )
         return ExtractedFeatures(
             values=values,
@@ -109,9 +107,7 @@ class RuleFeatureExtractor:
                 continue
             amount_text = match.group("amount").lower()
             amount = (
-                float(amount_text)
-                if amount_text.isdigit()
-                else self._rules.number_words.get(amount_text)
+                float(amount_text) if amount_text.isdigit() else self._rules.number_words.get(amount_text)
             )
             if amount is None:
                 continue

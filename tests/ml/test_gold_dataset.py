@@ -88,9 +88,7 @@ def test_reviewed_mvp_dataset_is_complete_unique_and_leakage_safe() -> None:
 
 def test_reviewed_mvp_contains_semantic_corrections() -> None:
     reports = VALIDATOR.load_and_validate(Path("ml/data/gold/v1/reports.jsonl"))
-    by_scenario = {
-        record.scenario_spec_id: [] for record in reports if record.scenario_spec_id is not None
-    }
+    by_scenario = {record.scenario_spec_id: [] for record in reports if record.scenario_spec_id is not None}
     for record in reports:
         if record.scenario_spec_id is not None:
             by_scenario[record.scenario_spec_id].append(record.text)
@@ -99,13 +97,8 @@ def test_reviewed_mvp_contains_semantic_corrections() -> None:
         "пользователь считает" in text.casefold()
         for text in by_scenario["CURATED-wrong-organization-mentioned"]
     )
-    assert any(
-        "повторно" in text.casefold() for text in by_scenario["CURATED-repeated-user-duplicate"]
-    )
-    assert any(
-        "переполнен" in text.casefold()
-        for text in by_scenario["EXT-SF311-RECENT-CASES-085489f19785"]
-    )
+    assert any("повторно" in text.casefold() for text in by_scenario["CURATED-repeated-user-duplicate"])
+    assert any("переполнен" in text.casefold() for text in by_scenario["EXT-SF311-RECENT-CASES-085489f19785"])
     assert any(
         "вне установленного времени" in text.casefold()
         for text in by_scenario["EXT-SF311-RECENT-CASES-73bba6b69114"]

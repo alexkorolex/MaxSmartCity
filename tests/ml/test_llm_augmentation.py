@@ -114,12 +114,8 @@ def test_main_batch_selection_is_balanced_and_reproducible(tmp_path: Path) -> No
     }
     expected_curated_ids = curated_ids - set(SELECTION_CONFIG.exclude_scenario_ids)
     assert expected_curated_ids <= {fact.scenario_spec_id for fact in selected}
-    assert not set(SELECTION_CONFIG.exclude_scenario_ids) & {
-        fact.scenario_spec_id for fact in selected
-    }
-    assert [fact.scenario_spec_id for fact in selected] == [
-        fact.scenario_spec_id for fact in repeated
-    ]
+    assert not set(SELECTION_CONFIG.exclude_scenario_ids) & {fact.scenario_spec_id for fact in selected}
+    assert [fact.scenario_spec_id for fact in selected] == [fact.scenario_spec_id for fact in repeated]
 
     manifest = build_selection_manifest(
         selected,

@@ -43,9 +43,7 @@ def create_app(runtime: MLRuntime | None = None) -> Litestar:
     active_runtime = runtime or MLRuntime.load(
         artifact_dir=Path(os.getenv("ML_ARTIFACT_DIR", "ml/artifacts/category-tfidf-logreg-v2")),
         rule_config_path=Path(os.getenv("ML_RULE_CONFIG", "ml/configs/rule-baseline.v1.json")),
-        extraction_config_path=Path(
-            os.getenv("ML_EXTRACTION_CONFIG", "ml/configs/extraction-rules.v1.json")
-        ),
+        extraction_config_path=Path(os.getenv("ML_EXTRACTION_CONFIG", "ml/configs/extraction-rules.v1.json")),
         max_input_characters=int(os.getenv("ML_MAX_INPUT_CHARACTERS", "4000")),
     )
 
@@ -127,9 +125,7 @@ def create_app(runtime: MLRuntime | None = None) -> Litestar:
                 f"contract_version must equal {CONTRACT_VERSION}",
                 status_code=400,
             )
-        valid_batch = (
-            isinstance(batch_id, str) and isinstance(items, list) and 1 <= len(items) <= 1024
-        )
+        valid_batch = isinstance(batch_id, str) and isinstance(items, list) and 1 <= len(items) <= 1024
         if not valid_batch:
             return _error(
                 "INVALID_INPUT",
@@ -146,9 +142,7 @@ def create_app(runtime: MLRuntime | None = None) -> Litestar:
                     }
                 )
                 continue
-            body, status_code = await classify_payload(
-                {"contract_version": CONTRACT_VERSION, **item}
-            )
+            body, status_code = await classify_payload({"contract_version": CONTRACT_VERSION, **item})
             if status_code == 200:
                 results.append({"request_id": item.get("request_id"), "response": body})
             else:

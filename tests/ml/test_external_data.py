@@ -43,9 +43,7 @@ def test_bmc_importer_streams_rows(tmp_path: Path) -> None:
     records = BmcCsvImporter().read(source)
 
     assert iter(records) is records
-    assert tuple(records) == (
-        BmcRecord("B-1", "Pothole / Road Damage", "Roads", "High", "Street", "App"),
-    )
+    assert tuple(records) == (BmcRecord("B-1", "Pothole / Road Damage", "Roads", "High", "Street", "App"),)
 
 
 def test_mapping_prefers_more_specific_rule() -> None:
@@ -81,9 +79,7 @@ def test_sf311_container_types_keep_distinct_problem_meanings() -> None:
     assert overflowing is not None
     assert left_out is not None
     assert overflowing.problem == "уличный контейнер для мусора переполнен"
-    assert (
-        left_out.problem == "мусорный контейнер оставлен на улице вне установленного времени вывоза"
-    )
+    assert left_out.problem == "мусорный контейнер оставлен на улице вне установленного времени вывоза"
 
 
 def test_builder_is_deterministic_and_replaces_external_locations() -> None:
@@ -111,8 +107,7 @@ def test_writer_creates_stable_manifest(tmp_path: Path) -> None:
 
     manifest = ExternalScenarioWriter().write(scenarios, tmp_path, config=config)
     payloads = [
-        json.loads(line)
-        for line in (tmp_path / "scenarios.jsonl").read_text(encoding="utf-8").splitlines()
+        json.loads(line) for line in (tmp_path / "scenarios.jsonl").read_text(encoding="utf-8").splitlines()
     ]
 
     assert manifest["record_count"] == 2

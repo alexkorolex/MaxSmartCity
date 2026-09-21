@@ -44,10 +44,7 @@ class RuleIncidentRanker:
                 reasons.append("SAME_FIAS_GUID_FALLBACK")
             elif request.report.fias_guid and candidate.fias_guids:
                 reasons.append("DIFFERENT_FIAS_GUID_FALLBACK")
-            if (
-                request.report.category_hint
-                and candidate.category_id == request.report.category_hint
-            ):
+            if request.report.category_hint and candidate.category_id == request.report.category_hint:
                 raw_score += self.config.same_category_weight
                 reasons.append("SAME_CATEGORY_HINT")
             if abs(request.report.created_at - candidate.started_at) <= timedelta(

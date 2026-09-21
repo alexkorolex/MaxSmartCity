@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import Path
@@ -94,7 +95,7 @@ class MLRuntime:
         return replace(response, input_truncated=truncated)
 
 
-def parse_decision_request(payload: dict[str, Any]) -> DecisionRequest:
+def parse_decision_request(payload: Mapping[str, Any]) -> DecisionRequest:
     _require_contract(payload)
     report_payload = _mapping(payload, "report")
     report = ReportInput(
@@ -138,7 +139,7 @@ def parse_decision_request(payload: dict[str, Any]) -> DecisionRequest:
         incident_candidates=incidents,
         organization_candidates=organizations,
         action_candidates=actions,
-        external_context=external_context,
+        external_context=dict(external_context),
     )
 
 
@@ -150,33 +151,33 @@ def metadata_to_dict(metadata: ModelMetadata) -> dict[str, Any]:
     return asdict(metadata)
 
 
-def _require_contract(payload: dict[str, Any]) -> None:
+def _require_contract(payload: Mapping[str, Any]) -> None:
     if payload.get("contract_version") != CONTRACT_VERSION:
         raise RequestValidationError(f"contract_version must equal {CONTRACT_VERSION}")
 
 
-def _mapping(payload: dict[str, Any], key: str) -> dict[str, Any]:
+def _mapping(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     value = payload.get(key)
     if not isinstance(value, dict):
         raise RequestValidationError(f"{key} must be an object")
     return value
 
 
-def _mapping_list(payload: dict[str, Any], key: str) -> tuple[dict[str, Any], ...]:
+def _mapping_list(payload: Mapping[str, Any], key: str) -> tuple[Mapping[str, Any], ...]:
     value = payload.get(key)
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         raise RequestValidationError(f"{key} must be an array of objects")
     return tuple(value)
 
 
-def _string(payload: dict[str, Any], key: str, *, allow_empty: bool = False) -> str:
+def _string(payload: Mapping[str, Any], key: str, *, allow_empty: bool = False) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or (not allow_empty and not value):
         raise RequestValidationError(f"{key} must be a string")
     return value
 
 
-def _optional_string(payload: dict[str, Any], key: str) -> str | None:
+def _optional_string(payload: Mapping[str, Any], key: str) -> str | None:
     value = payload.get(key)
     if value is None:
         return None
@@ -185,7 +186,7 @@ def _optional_string(payload: dict[str, Any], key: str) -> str | None:
     return value
 
 
-def _datetime(payload: dict[str, Any], key: str) -> datetime:
+def _datetime(payload: Mapping[str, Any], key: str) -> datetime:
     raw = _string(payload, key)
     try:
         value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -196,21 +197,21 @@ def _datetime(payload: dict[str, Any], key: str) -> datetime:
     return value
 
 
-def _string_tuple(payload: dict[str, Any], key: str) -> tuple[str, ...]:
+def _string_tuple(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
     value = payload.get(key)
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise RequestValidationError(f"{key} must be an array of strings")
     return tuple(value)
 
 
-def _string_dict(payload: dict[str, Any], key: str) -> dict[str, str]:
+def _string_dict(payload: Mapping[str, Any], key: str) -> dict[str, str]:
     value = _mapping(payload, key)
     if not all(isinstance(item, str) for item in value.values()):
         raise RequestValidationError(f"{key} values must be strings")
-    return value  # type: ignore[return-value]
+    return dict(value)  # type: ignore[arg-type]
 
 
-def _boolean(payload: dict[str, Any], key: str) -> bool:
+def _boolean(payload: Mapping[str, Any], key: str) -> bool:
     value = payload.get(key)
     if not isinstance(value, bool):
         raise RequestValidationError(f"{key} must be a boolean")

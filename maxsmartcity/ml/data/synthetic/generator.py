@@ -167,8 +167,7 @@ class SyntheticWorldGenerator:
                     scenario_id=scenario_id,
                     incident_id=incident_id,
                     text=_corrupt(
-                        rng.choice(archetype.phrases)
-                        + f" на Массовой улице, дом {house.house_number}",
+                        rng.choice(archetype.phrases) + f" на Массовой улице, дом {house.house_number}",
                         rng,
                     ),
                     category_id=archetype.category_id,

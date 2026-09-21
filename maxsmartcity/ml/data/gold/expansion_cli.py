@@ -19,9 +19,7 @@ def main() -> None:
 
     config = ExpansionConfig.load(args.config)
     frames, examples = GoldV2ExpansionGenerator(config).generate()
-    manifest = GoldV2ExpansionWriter().write(
-        frames, examples, args.output_dir, config_path=args.config
-    )
+    manifest = GoldV2ExpansionWriter().write(frames, examples, args.output_dir, config_path=args.config)
     print(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True))
 
 

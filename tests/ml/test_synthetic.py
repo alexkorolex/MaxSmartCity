@@ -35,9 +35,7 @@ def test_decisions_reference_real_hard_negative_incidents() -> None:
     )
     incident_ids = {incident.incident_id for incident in bundle.incidents}
 
-    assert all(
-        set(decision.candidate_incident_ids) <= incident_ids for decision in bundle.decisions
-    )
+    assert all(set(decision.candidate_incident_ids) <= incident_ids for decision in bundle.decisions)
     assert all(len(decision.candidate_incident_ids) == 2 for decision in bundle.decisions)
 
 
@@ -102,9 +100,7 @@ def test_writer_creates_versioned_manifest(tmp_path: Path) -> None:
 
 
 def test_mass_outage_has_one_incident_and_requested_report_count() -> None:
-    bundle = SyntheticWorldGenerator(CONFIG, master_seed=42).generate_mass_outage(
-        report_count=1_000
-    )
+    bundle = SyntheticWorldGenerator(CONFIG, master_seed=42).generate_mass_outage(report_count=1_000)
 
     assert len(bundle.incidents) == 1
     assert len(bundle.houses) == 100

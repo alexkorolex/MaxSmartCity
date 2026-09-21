@@ -126,9 +126,7 @@ def test_training_writes_loadable_artifact(tmp_path: Path) -> None:
     }
     for split, rows in rows_by_split.items():
         _write_jsonl(dataset_dir / f"{split}.jsonl", rows)
-    (dataset_dir / "manifest.json").write_text(
-        json.dumps({"dataset_version": "test-v1"}), encoding="utf-8"
-    )
+    (dataset_dir / "manifest.json").write_text(json.dumps({"dataset_version": "test-v1"}), encoding="utf-8")
     taxonomy_path = tmp_path / "taxonomy.json"
     taxonomy_path.write_text(
         json.dumps(

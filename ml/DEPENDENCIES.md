@@ -5,7 +5,7 @@
 
 | Возможность | Текущий статус | Владелец / ожидание |
 |---|---|---|
-| Report/Incident contract | Сверен с `origin/main` (`70afe51`) от 2026-09-21; transport DTO ещё draft | **Совместно:** backend добавляет ML-specific DTO/adapter |
+| Report/Incident contract | Backend adapter и HTTP gateway реализованы, UUID передаются строками | **Backend:** подключить gateway к application workflow создания/связывания Incident |
 | Allowed actions | Пустой task-level `ABSTAIN` | **Ждём backend:** Policy Engine и список действий |
 | Organization candidates | Пустой task-level `ABSTAIN` | **Ждём backend:** допустимые организации для состояния |
 | Decision persistence | Response/feedback/event schemas готовы | **Ждём backend:** storage и producer событий |
@@ -13,16 +13,17 @@
 | External events | `external_context` fixture | **Ждём ingestion:** versioned snapshot/API/Parquet |
 | Organization registry | Demo IDs в synthetic config | **Ждём ingestion:** canonical organization export |
 | Taxonomy | Versioned draft JSON | **Совместно:** product/backend/ML утверждают stable IDs |
-| Gold dataset | Reviewed MVP v1: 362 уникальных текста / 181 сценарий, leakage-safe splits | **Нужен human sign-off:** затем сменить статус `REVIEWED` на `FROZEN` |
+| Gold dataset | Backend-aligned v2: 522 текста / 261 сценарий, leakage-safe splits | **Нужен human sign-off:** затем независимый human/OOD freeze |
 | Multi-report / reranker Gold | Synthetic v1: 1,100 queries, 1,000 qrels, 3,000 pairs; human Gold отсутствует | **Наша ответственность:** 50–100 reviewed scenarios; **backend:** active incident snapshot |
 | Synthetic world | Linked world + noise/counterfactual/mass generators | **Наша ответственность:** расширять стили и OOD |
 | LLM synthetic | Full v1 выполнен: 353 auto-pass, 7 quarantine, стоимость 4.0278 ₽ | **Наша ответственность:** human review, deduplication и freeze |
-| Category model | CPU TF-IDF+LogReg baseline обучается и загружается локально; в DecisionService ещё не подключён | **Наша ответственность:** расширить/freeze Gold, затем подключить adapter |
+| Category model | CPU TF-IDF+LogReg baseline подключён к DecisionService и Docker inference | **Наша ответственность:** расширить/freeze Gold перед автоматизацией |
 | Extraction model | Config-driven MVP rules извлекают raw address, entrance/floor, duration, scale, danger и continuation; canonical IDs не выдумываются | **Наша ответственность:** расширять правила/датасет; модель только при достаточной разметке |
 | Retrieval/reranker | Rule benchmark, synthetic retrieval/reranking corpus, Jev scaffold и Qwen3.5-4B LoRA plan | **Наша ответственность:** benchmark/train на RTX 3060; **backend:** выдавать active candidates |
 | Calibration | ECE/Brier/risk-coverage считаются; ABSTAIN threshold выбирается на validation; сами probabilities ещё не calibrated | **Наша ответственность:** Platt/isotonic после расширения Gold, automation пока выключена |
-| Inference API | Wire schemas готовы, transport отсутствует | **Совместно с backend:** async HTTP/queue; sync model adapter остаётся внутри worker |
+| Inference API | HTTP classify/batch/decide, health/readiness, Docker и backend gateway готовы | **Backend:** orchestration и persistence; bounded queue — после появления реальной нагрузки |
 | Vision/OCR | Не реализовано | **Наша ответственность, P1:** не блокирует MVP |
+| Stress benchmark | 10 000 mass-outage Reports проходят реальный HTTP batch endpoint без ошибок | **Наша ответственность:** следить за throughput/abstain regression; RAM/queue benchmark после появления worker queue |
 
 ## Принцип работы заглушек
 

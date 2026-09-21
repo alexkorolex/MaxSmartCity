@@ -14,7 +14,10 @@
 - 1 Incident;
 - 100 домов;
 - 10 000 Reports;
-- предназначен для будущего batch/queue benchmark, не для quality benchmark.
+- генерируется в памяти для HTTP batch benchmark, не используется как quality benchmark.
 
 Оба набора полностью воспроизводятся из config + seed. Источником истины для их версии
 является `manifest.json` внутри каждой директории.
+
+Фактический прогон и команда воспроизведения находятся в
+[`../../evaluation/README.md`](../../evaluation/README.md).

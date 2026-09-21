@@ -1,0 +1,59 @@
+{
+  "benchmark": "rule-incident-matching",
+  "dataset_version": "matching-dataset-v1",
+  "source_dataset_hash": "51539ed2a9f5ba2175f631b30b360a19bd27d03b22452c88be7481ef18259a11",
+  "rule_version": "rule-incident-baseline-v1",
+  "automation_enabled": false,
+  "splits": {
+    "train": {
+      "query_count": 743,
+      "target_query_count": 670,
+      "no_target_query_count": 73,
+      "candidate_pair_count": 2010,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "mean_reciprocal_rank": 1.0,
+      "missing_target_rate": 0.0,
+      "abstain_ratio": 1.0
+    },
+    "validation": {
+      "query_count": 178,
+      "target_query_count": 165,
+      "no_target_query_count": 13,
+      "candidate_pair_count": 495,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "mean_reciprocal_rank": 1.0,
+      "missing_target_rate": 0.0,
+      "abstain_ratio": 1.0
+    },
+    "test": {
+      "query_count": 179,
+      "target_query_count": 165,
+      "no_target_query_count": 14,
+      "candidate_pair_count": 495,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "mean_reciprocal_rank": 1.0,
+      "missing_target_rate": 0.0,
+      "abstain_ratio": 1.0
+    },
+    "all": {
+      "query_count": 1100,
+      "target_query_count": 1000,
+      "no_target_query_count": 100,
+      "candidate_pair_count": 3000,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "mean_reciprocal_rank": 1.0,
+      "missing_target_rate": 0.0,
+      "abstain_ratio": 1.0
+    }
+  },
+  "limitations": [
+    "Synthetic benchmark; it does not replace human-reviewed incident pairs.",
+    "Candidate retrieval is not evaluated because candidates are supplied by the fixture.",
+    "No-target queries contain no candidates, so false-merge quality is not measurable here.",
+    "Automation is disabled; scores are ranking heuristics rather than probabilities."
+  ]
+}

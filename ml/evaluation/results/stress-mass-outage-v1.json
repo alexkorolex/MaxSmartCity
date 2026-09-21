@@ -1,0 +1,33 @@
+{
+  "benchmark": "http-classification-mass-outage",
+  "contract_version": "2.0.0-draft",
+  "model_versions": [
+    "category-tfidf-logreg-v2"
+  ],
+  "synthetic_config_version": "synthetic-city-v2",
+  "synthetic_config_sha256": "18b2465566995ef54bbe72973935982a66a054c4b5369dcc0f3e32f1d593f657",
+  "seed": 20260920,
+  "generated_in_memory": true,
+  "report_count": 10000,
+  "batch_size": 256,
+  "batch_count": 40,
+  "wall_seconds": 41.01976900000227,
+  "throughput_reports_per_second": 243.7848930840992,
+  "batch_latency_ms": {
+    "p50": 1005.4181999985303,
+    "p95": 1329.4050000004063,
+    "max": 1397.9070999994292
+  },
+  "error_count": 0,
+  "error_rate": 0.0,
+  "top1_accuracy": 0.6866,
+  "abstain_ratio": 0.3583,
+  "accepted_count": 6417,
+  "accepted_top1_accuracy": 1.0,
+  "expected_label": "water",
+  "limitations": [
+    "Synthetic single-incident stress test; quality metrics are not a real-world estimate.",
+    "Client and service run on the same host, so network latency is not representative.",
+    "Batch endpoint processes items sequentially; throughput is the primary stress metric."
+  ]
+}

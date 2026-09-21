@@ -10,6 +10,7 @@ from litestar.plugins.prometheus import PrometheusController
 from litestar_autowire import AutowireConfig, AutowirePlugin
 from litestar_granian import GranianPlugin
 
+from src.cli import OrchestrationCLIPlugin
 from src.database.cache import CacheSettings
 from src.database.config import DatabaseSettings
 from src.observability.logs import structlog_plugin
@@ -28,6 +29,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
             SQLAlchemyInitPlugin(config=settings.plugin_config()),
             AutowirePlugin(AutowireConfig(domain_packages=["src.domains"])),
             structlog_plugin,
+            OrchestrationCLIPlugin(),
         ],
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),

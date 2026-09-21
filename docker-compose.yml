@@ -54,6 +54,30 @@ services:
       mem_limit: 256m
       restart: "no"
 
+    ingest:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      environment:
+        DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      command:
+        - sh
+        - -c
+        - python -m src.domains.ingestion ingestion/data/bryansk.json && python -m src.domains.ingestion ingestion/data/bryansk_cian.json && python -m src.domains.ingestion ingestion/data/bakhchysarai.json
+      depends_on:
+        migrate:
+          condition: service_completed_successfully
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 50
+      mem_limit: 256m
+      restart: "no"
+
     backend:
       build:
         context: .
@@ -83,6 +107,8 @@ services:
         redis:
           condition: service_healthy
         migrate:
+          condition: service_completed_successfully
+        ingest:
           condition: service_completed_successfully
         keycloak:
           condition: service_healthy

@@ -16,6 +16,7 @@ class ModelRegistry:
             "collaboration",
             "audit",
             "infrastructure",
+            "ingestion",
         )
 
     @classmethod

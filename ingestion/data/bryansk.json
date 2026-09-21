@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "source": {
+    "code": "nashdom-bryansk-pilot",
+    "url": "https://nashdom.info/building/d-288432",
+    "data_kind": "REAL",
+    "retrieved_at": "2026-09-22T00:00:00+03:00"
+  },
+  "houses": [
+    {
+      "key": "d-288432",
+      "city": "Брянск",
+      "street": "улица Евдокимова",
+      "house_number": "8",
+      "formatted": "Брянская область, Брянск, улица Евдокимова, дом 8",
+      "external_id": "d-288432"
+    }
+  ],
+  "organizations": [
+    {
+      "key": "uk-domovladenie",
+      "name": "ООО УК Домовладение",
+      "type": "MANAGING_COMPANY"
+    }
+  ],
+  "links": [
+    {
+      "house_key": "d-288432",
+      "organization_key": "uk-domovladenie",
+      "relationship": "MANAGES"
+    }
+  ]
+}

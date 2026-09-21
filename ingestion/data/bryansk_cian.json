@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "source": {
+    "code": "cian-bryansk-pilot",
+    "url": "https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/",
+    "data_kind": "REAL",
+    "retrieved_at": "2026-09-22T00:00:00+03:00"
+  },
+  "houses": [
+    {
+      "key": "1754812",
+      "city": "Брянск",
+      "street": "улица Евдокимова",
+      "house_number": "10",
+      "formatted": "Брянская область, Брянск, улица Евдокимова, дом 10",
+      "external_id": "1754812"
+    }
+  ],
+  "organizations": [
+    {
+      "key": "dom-plus",
+      "name": "ООО ДОМ-ПЛЮС",
+      "type": "MANAGING_COMPANY"
+    }
+  ],
+  "links": [
+    {
+      "house_key": "1754812",
+      "organization_key": "dom-plus",
+      "relationship": "MANAGES"
+    }
+  ]
+}

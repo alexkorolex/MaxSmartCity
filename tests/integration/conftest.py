@@ -24,7 +24,8 @@ def database_url() -> str:
 
 @pytest.fixture
 def api_client(database_url: str) -> Iterator[TestClient]:
-    with TestClient(create_app(database_url)) as client:
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    with TestClient(create_app(database_url, redis_url)) as client:
         yield client
 
 

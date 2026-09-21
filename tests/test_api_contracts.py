@@ -13,7 +13,10 @@ from src.main import create_app
 
 @pytest.fixture
 def api_schema() -> dict[str, Any]:
-    app = create_app("postgresql+asyncpg://test:test@localhost:5432/test")
+    app = create_app(
+        "postgresql+asyncpg://test:test@localhost:5432/test",
+        redis_url="redis://localhost:6379/0",
+    )
     return app.openapi_schema.to_schema()
 
 

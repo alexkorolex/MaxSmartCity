@@ -10,8 +10,9 @@ dependencies = [
     "asyncpg>=0.30",
     "geoalchemy2>=0.18",
     "litestar-autowire[dishka,queues]>=0.2.0",
+    "python-dotenv>=1.2.3",
     "litestar-granian>=0.16.0",
-    "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy]>=2.24.0",
+    "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy,structlog]>=2.24.0",
     "sqlalchemy>=2.0.54",
 ]
 

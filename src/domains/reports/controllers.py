@@ -35,7 +35,7 @@ class ProblemCategoryController(Controller):
         super().__init__(owner)
         self.dependencies = {"service": Provide(provide_problemcategory_service, sync_to_thread=False)}
 
-    @get("/", name="reports:ProblemCategory:list")
+    @get("/", name="reports:ProblemCategory:list", cache=True)
     async def list_items(
         self,
         service: NamedDependency[ProblemCategoryService],

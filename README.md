@@ -11,7 +11,8 @@ Backend на [Litestar](https://litestar.dev/): учёт городских ин
 - Логи — JSON (structlog), пригодны для сбора Loki/Promtail
 - Grafana + Loki + Promtail — просмотр логов всех контейнеров
 - Prometheus-метрики (`/metrics`)
-- Docker Compose — вся оркестрация (`db`, `redis`, `migrate`, `backend`, `loki`, `promtail`, `grafana`)
+- Авторизация — Keycloak (штаб/сотрудники, с LDAP-федерацией) + собственный JWT для жителей через бота
+- Docker Compose — вся оркестрация (`db`, `redis`, `migrate`, `keycloak`, `backend`, `loki`, `promtail`, `grafana`)
 
 ## Быстрый старт
 
@@ -51,9 +52,90 @@ uv run litestar up
 | `redis` | `REDIS_PORT` (6379) | кеш ответов |
 | `grafana` | `GRAFANA_PORT` (3000) | UI, логин из `GRAFANA_USER`/`GRAFANA_PASSWORD` |
 | `loki` | `LOKI_PORT` (3100) | хранилище логов (datasource уже прописан в Grafana) |
+| `keycloak` | `KEYCLOAK_PORT` (8080) | IdP для сотрудников, realm `maxsmartcity` импортируется автоматически |
 
 `migrate` — одноразовый сервис без порта, применяет миграции и завершается;
 `backend` стартует только после его успешного выполнения.
+
+## Авторизация
+
+Два независимых, не пересекающихся способа попасть в систему — под каждый тип
+пользователя из задачи:
+
+**Сотрудники** (админ / жилищник / управа, у последних двух — департаменты
+со своими сотрудниками через `OrganizationMember.department_id`) хранятся и
+аутентифицируются в **Keycloak** (realm `maxsmartcity`, конфиг —
+[keycloak/realm-export.json](keycloak/realm-export.json), импортируется
+автоматически при первом старте контейнера), но с нашим API работают только
+через `src/domains/auth/controllers.py` (`StaffAuthController`, `/auth/staff/*`)
+— напрямую к Keycloak никто не ходит:
+
+1. `POST /auth/staff/login` — логин/пароль проксируются в Keycloak
+   (`src/security/keycloak.py:login_staff_with_password`), обратно отдаётся
+   `{token, refresh_token, expires_in}`. Пароль проходит через бэкенд
+   транзитом и нигде не сохраняется.
+2. `POST /auth/staff/register` — доступно только с ролью `admin`
+   (`require_roles("admin")`). Создаёт пользователя сразу в двух местах: в
+   Keycloak через Admin REST API (`src/security/keycloak_admin.py`, логин +
+   пароль + realm-роль) и локально в `identity.operator_user`. Организация/
+   департамент сюда не входят — привязывайте существующими ручками
+   `OrganizationMember` отдельно.
+3. `POST /auth/staff/max-id` — любой залогиненный сотрудник (`require_staff()`,
+   не только admin) может сам привязать свой MAX-аккаунт для уведомлений.
+   Необязательно и никак не участвует в самой авторизации — в отличие от
+   жителей, для которых `max_user_id` обязателен и есть основной идентификатор.
+
+Роли `admin`, `housing_worker`, `district_admin` — это realm-роли Keycloak, а
+не что-то захардкоженное в коде: `src/security/guards.py` читает их прямо из
+`realm_access.roles` в JWT. При первом успешном логине сотрудника (например,
+пришедшего через LDAP, а не через `/register`) его локальная запись
+`identity.operator_user` создаётся автоматически (`src/security/dependency.py`).
+
+Три тестовых пользователя уже в realm-конфиге (`admin_test`/`housing_test`/
+`uprava_test`, пароль = логин) — для локальной проверки без реального LDAP:
+
+```bash
+curl -X POST http://localhost:${APP_PORT}/auth/staff/login \
+  -d '{"username": "admin_test", "password": "admin_test"}'
+```
+
+**LDAP** подключается к Keycloak как User Federation (Keycloak сам ходит в LDAP;
+в приложении нет ни строчки LDAP-кода) — настраивается один раз вручную в
+Admin Console (`http://localhost:${KEYCLOAK_PORT}/admin`, логин из
+`KEYCLOAK_ADMIN`/`KEYCLOAK_ADMIN_PASSWORD`): **User Federation → Add provider →
+ldap**, заполнить адрес/bind DN/base DN вашего каталога, затем в **Mappers**
+смэппить LDAP-группы на realm-роли `admin`/`housing_worker`/`district_admin`.
+Реальных connection-данных LDAP тут нет — заводить свой LDAP-сервер в этой
+итерации не входило в задачу.
+
+**Жители** приходят только через бота и никогда не вводят логин/пароль.
+Бот — единственный клиент этих ручек, аутентифицируется отдельным
+shared-секретом (`BOT_SHARED_SECRET`, заголовок `X-Bot-Secret`), а не сам
+житель. Домен `auth` (`src/domains/auth/`) — это две отдельные ручки:
+
+1. `POST /auth/residents/authenticate` — регистрирует/обновляет жителя по
+   его `max_user_id` (без выдачи токена);
+2. `POST /auth/residents/token` — выдаёт короткоживущий JWT
+   (`litestar[jwt]`, `src/security/resident.py`) уже зарегистрированному
+   жителю; 404, если `authenticate` для него ещё не вызывался. Разделение
+   на два шага позволяет боту перевыпускать токен без повторной регистрации.
+
+```bash
+curl -X POST http://localhost:${APP_PORT}/auth/residents/authenticate \
+  -H "X-Bot-Secret: ${BOT_SHARED_SECRET}" \
+  -d '{"max_user_id": 123456, "username": "ivan", "display_name": "Иван Петров"}'
+
+curl -X POST http://localhost:${APP_PORT}/auth/residents/token \
+  -H "X-Bot-Secret: ${BOT_SHARED_SECRET}" \
+  -d '{"max_user_id": 123456}'
+```
+
+Кто угодно с валидным токеном (сотрудник или житель) может спросить, кто он:
+`GET /identity/me`. Роутов, защищённых `require_roles("admin")`, пока немного
+(мутации `/identity/departments`) — это демонстрационный охват, остальные
+существующие эндпоинты (reports/incidents/geo/...) не тронуты, чтобы не
+сломать уже написанные тесты; расширять список защищённых роутов — отдельная
+следующая итерация.
 
 ## Разработка без Docker
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,12 +37,33 @@ class CategoryArtifact:
         self._abstain_threshold = float(bundle["abstain_threshold"])
         self._model_version = str(bundle["model_version"])
         self._taxonomy_version = str(bundle["taxonomy_version"])
+        self._dataset_version = _optional_string(bundle.get("dataset_version"))
+        self._dataset_hash = _optional_string(bundle.get("dataset_hash"))
+        self._calibration_version = _optional_string(bundle.get("calibration_version"))
 
     @classmethod
     def load(cls, artifact_dir: Path) -> CategoryArtifact:
-        bundle = joblib.load(artifact_dir / "model.joblib")
+        model_path = artifact_dir / "model.joblib"
+        manifest_path = artifact_dir / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_hash = manifest.get("model_sha256")
+        if not isinstance(expected_hash, str):
+            raise ValueError("Artifact manifest has no model_sha256")
+        actual_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            raise ValueError("Category artifact checksum mismatch")
+        bundle = joblib.load(model_path)
         if not isinstance(bundle, dict):
             raise ValueError("Invalid category artifact bundle")
+        if bundle.get("model_version") != manifest.get("model_version"):
+            raise ValueError("Category artifact model version mismatch")
+        if bundle.get("taxonomy_version") != manifest.get("taxonomy_version"):
+            raise ValueError("Category artifact taxonomy version mismatch")
+        bundle.update(
+            dataset_version=manifest.get("dataset_version"),
+            dataset_hash=manifest.get("dataset_hash"),
+            calibration_version=manifest.get("calibration_version"),
+        )
         return cls(bundle)
 
     def predict(self, text: str, top_k: int = 3) -> CategoryPrediction:
@@ -91,5 +114,29 @@ class CategoryArtifact:
     def abstain_threshold(self) -> float:
         return self._abstain_threshold
 
+    @property
+    def model_version(self) -> str:
+        return self._model_version
+
+    @property
+    def taxonomy_version(self) -> str:
+        return self._taxonomy_version
+
+    @property
+    def dataset_version(self) -> str | None:
+        return self._dataset_version
+
+    @property
+    def dataset_hash(self) -> str | None:
+        return self._dataset_hash
+
+    @property
+    def calibration_version(self) -> str | None:
+        return self._calibration_version
+
     def predict_proba(self, texts: list[str]) -> np.ndarray:
         return np.asarray(self._pipeline.predict_proba(texts))
+
+
+def _optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) else None

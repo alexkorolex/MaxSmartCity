@@ -236,10 +236,25 @@ class CategoryTrainer:
         target.mkdir(parents=True, exist_ok=True)
         dataset_manifest_path = self._config.dataset_dir / "manifest.json"
         dataset_manifest = json.loads(dataset_manifest_path.read_text(encoding="utf-8"))
+        bundle = {
+            "pipeline": pipeline,
+            "labels": labels,
+            "label_threshold": self._config.label_threshold,
+            "abstain_threshold": abstain_threshold,
+            "model_version": self._config.model_version,
+            "taxonomy_version": str(taxonomy["version"]),
+        }
+        model_path = target / "model.joblib"
+        metrics_path = target / "metrics.json"
+        joblib.dump(bundle, model_path)
+        metrics_path.write_text(
+            json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         manifest = {
             "model_name": "category-tfidf-logreg",
             "model_version": self._config.model_version,
             "base_model": "scikit-learn:tfidf-word-char+ovr-logistic-regression",
+            "model_sha256": _sha256(model_path),
             "dataset_version": str(dataset_manifest["dataset_version"]),
             "dataset_hash": _sha256(dataset_manifest_path),
             "taxonomy_version": str(taxonomy["version"]),
@@ -249,20 +264,8 @@ class CategoryTrainer:
             "calibration_version": "uncalibrated-validation-threshold-v1",
             "created_at": datetime.now(UTC).isoformat(),
         }
-        bundle = {
-            "pipeline": pipeline,
-            "labels": labels,
-            "label_threshold": self._config.label_threshold,
-            "abstain_threshold": abstain_threshold,
-            "model_version": self._config.model_version,
-            "taxonomy_version": str(taxonomy["version"]),
-        }
-        joblib.dump(bundle, target / "model.joblib")
         (target / "manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        (target / "metrics.json").write_text(
-            json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         experiment = {
             "config": asdict(self._config),

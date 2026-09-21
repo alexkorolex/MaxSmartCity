@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -164,3 +165,13 @@ def test_training_writes_loadable_artifact(tmp_path: Path) -> None:
     assert prediction.labels
     assert (result.artifact_dir / "manifest.json").exists()
     assert (result.artifact_dir / "metrics.json").exists()
+    manifest = json.loads((result.artifact_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert (
+        manifest["model_sha256"]
+        == hashlib.sha256((result.artifact_dir / "model.joblib").read_bytes()).hexdigest()
+    )
+
+    with (result.artifact_dir / "model.joblib").open("ab") as stream:
+        stream.write(b"tampered")
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        CategoryArtifact.load(result.artifact_dir)

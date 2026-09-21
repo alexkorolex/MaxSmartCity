@@ -1,0 +1,11 @@
+services:
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ML_ARTIFACT_DIR: /app/ml/artifacts/category-tfidf-logreg-v2
+      ML_MAX_INPUT_CHARACTERS: ${ML_MAX_INPUT_CHARACTERS:-4000}
+    ports:
+      - "${ML_PORT:-8000}:8000"
+    restart: unless-stopped

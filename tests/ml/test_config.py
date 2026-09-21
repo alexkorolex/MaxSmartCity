@@ -17,4 +17,4 @@ def test_rule_baseline_is_disabled_for_automation() -> None:
     config = load_rule_baseline(CONFIG_DIR / "rule-baseline.v1.json")
 
     assert config.automation_enabled is False
-    assert config.taxonomy_version == "city-incidents-draft-v1"
+    assert config.taxonomy_version == "city-incidents-backend-aligned-v2"

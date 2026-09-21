@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/classification.json",
+  "title": "Category classification request and response v2",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["contract_version", "request_id", "text"],
+      "properties": {
+        "contract_version": {"const": "2.0.0-draft"},
+        "request_id": {"type": "string", "minLength": 1},
+        "text": {"type": "string"},
+        "top_k": {"type": "integer", "minimum": 1, "maximum": 20}
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "request_id",
+        "labels",
+        "abstain",
+        "abstain_reason",
+        "model_version",
+        "taxonomy_version",
+        "input_truncated"
+      ],
+      "properties": {
+        "contract_version": {"const": "2.0.0-draft"},
+        "request_id": {"type": ["string", "null"]},
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label_id", "score"],
+            "properties": {
+              "label_id": {"type": "string"},
+              "score": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "abstain": {"type": "boolean"},
+        "abstain_reason": {"type": ["string", "null"]},
+        "model_version": {"type": "string"},
+        "taxonomy_version": {"type": "string"},
+        "input_truncated": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  ]
+}

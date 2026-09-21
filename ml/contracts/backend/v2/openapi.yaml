@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: MaxSmartCity ML Service
+  version: 2.0.0-draft
+  description: >-
+    Stateless MVP inference. Scores are recommendations; backend policy and manual review remain
+    authoritative.
+servers:
+  - url: http://localhost:8000
+paths:
+  /health:
+    get:
+      operationId: mlHealth
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {const: ok}
+  /ready:
+    get:
+      operationId: mlReadiness
+      responses:
+        "200":
+          description: Required model artifacts are loaded.
+        "503":
+          description: Service is alive but a required artifact is unavailable.
+  /v1/models:
+    get:
+      operationId: mlModels
+      responses:
+        "200":
+          description: Loaded model versions and provenance.
+  /v1/classify:
+    post:
+      operationId: classifyReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./classification.schema.json
+      responses:
+        "200":
+          description: Category recommendation or ABSTAIN.
+          content:
+            application/json:
+              schema:
+                $ref: ./classification.schema.json
+        "400": {$ref: "#/components/responses/ContractError"}
+        "422": {$ref: "#/components/responses/InputError"}
+        "503": {$ref: "#/components/responses/ModelError"}
+  /v1/classify:batch:
+    post:
+      operationId: classifyReportsBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./classification-batch.schema.json
+      responses:
+        "200":
+          description: Per-item classification results or errors.
+          content:
+            application/json:
+              schema:
+                $ref: ./classification-batch.schema.json
+        "400": {$ref: "#/components/responses/ContractError"}
+        "422": {$ref: "#/components/responses/InputError"}
+  /v1/decide:
+    post:
+      operationId: decideReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./decision-request.schema.json
+      responses:
+        "200":
+          description: Safe recommendation over backend-provided candidates.
+          content:
+            application/json:
+              schema:
+                $ref: ./decision-response.schema.json
+        "400": {$ref: "#/components/responses/ContractError"}
+        "422": {$ref: "#/components/responses/InputError"}
+        "504":
+          description: Inference deadline exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./error.schema.json
+components:
+  responses:
+    ContractError:
+      description: Unsupported contract version.
+      content:
+        application/json:
+          schema:
+            $ref: ./error.schema.json
+    InputError:
+      description: Invalid request body.
+      content:
+        application/json:
+          schema:
+            $ref: ./error.schema.json
+    ModelError:
+      description: Required model is not ready.
+      content:
+        application/json:
+          schema:
+            $ref: ./error.schema.json

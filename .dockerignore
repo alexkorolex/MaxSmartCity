@@ -1,0 +1,13 @@
+.git
+.idea
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+!.env.ml.example
+ml/artifacts
+tmp

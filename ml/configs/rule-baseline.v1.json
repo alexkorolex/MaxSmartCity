@@ -1,6 +1,6 @@
 {
   "version": "rule-incident-baseline-v1",
-  "taxonomy_version": "city-incidents-draft-v1",
+  "taxonomy_version": "city-incidents-backend-aligned-v2",
   "score_semantics": "normalized heuristic, not calibrated probability",
   "automation_enabled": false,
   "close_in_time_seconds": 86400,

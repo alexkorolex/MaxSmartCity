@@ -12,6 +12,11 @@ from maxsmartcity.ml.data.gold.validator import GoldDatasetValidator
 VALIDATOR = GoldDatasetValidator(load_taxonomy(Path("ml/configs/taxonomy.v1.json")))
 
 
+def _canonical_sha256(path: Path) -> str:
+    """Hash the LF-normalized bytes stored in versioned dataset manifests."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def test_seed_draft_is_semantically_valid_but_not_gold() -> None:
     path = Path("ml/data/gold/drafts/reports.seed.jsonl")
     records = VALIDATOR.load_and_validate(path)
@@ -21,7 +26,7 @@ def test_seed_draft_is_semantically_valid_but_not_gold() -> None:
     assert all(record.review_status == "DRAFT" for record in records)
     assert all(record.reviewer is None for record in records)
     assert manifest["record_count"] == len(records)
-    assert manifest["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert manifest["sha256"] == _canonical_sha256(path)
 
 
 def test_reviewed_record_requires_reviewer() -> None:
@@ -60,10 +65,7 @@ def test_reviewed_mvp_dataset_is_complete_unique_and_leakage_safe() -> None:
     }
     assert all(record.review_status == "REVIEWED" for record in reports)
     assert manifest["status"] == "REVIEWED_MVP_PENDING_HUMAN_SIGNOFF"
-    assert (
-        manifest["files"]["reports.jsonl"]["sha256"]
-        == hashlib.sha256((root / "reports.jsonl").read_bytes()).hexdigest()
-    )
+    assert manifest["files"]["reports.jsonl"]["sha256"] == _canonical_sha256(root / "reports.jsonl")
 
     split_scenarios = [
         {record.scenario_spec_id for record in VALIDATOR.load_and_validate(root / f"{split}.jsonl")}

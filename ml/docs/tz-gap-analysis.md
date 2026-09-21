@@ -16,9 +16,9 @@
 | ML-T08 decision model | Заглушка | Allowed candidates, allow-list validation, ABSTAIN | Backend actions/organizations, training and benchmark |
 | ML-T09 calibration | Частично для category | ECE/Brier/risk-coverage; ABSTAIN threshold выбран только на validation | ECE выше цели; сравнить Platt/isotonic на расширенном frozen Gold |
 | ML-T10 feedback loop | Контракт | Feedback/event schemas | Backend persistence and producer; privacy/redaction policy |
-| ML-T11 inference service | Контракт | Request/response/batch/error/health schemas, sync application service | Async transport/queue integration with backend, timeout and batching |
+| ML-T11 inference service | MVP готов | Litestar API: classify/batch/decide, health/readiness/models, input bounds, timeout, stable errors, rule fallback; Docker build обучает и упаковывает checkpoint | Backend adapter, нагрузочный benchmark и bounded queue при необходимости |
 | ML-T12 vision P1 | Не начат | Явно не блокирует MVP | Только после text pipeline |
-| ML-T13 stress/failure | Частично | 10k linked dataset, contract/unit tests, локальный category p50/p95 | Реальный service benchmark, queue drain, RAM/GPU |
+| ML-T13 stress/failure | Частично | 10k linked dataset, contract/unit tests, локальный category p50/p95; HTTP batch smoke: 1,000 элементов без ошибок | Docker/production service benchmark, queue drain, RAM/GPU |
 
 ## Результат первого честного baseline-прогона
 
@@ -30,6 +30,12 @@
 или threshold; ABSTAIN threshold выбран на validation. Следующий корректный шаг — увеличить
 редкие классы и добавить независимые человеческие формулировки, затем пересобрать split и только
 после этого сравнивать калибровку/архитектуры.
+
+При effective threshold `0.5` validation coverage составляет `0.8333`, selective accuracy —
+`1.0`; на test — `0.9828` и `0.9825`. Validation ECE `0.1820`, test ECE `0.1274`, поэтому score
+нельзя показывать пользователю как надёжную вероятность. Локальный p95 одиночного CPU inference
+на test — около `3–4 ms` между повторными прогонами. Артефакт содержит SHA-256 модели и
+проверяется перед загрузкой.
 
 ### На чём основаны текущие метрики
 

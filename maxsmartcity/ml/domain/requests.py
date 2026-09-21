@@ -9,6 +9,9 @@ class ReportInput:
     report_id: str
     text: str
     created_at: datetime
+    address_id: str | None = None
+    house_id: str | None = None
+    raw_address: str | None = None
     fias_guid: str | None = None
     category_hint: str | None = None
 
@@ -18,8 +21,11 @@ class IncidentCandidate:
     id: str
     started_at: datetime
     category_id: str | None = None
+    affected_house_ids: tuple[str, ...] = ()
     fias_guids: tuple[str, ...] = ()
     title: str = ""
+    status: str = "NEW"
+    priority: str = "NORMAL"
     active: bool = True
 
 

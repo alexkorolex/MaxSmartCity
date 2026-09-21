@@ -22,23 +22,75 @@
         "report_id": {"type": "string", "minLength": 1},
         "text": {"type": "string"},
         "created_at": {"type": "string", "format": "date-time"},
+        "address_id": {"type": ["string", "null"]},
+        "house_id": {"type": ["string", "null"]},
+        "raw_address": {"type": ["string", "null"]},
         "fias_guid": {"type": ["string", "null"]},
         "category_hint": {"type": ["string", "null"]}
       },
       "additionalProperties": false
     },
-    "candidate_incidents": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
-    "candidate_organizations": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
-    "allowed_actions": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "candidate_incidents": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/incident_candidate"}
+    },
+    "candidate_organizations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/organization_candidate"}
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/action_candidate"}
+    },
     "external_context": {"type": "object"}
   },
   "$defs": {
-    "candidate": {
+    "incident_candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "started_at",
+        "affected_house_ids",
+        "fias_guids",
+        "title",
+        "status",
+        "priority",
+        "active"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "started_at": {"type": "string", "format": "date-time"},
+        "category_id": {"type": ["string", "null"]},
+        "affected_house_ids": {"type": "array", "items": {"type": "string"}},
+        "fias_guids": {"type": "array", "items": {"type": "string"}},
+        "title": {"type": "string"},
+        "status": {"type": "string"},
+        "priority": {"type": "string"},
+        "active": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "organization_candidate": {
       "type": "object",
       "required": ["id", "attributes"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
-        "attributes": {"type": "object"}
+        "attributes": {
+          "type": "object",
+          "description": "Backend-controlled attributes such as type, enabled and service area."
+        }
+      },
+      "additionalProperties": false
+    },
+    "action_candidate": {
+      "type": "object",
+      "required": ["id", "attributes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "attributes": {
+          "type": "object",
+          "description": "Policy Engine context; ML may rank but cannot create action IDs."
+        }
       },
       "additionalProperties": false
     }

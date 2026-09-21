@@ -4,6 +4,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 ReviewStatus = Literal["DRAFT", "REVIEWED", "FROZEN"]
+AnnotationSource = Literal[
+    "HUMAN_AUTHORED",
+    "REAL_ANONYMIZED",
+    "SYNTHETIC_TEMPLATE",
+    "LLM_ASSISTED",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,8 +31,10 @@ class GoldReportAnnotation:
     danger_signals: tuple[str, ...]
     needs_clarification: bool
     ambiguity: bool
-    source: str
+    source: AnnotationSource
     review_status: ReviewStatus
     annotator: str
     reviewer: str | None
     notes: str | None = None
+    scenario_spec_id: str | None = None
+    generation_source_id: str | None = None

@@ -20,12 +20,12 @@ def test_structured_facts_rank_same_location_without_parsing_text() -> None:
             "REP-1",
             "произвольный текст, который baseline не парсит",
             NOW,
-            fias_guid="FIAS-12",
+            house_id="HOUSE-12",
             category_hint="water",
         ),
         incident_candidates=(
-            IncidentCandidate("INC-12", NOW, "water", ("FIAS-12",)),
-            IncidentCandidate("INC-21", NOW, "water", ("FIAS-21",)),
+            IncidentCandidate("INC-12", NOW, "water", affected_house_ids=("HOUSE-12",)),
+            IncidentCandidate("INC-21", NOW, "water", affected_house_ids=("HOUSE-21",)),
         ),
     )
 
@@ -35,6 +35,7 @@ def test_structured_facts_rank_same_location_without_parsing_text() -> None:
     assert response.incident_ranking.abstain is True
     assert response.incident_ranking.model is not None
     assert response.incident_ranking.model.score_kind == "normalized_heuristic_not_probability"
+    assert "SAME_HOUSE_ID" in response.incident_ranking.candidates[0].reason_codes
     assert response.requires_manual_review is True
 
 

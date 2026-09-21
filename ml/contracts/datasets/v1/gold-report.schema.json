@@ -41,11 +41,15 @@
     "danger_signals": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "needs_clarification": {"type": "boolean"},
     "ambiguity": {"type": "boolean"},
-    "source": {"enum": ["HUMAN_AUTHORED", "REAL_ANONYMIZED"]},
+    "source": {
+      "enum": ["HUMAN_AUTHORED", "REAL_ANONYMIZED", "SYNTHETIC_TEMPLATE", "LLM_ASSISTED"]
+    },
     "review_status": {"enum": ["DRAFT", "REVIEWED", "FROZEN"]},
     "annotator": {"type": "string"},
     "reviewer": {"type": ["string", "null"]},
-    "notes": {"type": ["string", "null"]}
+    "notes": {"type": ["string", "null"]},
+    "scenario_spec_id": {"type": ["string", "null"]},
+    "generation_source_id": {"type": ["string", "null"]}
   },
   "additionalProperties": false
 }

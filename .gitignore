@@ -149,6 +149,9 @@ activemq-data/
 
 # Environments
 .env
+.env.*
+!.env.example
+!.env.ml.example
 .envrc
 .venv
 env/
@@ -218,4 +221,11 @@ __marimo__/
 .streamlit/secrets.toml
 # Reproducible local ML stress artifacts (keep configs/manifests documented in ml/README.md)
 ml/data/synthetic/stress-*/
+# Downloaded external datasets and rebuildable intermediate artifacts.
+ml/data/external/raw/
+ml/data/external/interim/
+# Local tool/test scratch directories.
+.tmp/
+.pytest-tmp/
+tmp/
 .idea/

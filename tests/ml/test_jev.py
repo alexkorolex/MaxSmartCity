@@ -14,10 +14,10 @@ def make_request() -> DecisionRequest:
     timestamp = datetime(2026, 9, 20, tzinfo=UTC)
     return DecisionRequest(
         request_id="REQ-1",
-        report=ReportInput("REP-1", "нет воды", timestamp, "FIAS-1"),
+        report=ReportInput("REP-1", "нет воды", timestamp, house_id="HOUSE-1"),
         incident_candidates=(
-            IncidentCandidate("INC-1", timestamp, "water", ("FIAS-1",)),
-            IncidentCandidate("INC-2", timestamp, "water", ("FIAS-2",)),
+            IncidentCandidate("INC-1", timestamp, "water", affected_house_ids=("HOUSE-1",)),
+            IncidentCandidate("INC-2", timestamp, "water", affected_house_ids=("HOUSE-2",)),
         ),
     )
 

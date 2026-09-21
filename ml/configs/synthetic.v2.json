@@ -22,14 +22,14 @@
       "id": "no-water",
       "category_id": "water",
       "organization_id": "demo-water-supplier",
-      "organization_type": "WATER_SUPPLIER",
+      "organization_type": "WATER_UTILITY",
       "phrases": ["нет холодной воды", "воды нет", "кран сухой"]
     },
     {
       "id": "power-outage",
       "category_id": "electricity",
       "organization_id": "demo-electricity-provider",
-      "organization_type": "ELECTRICITY",
+      "organization_type": "POWER_GRID",
       "phrases": ["отключили свет", "нет электричества", "в доме темно"]
     },
     {

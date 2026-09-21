@@ -2,10 +2,14 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from maxsmartcity.ml.data.config import TaxonomyConfig
-from maxsmartcity.ml.data.gold.models import EntityAnnotation, GoldReportAnnotation
+from maxsmartcity.ml.data.gold.models import (
+    AnnotationSource,
+    EntityAnnotation,
+    GoldReportAnnotation,
+)
 
 
 class GoldDatasetValidator:
@@ -33,8 +37,18 @@ class GoldDatasetValidator:
             if record.review_status not in {"DRAFT", "REVIEWED", "FROZEN"}:
                 msg = f"{record.example_id}: unsupported review status"
                 raise ValueError(msg)
-            if record.source not in {"HUMAN_AUTHORED", "REAL_ANONYMIZED"}:
+            if record.source not in {
+                "HUMAN_AUTHORED",
+                "REAL_ANONYMIZED",
+                "SYNTHETIC_TEMPLATE",
+                "LLM_ASSISTED",
+            }:
                 msg = f"{record.example_id}: unsupported source"
+                raise ValueError(msg)
+            if record.source in {"SYNTHETIC_TEMPLATE", "LLM_ASSISTED"} and not (
+                record.scenario_spec_id and record.generation_source_id
+            ):
+                msg = f"{record.example_id}: synthetic sources require provenance ids"
                 raise ValueError(msg)
             if not record.category_ids:
                 msg = f"{record.example_id}: at least one category is required"
@@ -73,9 +87,11 @@ class GoldDatasetValidator:
             danger_signals=tuple(payload.get("danger_signals", [])),
             needs_clarification=payload["needs_clarification"],
             ambiguity=payload["ambiguity"],
-            source=payload["source"],
+            source=cast(AnnotationSource, payload["source"]),
             review_status=payload["review_status"],
             annotator=payload["annotator"],
             reviewer=payload.get("reviewer"),
             notes=payload.get("notes"),
+            scenario_spec_id=payload.get("scenario_spec_id"),
+            generation_source_id=payload.get("generation_source_id"),
         )

@@ -9,7 +9,7 @@ from maxsmartcity.ml.data.synthetic.generator import SyntheticWorldGenerator
 from maxsmartcity.ml.data.synthetic.writer import SyntheticDatasetWriter
 
 CONFIG = load_synthetic_config(Path("ml/configs/synthetic.v2.json"))
-GOLDEN_TEST_DATASET_HASH = "9ec86eee5c1bc617c714bce5556dd7f297bcb6e6a74cbc03bd1c984a7412c036"
+GOLDEN_TEST_DATASET_HASH = "67becd81440269e73f6fac88cc09b5a1aa7da733797055a2fd9633f6637732e5"
 
 
 def test_same_seed_produces_identical_world() -> None:

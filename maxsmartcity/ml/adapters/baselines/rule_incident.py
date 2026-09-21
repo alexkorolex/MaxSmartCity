@@ -33,11 +33,16 @@ class RuleIncidentRanker:
         for candidate in request.incident_candidates:
             raw_score = 0.0
             reasons: list[str] = []
-            if request.report.fias_guid and request.report.fias_guid in candidate.fias_guids:
+            if request.report.house_id and request.report.house_id in candidate.affected_house_ids:
                 raw_score += self.config.same_location_weight
-                reasons.append("SAME_FIAS_GUID")
+                reasons.append("SAME_HOUSE_ID")
+            elif request.report.house_id and candidate.affected_house_ids:
+                reasons.append("DIFFERENT_HOUSE_ID")
+            elif request.report.fias_guid and request.report.fias_guid in candidate.fias_guids:
+                raw_score += self.config.same_location_weight
+                reasons.append("SAME_FIAS_GUID_FALLBACK")
             elif request.report.fias_guid and candidate.fias_guids:
-                reasons.append("DIFFERENT_FIAS_GUID")
+                reasons.append("DIFFERENT_FIAS_GUID_FALLBACK")
             if (
                 request.report.category_hint
                 and candidate.category_id == request.report.category_hint

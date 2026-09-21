@@ -19,6 +19,19 @@
 
 Матрица ожиданий и владельцев: [`DEPENDENCIES.md`](DEPENDENCIES.md).
 
+Подготовка публичных источников и 180 pre-LLM facts описана в
+[`data/external/README.md`](data/external/README.md). Исходные CSV и EDA notebooks в Git не
+добавляются.
+
+Версионированный offline-пайплайн лексикализации через AI Tunnel также описан в
+[`data/external/README.md`](data/external/README.md). Он по умолчанию строит только план;
+реальный запрос требует явного `--execute`, а результат остаётся кандидатом до ручной ревизии.
+
+Первый reviewed MVP dataset находится в [`data/gold/v1`](data/gold/v1/README.md): 362 текста,
+181 сценарий и leakage-safe train/validation/test splits. Он пригоден для baseline-экспериментов,
+но сохраняет статус `REVIEWED_MVP_PENDING_HUMAN_SIGNOFF`, пока участник команды не подтвердит
+его перевод в `FROZEN`. Пары для реранкинга и hard negatives в этот набор не входят.
+
 ## Структура
 
 ```text
@@ -87,7 +100,7 @@ uv run python -m maxsmartcity.ml.data.synthetic.cli \
 1. Согласовать draft taxonomy и schemas с backend/product.
 2. Проверить synthetic records визуально и расширить configs.
 3. Добавить noise, counterfactual, mass-event и adversarial generators.
-4. Создать небольшой вручную проверенный Gold.
+4. Проверить canonical facts, сгенерировать LLM-кандидаты и вручную принять Gold.
 5. Зафиксировать dataset manifests и splits.
 6. Реализовать TF-IDF/BM25 baseline и посчитать первые метрики.
 

@@ -70,7 +70,10 @@ def _render_incident_hypothesis(candidate: IncidentCandidate) -> str:
         "id": candidate.id,
         "title": candidate.title,
         "category_id": candidate.category_id,
+        "affected_house_ids": candidate.affected_house_ids,
         "fias_guids": candidate.fias_guids,
+        "status": candidate.status,
+        "priority": candidate.priority,
         "started_at": candidate.started_at.isoformat(),
     }
     return "Сообщение относится к инциденту: " + json.dumps(

@@ -12,6 +12,7 @@ from maxsmartcity.ml.domain.results import (
     RankingResult,
     ScoredCandidate,
 )
+from maxsmartcity.ml.ports.models import FeatureExtractor
 
 
 class RuleIncidentRanker:
@@ -76,8 +77,13 @@ class RuleIncidentRanker:
 
 
 class RuleBaselineDecisionModel:
-    def __init__(self, incident_ranker: RuleIncidentRanker) -> None:
+    def __init__(
+        self,
+        incident_ranker: RuleIncidentRanker,
+        feature_extractor: FeatureExtractor | None = None,
+    ) -> None:
         self.incident_ranker = incident_ranker
+        self.feature_extractor = feature_extractor
 
     def decide(self, request: DecisionRequest) -> DecisionResponse:
         category = (
@@ -90,13 +96,18 @@ class RuleBaselineDecisionModel:
             if request.report.category_hint
             else None
         )
+        features = (
+            self.feature_extractor.extract(request)
+            if self.feature_extractor
+            else ExtractedFeatures(
+                missing_fields=("raw_address", "entrance", "floor", "duration", "danger_signals"),
+                extractor_version="not-configured",
+            )
+        )
         return DecisionResponse(
             request_id=request.request_id,
             category=category,
-            features=ExtractedFeatures(
-                missing_fields=("entities", "danger_signals"),
-                extractor_version="TODO[model]:category-and-extraction-baseline",
-            ),
+            features=features,
             incident_ranking=self.incident_ranker.rank(request),
             organization_ranking=RankingResult(
                 abstain_reason="TODO[backend]:organization-candidate-contract"

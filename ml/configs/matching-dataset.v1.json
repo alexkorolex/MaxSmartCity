@@ -1,0 +1,10 @@
+{
+  "version": "matching-dataset-v1",
+  "source_dir": "ml/data/synthetic/dev-v2",
+  "output_dir": "ml/data/matching/dev-v1",
+  "split_seed": 20260921,
+  "negative_labels": {
+    "same_category_different_house": "HARD_NEGATIVE",
+    "other_incident": "NEGATIVE"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "purpose": "Audit metadata for LLM candidates selected into Gold v2",
+  "provider": "AITunnel OpenAI-compatible API",
+  "included_runs": [
+    {
+      "name": "gold-v2-expansion-medium-v4",
+      "model": "mistral-medium-3-5",
+      "prompt_version": "controlled-template-paraphrase-v4",
+      "api_calls": 80,
+      "input_tokens": 93672,
+      "output_tokens": 8533,
+      "total_tokens": 102205,
+      "reported_cost_rub": 40.9011,
+      "accepted_candidates": 159,
+      "quarantined_candidates": 1
+    },
+    {
+      "name": "gold-v2-expansion-refresh-medium-v4",
+      "model": "mistral-medium-3-5",
+      "prompt_version": "controlled-template-paraphrase-v4",
+      "api_calls": 5,
+      "input_tokens": 5787,
+      "output_tokens": 465,
+      "total_tokens": 6252,
+      "reported_cost_rub": 2.4336,
+      "accepted_candidates": 10,
+      "quarantined_candidates": 0
+    }
+  ],
+  "included_totals": {
+    "api_calls": 85,
+    "reported_cost_rub": 43.3347
+  },
+  "notes": [
+    "Pilot runs are excluded because their texts were not selected into Gold v2.",
+    "Raw API responses stay local; llm-candidates.jsonl is the versioned rebuild snapshot.",
+    "No API key or request authorization data is stored in this directory."
+  ]
+}

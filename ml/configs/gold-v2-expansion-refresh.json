@@ -1,0 +1,10 @@
+{
+  "version": "gold-v2-expansion-refresh-v1",
+  "scenario_ids": [
+    "V2-vague-incident-04",
+    "V2-non-incident-01",
+    "V2-non-incident-02",
+    "V2-non-incident-03",
+    "V2-non-incident-04"
+  ]
+}

@@ -35,6 +35,6 @@ uv run --locked ruff format .
 
 ## ML / DL
 
-Автономный ML-контур, rule-based fallback, синтетические данные и интеграционные
-контракты описаны в [`ml/README.md`](ml/README.md). Текущая версия не скачивает и не
-обучает модели, не вызывает LLM и не требует готовых API backend/Data Ingestion.
+Автономный ML-контур, CPU baseline, синтетические данные и интеграционные контракты описаны
+в [`ml/README.md`](ml/README.md). Обучение baseline не вызывает LLM, не скачивает веса и не
+требует готовых API backend/Data Ingestion.

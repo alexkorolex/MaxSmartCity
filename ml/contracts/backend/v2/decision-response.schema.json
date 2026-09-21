@@ -17,8 +17,23 @@
   "properties": {
     "contract_version": {"const": "2.0.0-draft"},
     "request_id": {"type": "string"},
-    "category": {"type": ["object", "null"]},
-    "features": {"type": "object"},
+    "category": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["label_id", "score", "score_kind", "source"],
+          "properties": {
+            "label_id": {"type": "string"},
+            "score": {"type": ["number", "null"]},
+            "score_kind": {"type": "string"},
+            "source": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "features": {"$ref": "#/$defs/extracted_features"},
     "incident_ranking": {"$ref": "#/$defs/ranking"},
     "organization_ranking": {"$ref": "#/$defs/ranking"},
     "action_ranking": {"$ref": "#/$defs/ranking"},
@@ -27,6 +42,38 @@
     "warnings": {"type": "array", "items": {"type": "string"}}
   },
   "$defs": {
+    "extracted_features": {
+      "type": "object",
+      "required": ["values", "missing_fields", "extractor_version"],
+      "properties": {
+        "values": {
+          "type": "object",
+          "properties": {
+            "raw_address": {"type": "string"},
+            "entrance": {"type": "integer", "minimum": 1},
+            "floor": {"type": "integer"},
+            "duration": {
+              "type": "object",
+              "required": ["text", "seconds"],
+              "properties": {
+                "text": {"type": "string"},
+                "seconds": {"type": "integer", "minimum": 0}
+              },
+              "additionalProperties": false
+            },
+            "scale_hint": {
+              "enum": ["APARTMENT", "ENTRANCE", "HOUSE", "MULTIPLE_HOUSES", "DISTRICT"]
+            },
+            "danger_signals": {"type": "array", "items": {"type": "string"}},
+            "problem_continues": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "missing_fields": {"type": "array", "items": {"type": "string"}},
+        "extractor_version": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "ranking": {
       "type": "object",
       "required": ["candidates", "abstain", "abstain_reason"],

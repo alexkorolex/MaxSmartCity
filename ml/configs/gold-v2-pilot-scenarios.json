@@ -1,0 +1,25 @@
+{
+  "version": "gold-v2-pilot-scenarios-v1",
+  "scenario_ids": [
+    "CURATED-address-without-problem",
+    "CURATED-corrected-house-number",
+    "CURATED-exposed-wire",
+    "CURATED-greeting-only",
+    "CURATED-long-copy-paste",
+    "CURATED-official-outage-conflict",
+    "CURATED-open-flame-in-bin",
+    "CURATED-panel-explicitly-not-sparking",
+    "CURATED-same-house-water-and-power",
+    "CURATED-smoke-without-visible-fire",
+    "CURATED-sparking-panel",
+    "CURATED-vague-no-water",
+    "CURATED-water-near-electric-panel",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-00d0620a9bf9",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-0124b84409b6",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-02d36ecf684d",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-0be8dfa14397",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-10cca17a4da3",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-1bd83ad4888b",
+    "EXT-SF311-RECENT-CASES-b1ad85a5953f"
+  ]
+}

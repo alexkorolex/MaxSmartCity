@@ -1,0 +1,18 @@
+{
+  "version": "template-paraphrase-gold-v2-qwen-pilot",
+  "prompt_version": "controlled-template-paraphrase-v4",
+  "prompt_file": "ml/prompts/controlled-template-paraphrase.v4.txt",
+  "model": "qwen3.5-35b-a3b",
+  "base_url": "https://api.aitunnel.ru/v1/",
+  "timeout_seconds": 90,
+  "max_retries": 2,
+  "max_output_tokens": 500,
+  "temperature": 0.25,
+  "top_p": 0.9,
+  "pricing_rub_per_million_tokens": {
+    "input": 50,
+    "output": 250,
+    "checked_at": "2026-09-21",
+    "source": "https://aitunnel.ru/models/qwen3-5-35b-a3b"
+  }
+}

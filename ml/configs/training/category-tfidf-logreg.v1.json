@@ -1,0 +1,17 @@
+{
+  "experiment_name": "category-tfidf-logreg-v1",
+  "model_version": "category-tfidf-logreg-v1",
+  "dataset_dir": "ml/data/gold/v1",
+  "artifact_dir": "ml/artifacts/category-tfidf-logreg-v1",
+  "taxonomy_path": "ml/configs/taxonomy.v1.json",
+  "seed": 20260921,
+  "word_ngram_range": [1, 2],
+  "char_ngram_range": [3, 5],
+  "word_max_features": 12000,
+  "char_max_features": 18000,
+  "min_df": 1,
+  "max_iter": 1500,
+  "label_threshold": 0.5,
+  "automation_precision_target": 0.9,
+  "minimum_coverage": 0.1
+}

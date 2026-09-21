@@ -1,0 +1,35 @@
+{
+  "dataset_version": "matching-dataset-v1",
+  "source_dataset_version": "synthetic-city-v2-dev-seed-42",
+  "source_dataset_hash": "51539ed2a9f5ba2175f631b30b360a19bd27d03b22452c88be7481ef18259a11",
+  "split_seed": 20260921,
+  "files": {
+    "corpus.jsonl": {
+      "records": 200,
+      "sha256": "013ef3644e6dae38978a3dbb476e56a20306eb8e979da33260b2a89434ad756a"
+    },
+    "queries.jsonl": {
+      "records": 1100,
+      "sha256": "f12aa380d58159035aa483d0b244e565738d4581653da0e648b15460c5bd22dd"
+    },
+    "qrels.jsonl": {
+      "records": 1000,
+      "sha256": "970a09f5eb3a7e645cb48b9d82d9ac4a58e4509ec7193672d79dcbc9f682320d"
+    },
+    "pairs.jsonl": {
+      "records": 3000,
+      "sha256": "cb61b8481b6b100b64b92c9a4a93027edd3f78944f57c531ab4bdf84cd81be7c"
+    }
+  },
+  "split_counts": {
+    "train": 743,
+    "validation": 178,
+    "test": 179
+  },
+  "limitations": [
+    "Synthetic benchmark; not a replacement for frozen human-reviewed pairs.",
+    "Candidates are generated from a small closed synthetic incident universe.",
+    "Query scenarios are split safely, but the candidate corpus is shared across splits.",
+    "Backend/ingestion canonical snapshots must replace demo IDs before integration."
+  ]
+}

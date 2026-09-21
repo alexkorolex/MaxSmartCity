@@ -1,0 +1,60 @@
+{
+  "version": "llm-augmentation-v2",
+  "prompt_version": "report-lexicalization-v2",
+  "prompt_file": "ml/prompts/report-lexicalization.v2.txt",
+  "model": "mistral-small-3.2-24b-instruct",
+  "base_url": "https://api.aitunnel.ru/v1/",
+  "timeout_seconds": 60,
+  "max_retries": 2,
+  "max_output_tokens": 800,
+  "top_p": 0.95,
+  "pricing_rub_per_million_tokens": {
+    "input": 15,
+    "output": 40,
+    "checked_at": "2026-09-21",
+    "source": "https://aitunnel.ru/models/mistral-small-3-2-24b-instruct"
+  },
+  "validation": {
+    "min_text_length": 8,
+    "max_text_length": 600,
+    "forbidden_terms": [
+      "SF311",
+      "San Francisco",
+      "Сан-Франциско",
+      "BMC",
+      "Mumbai",
+      "Мумбаи"
+    ]
+  },
+  "passes": [
+    {
+      "id": "controlled",
+      "temperature": 0.25,
+      "variants_per_scenario": 3,
+      "styles": ["neutral", "formal", "concise", "detailed"],
+      "source_dataset_ids": ["*"]
+    },
+    {
+      "id": "natural",
+      "temperature": 0.75,
+      "variants_per_scenario": 3,
+      "styles": ["colloquial", "emotional", "typo", "short", "messenger"],
+      "source_dataset_ids": ["*"]
+    },
+    {
+      "id": "adversarial-curated",
+      "temperature": 0.9,
+      "variants_per_scenario": 4,
+      "styles": ["caps", "emoji", "self_correction", "fragmented", "noisy"],
+      "source_dataset_ids": ["ml-data-curated-facts"]
+    }
+  ],
+  "pilot_scenario_ids": [
+    "CURATED-water-near-electric-panel",
+    "CURATED-panel-explicitly-not-sparking",
+    "CURATED-vague-no-water",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-74642f976153",
+    "EXT-SF311-RECENT-CASES-01c509c741bd",
+    "EXT-SF311-RECENT-CASES-0f95a1d4c115"
+  ]
+}

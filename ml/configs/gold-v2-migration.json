@@ -1,0 +1,30 @@
+{
+  "version": "gold-v2-migration-v1",
+  "annotation_version": "gold-report-v2",
+  "taxonomy_version": "city-incidents-backend-aligned-v2",
+  "primary_categories": [
+    "water",
+    "electricity",
+    "building",
+    "road_and_yard",
+    "waste",
+    "emergency",
+    "city_infrastructure",
+    "other"
+  ],
+  "routing_labels": {
+    "needs_clarification": "NEEDS_CLARIFICATION",
+    "non_incident": "NON_INCIDENT"
+  },
+  "routing_overrides": {
+    "CURATED-same-house-water-and-power": "NEEDS_CLARIFICATION"
+  },
+  "danger_aliases": {
+    "FIRE": "OPEN_FLAME",
+    "SMOKE": "SMOKE",
+    "SPARKS": "SPARKING",
+    "EXPOSED_WIRE": "EXPOSED_WIRE",
+    "WATER_NEAR_ELECTRICITY": "WATER_NEAR_ELECTRICITY"
+  },
+  "secondary_category_priority": ["emergency"]
+}

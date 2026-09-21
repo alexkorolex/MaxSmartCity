@@ -1,0 +1,113 @@
+{
+  "version": "template-generation-preview-v1",
+  "seed": 20260921,
+  "variants_per_frame": 2,
+  "templates": [
+    {"id": "address_colon", "text": "{street_sentence}, дом {house_number}: {problem}."},
+    {"id": "building_at", "text": "В доме {house_number} {at_street} {problem}."},
+    {"id": "formal_address", "text": "По адресу: {street}, дом {house_number}, {problem}."},
+    {"id": "polite", "text": "Здравствуйте. {street_sentence}, дом {house_number}: {problem}."}
+  ],
+  "frames": [
+    {
+      "id": "no_cold_water",
+      "category_ids": ["water"],
+      "subcategory_id": "water_supply_disruption",
+      "problem_variants": ["нет холодной воды", "пропала холодная вода"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "BUILDING",
+      "allowed_template_ids": ["address_colon", "building_at", "formal_address", "polite"]
+    },
+    {
+      "id": "water_leak",
+      "category_ids": ["water"],
+      "subcategory_id": "water_leak",
+      "problem_variants": ["из трубы течёт вода", "видна утечка воды из трубы"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "BUILDING",
+      "allowed_template_ids": ["address_colon", "building_at", "formal_address"]
+    },
+    {
+      "id": "building_power_outage",
+      "category_ids": ["electricity"],
+      "subcategory_id": "building_power_outage",
+      "problem_variants": ["нет электричества", "пропало электричество во всём доме"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "BUILDING",
+      "allowed_template_ids": ["address_colon", "building_at", "formal_address", "polite"]
+    },
+    {
+      "id": "waste_overflow",
+      "category_ids": ["waste"],
+      "subcategory_id": "waste_overflow",
+      "problem_variants": ["мусорный контейнер переполнен", "рядом с контейнером скопился мусор"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "OUTDOOR",
+      "allowed_template_ids": ["address_colon", "formal_address", "polite"]
+    },
+    {
+      "id": "blocked_passage",
+      "category_ids": ["road_and_yard"],
+      "subcategory_id": "blocked_passage",
+      "problem_variants": ["проход во двор перекрыт", "перекрыт проход к дому"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "OUTDOOR",
+      "allowed_template_ids": ["address_colon", "formal_address", "polite"]
+    },
+    {
+      "id": "dangerous_tree",
+      "category_ids": ["city_infrastructure"],
+      "subcategory_id": "dangerous_tree",
+      "problem_variants": ["дерево сильно наклонилось над тротуаром", "сломанная ветка нависла над дорожкой"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "OUTDOOR",
+      "allowed_template_ids": ["address_colon", "formal_address", "polite"]
+    },
+    {
+      "id": "road_damage",
+      "category_ids": ["road_and_yard"],
+      "subcategory_id": "road_damage",
+      "problem_variants": ["на дороге образовалась глубокая яма", "повреждено дорожное покрытие"],
+      "context_tags": [],
+      "danger_signals": [],
+      "location_scope": "OUTDOOR",
+      "allowed_template_ids": ["address_colon", "formal_address", "polite"]
+    },
+    {
+      "id": "water_near_electricity",
+      "category_ids": ["water", "emergency"],
+      "subcategory_id": "water_near_electricity",
+      "problem_variants": ["вода течёт рядом с электрощитком", "вода капает на стену возле электрощитка"],
+      "context_tags": ["multi_label", "policy_required"],
+      "danger_signals": ["WATER_NEAR_ELECTRICITY"],
+      "location_scope": "BUILDING",
+      "allowed_template_ids": ["address_colon", "building_at", "formal_address"]
+    },
+    {
+      "id": "exposed_wire",
+      "category_ids": ["electricity", "emergency"],
+      "subcategory_id": "exposed_wire",
+      "problem_variants": ["на земле лежит оголённый провод", "рядом с детской площадкой виден оголённый провод"],
+      "context_tags": ["policy_required"],
+      "danger_signals": ["EXPOSED_WIRE"],
+      "location_scope": "OUTDOOR",
+      "allowed_template_ids": ["address_colon", "formal_address", "polite"]
+    },
+    {
+      "id": "smoke_without_fire",
+      "category_ids": ["emergency"],
+      "subcategory_id": "smoke_in_building",
+      "problem_variants": ["в подъезде чувствуется дым, открытого огня не видно", "в коридоре пахнет дымом, но пламени нет"],
+      "context_tags": ["negated_danger", "policy_required"],
+      "danger_signals": ["SMOKE"],
+      "location_scope": "BUILDING",
+      "allowed_template_ids": ["address_colon", "building_at", "formal_address"]
+    }
+  ]
+}

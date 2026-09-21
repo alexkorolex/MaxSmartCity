@@ -1,0 +1,51 @@
+{
+  "annotation_version": "gold-report-v2",
+  "dataset_version": "gold-v2-migration-candidates-v1",
+  "files": {
+    "reports.jsonl": {
+      "record_count": 362,
+      "sha256": "6db3e28958f73a351a77e2cde0c149b61adc591d00be61610ba7f397c44838a4"
+    },
+    "test.jsonl": {
+      "record_count": 48,
+      "sha256": "eadb842a459c18d9ce314f40c20a9edad5ab1a9e938a7a9a97bf77b131944a7f"
+    },
+    "train.jsonl": {
+      "record_count": 258,
+      "sha256": "37b106e4e326c0d39d77c972dbd7ae7643fbf707bf7a0406e7b723a7fea4cfbc"
+    },
+    "validation.jsonl": {
+      "record_count": 56,
+      "sha256": "64a55e123b010e0c2652581b64fc2ed9e0e698e6f50095d99238ce9f696982f8"
+    }
+  },
+  "inputs": {
+    "ml/configs/gold-v2-migration.json": "9ab137cac5df615d4f3b415b5d3b1ccecc8f9ba8f533a53ea7e59d0632ea98a3",
+    "ml/data/gold/v1/manifest.json": "d9a636821e759fbf5ed98db054ccad2911629b5da6a01e7d5d3e91e1d872eabe"
+  },
+  "limitations": [
+    "Labels were deterministically migrated from Gold v1.",
+    "Extracted feature targets are intentionally empty pending human annotation.",
+    "No record is FROZEN; v2 semantic review is mandatory."
+  ],
+  "primary_category_counts": {
+    "None": 16,
+    "building": 60,
+    "city_infrastructure": 58,
+    "electricity": 10,
+    "emergency": 2,
+    "other": 60,
+    "road_and_yard": 58,
+    "waste": 62,
+    "water": 36
+  },
+  "record_count": 362,
+  "routing_counts": {
+    "ACCEPT": 346,
+    "NEEDS_CLARIFICATION": 10,
+    "NON_INCIDENT": 6
+  },
+  "scenario_count": 181,
+  "status": "CANDIDATE_REQUIRES_V2_SEMANTIC_REVIEW",
+  "taxonomy_version": "city-incidents-backend-aligned-v2"
+}

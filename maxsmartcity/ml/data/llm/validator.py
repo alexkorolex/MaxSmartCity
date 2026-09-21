@@ -93,9 +93,14 @@ def mentions_danger(text: str, danger_signals: tuple[str, ...]) -> bool:
     marker_groups = {
         "WATER_NEAR_ELECTRICITY": (("вод", "теч", "кап"), ("щит", "электр", "провод")),
         "SPARKS": (("искр",),),
-        "EXPOSED_WIRE": (("огол",), ("провод", "кабел")),
+        "SPARKING": (("искр",),),
+        "EXPOSED_WIRE": (("огол", "оборван"), ("провод", "кабел")),
+        "GAS_SMELL": (("газ",), ("запах", "пах")),
         "SMOKE": (("дым", "задым"),),
         "FIRE": (("горит", "огонь", "плам"),),
+        "OPEN_FLAME": (("горит", "огонь", "плам"),),
+        "FLOODING": (("затап", "льёт", "льется", "льётся", "течёт", "течет"),),
+        "STRUCTURAL_RISK": (("трещин", "перекрыт", "обруш"),),
     }
     return all(
         all(any(marker in normalized for marker in group) for group in marker_groups[signal])

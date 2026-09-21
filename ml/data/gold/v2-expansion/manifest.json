@@ -1,0 +1,27 @@
+{
+  "config_sha256": "69f25abf2a2a39e51b9a50f0d2eb187835fc3a6f41249bdd279141f8e66c62b6",
+  "example_count": 160,
+  "files": {
+    "examples.jsonl": "52b116e255aa692c1135bc8410252d7ee25c70dfe55972daebf6604f221b5263",
+    "frames.jsonl": "a629a67b8c8a416381bdb0512509fd8cf19eb2254b2ecbdda3cd0ff4d0665729"
+  },
+  "frame_count": 80,
+  "primary_category_counts": {
+    "NONE": 12,
+    "building": 8,
+    "city_infrastructure": 4,
+    "electricity": 16,
+    "emergency": 12,
+    "other": 4,
+    "road_and_yard": 8,
+    "waste": 4,
+    "water": 12
+  },
+  "profile_count": 20,
+  "routing_counts": {
+    "ACCEPT": 68,
+    "NEEDS_CLARIFICATION": 8,
+    "NON_INCIDENT": 4
+  },
+  "status": "LOCAL_GROUNDED_FRAMES_REQUIRE_REVIEW"
+}

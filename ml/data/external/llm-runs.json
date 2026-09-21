@@ -1,0 +1,59 @@
+{
+  "schema_version": "llm-run-registry-v1",
+  "runs": [
+    {
+      "run_id": "llm-main-v1",
+      "config_version": "llm-augmentation-v1",
+      "status": "REJECTED_FOR_GOLD",
+      "artifact_path": "ml/data/external/interim/llm-main-v1",
+      "reasons": [
+        "model received metadata labels that could leak into generated text",
+        "uncontrolled creative styles introduced unsupported details"
+      ]
+    },
+    {
+      "run_id": "llm-main-v2",
+      "config_version": "llm-augmentation-v2",
+      "status": "REJECTED_FOR_GOLD",
+      "artifact_path": "ml/data/external/interim/llm-main-v2",
+      "reasons": [
+        "creative style passes produced excessive emoji, slang and unnatural phrasing",
+        "manual audit found unsupported durations, locations and actions"
+      ]
+    },
+    {
+      "run_id": "template-paraphrase-pilot-v1",
+      "config_version": "template-paraphrase-pilot-v1",
+      "status": "REJECTED_FOR_SCALE",
+      "artifact_path": "ml/data/external/interim/template-paraphrase-pilot-v1",
+      "reasons": [
+        "outdoor events could be phrased as if they occurred inside a building",
+        "prompt did not carry an explicit location scope contract"
+      ]
+    },
+    {
+      "run_id": "template-paraphrase-pilot-v2",
+      "config_version": "template-paraphrase-pilot-v2",
+      "status": "PILOT_ACCEPTED_FOR_SCALE",
+      "artifact_path": "ml/data/external/interim/template-paraphrase-pilot-v2",
+      "accepted_candidate_count": 20,
+      "quarantined_candidate_count": 0
+    },
+    {
+      "run_id": "template-paraphrase-full-v1",
+      "config_version": "template-paraphrase-full-v1",
+      "status": "CANDIDATES_REQUIRE_HUMAN_REVIEW",
+      "artifact_path": "ml/data/external/interim/template-paraphrase-full-v1",
+      "completed_call_count": 180,
+      "accepted_candidate_count": 353,
+      "quarantined_candidate_count": 7,
+      "estimated_cost_rub": 4.0278,
+      "notes": [
+        "automatic acceptance is not Gold",
+        "manual audit found two exact duplicate pairs from distinct canonical source facts",
+        "a small number of edge-case paraphrases still require rejection or editing",
+        "the later locally authored thanks-only non-incident scenario is not part of this API run"
+      ]
+    }
+  ]
+}

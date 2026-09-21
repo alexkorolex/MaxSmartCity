@@ -6,10 +6,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "faker>=40.0",
+    "joblib>=1.4",
     "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy]>=2.24.0",
     "openai>=1.0",
     "pymorphy3>=2.0",
     "python-dotenv>=1.0",
+    "scikit-learn>=1.5,<2",
 ]
 
 [dependency-groups]

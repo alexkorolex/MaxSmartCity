@@ -1,0 +1,38 @@
+{
+  "version": "city-incidents-backend-aligned-v2",
+  "status": "DRAFT_REQUIRES_BACKEND_SEED_AND_TEAM_APPROVAL",
+  "backend_contract": {
+    "category_storage": "reports.problem_category.code",
+    "report_category_cardinality": "ZERO_OR_ONE",
+    "clarification_storage": "reports.report.status=NEEDS_CLARIFICATION",
+    "danger_storage": "reports.report.danger_flags",
+    "features_storage": "reports.report.extracted_features",
+    "continuation_storage": "reports.report.problem_continues"
+  },
+  "categories": [
+    {"id": "water", "title": "Водоснабжение", "is_critical": false},
+    {"id": "electricity", "title": "Электроснабжение", "is_critical": false},
+    {"id": "building", "title": "Многоквартирный дом", "is_critical": false},
+    {"id": "road_and_yard", "title": "Дороги и дворы", "is_critical": false},
+    {"id": "waste", "title": "Отходы", "is_critical": false},
+    {"id": "emergency", "title": "Аварийная ситуация", "is_critical": true},
+    {"id": "city_infrastructure", "title": "Городская инфраструктура", "is_critical": false},
+    {"id": "other", "title": "Другая проблема", "is_critical": false}
+  ],
+  "routing_outcomes": ["ACCEPT", "NEEDS_CLARIFICATION", "NON_INCIDENT", "ABSTAIN"],
+  "danger_signals": [
+    "OPEN_FLAME",
+    "SMOKE",
+    "SPARKING",
+    "EXPOSED_WIRE",
+    "GAS_SMELL",
+    "FLOODING",
+    "WATER_NEAR_ELECTRICITY",
+    "STRUCTURAL_RISK"
+  ],
+  "migration_notes": [
+    "needs_clarification and non_incident are removed from category_ids",
+    "danger is represented separately even when primary category is emergency",
+    "backend must seed ProblemCategory rows with the same stable codes"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "version": "sf311-taxonomy-v1",
+  "source_dataset": "sf311-recent-cases",
+  "taxonomy_version": "city-incidents-draft-v1",
+  "rules": [
+    {
+      "id": "sf311-public-utilities-water",
+      "match": {"category": "Request for City Services", "type": "public_utilities_commission", "details": "water"},
+      "output": {"category_ids": ["water"], "subcategory_id": "water_service", "problem": "проблема водоснабжения", "object_type": "water_network", "organization_type": "WATER_UTILITY", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-public-utilities-sewer",
+      "match": {"category": "Request for City Services", "type": "public_utilities_commission", "details": "sewer"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "sewer_service", "problem": "проблема канализации", "object_type": "sewer_network", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-public-utilities-electric",
+      "match": {"category": "Request for City Services", "type": "public_utilities_commission", "details": "electric_service"},
+      "output": {"category_ids": ["electricity"], "subcategory_id": "electric_service", "problem": "проблема электроснабжения", "object_type": "electric_network", "organization_type": "POWER_GRID", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-street-cleaning",
+      "match": {"category": "Street and Sidewalk Cleaning"},
+      "output": {"category_ids": ["waste"], "subcategory_id": "street_waste", "problem": "мусор или загрязнение на улице", "object_type": "street_or_sidewalk", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-litter-receptacle-overflowing",
+      "match": {"category": "Litter Receptacle Maintenance", "type": "debris_box_maintenance_overflowing"},
+      "output": {"category_ids": ["waste"], "subcategory_id": "waste_container", "problem": "уличный контейнер для мусора переполнен", "object_type": "waste_container", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-litter-receptacle-left-out",
+      "match": {"category": "Litter Receptacle Maintenance", "type": "toters_left_out_24x7"},
+      "output": {"category_ids": ["waste"], "subcategory_id": "waste_container", "problem": "мусорный контейнер оставлен на улице вне установленного времени вывоза", "object_type": "waste_container", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-litter-receptacle",
+      "match": {"category": "Litter Receptacle Maintenance"},
+      "output": {"category_ids": ["waste"], "subcategory_id": "waste_container", "problem": "проблема с уличным контейнером для мусора", "object_type": "waste_container", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-sidewalk-curb",
+      "match": {"category": "Sidewalk and Curb"},
+      "output": {"category_ids": ["road_and_yard"], "subcategory_id": "sidewalk_or_curb", "problem": "повреждение тротуара или бордюра", "object_type": "sidewalk", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-street-defect",
+      "match": {"category": "Street Defect"},
+      "output": {"category_ids": ["road_and_yard"], "subcategory_id": "street_defect", "problem": "дефект проезжей части", "object_type": "road", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-blocked-street-sidewalk",
+      "match": {"category": "Blocked Street and Sidewalk"},
+      "output": {"category_ids": ["road_and_yard"], "subcategory_id": "blocked_passage", "problem": "проход или проезд перекрыт", "object_type": "street_or_sidewalk", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-tree-maintenance",
+      "match": {"category": "Tree Maintenance"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "city_tree", "problem": "проблема с городским деревом", "object_type": "tree", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-streetlights",
+      "match": {"category": "Streetlights"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "street_lighting", "problem": "неисправность уличного освещения", "object_type": "streetlight", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-sewer",
+      "match": {"category": "Sewer"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "sewer_problem", "problem": "проблема городской канализации", "object_type": "sewer_network", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-residential-building",
+      "match": {"category": "Residential Building"},
+      "output": {"category_ids": ["building"], "subcategory_id": "common_property", "problem": "неисправность общего имущества многоквартирного дома", "object_type": "residential_building", "organization_type": "MANAGEMENT_COMPANY", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-property-general",
+      "match": {"category": "Property General"},
+      "output": {"category_ids": ["building"], "subcategory_id": "property_problem", "problem": "проблема с объектом недвижимости", "object_type": "property", "organization_type": "MANAGEMENT_COMPANY", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-waste-of-water",
+      "match": {"category": "Waste of Water"},
+      "output": {"category_ids": ["water"], "subcategory_id": "water_leak", "problem": "утечка или нерациональный расход воды", "object_type": "water_network", "organization_type": "WATER_UTILITY", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-graffiti-public",
+      "match": {"category": "Graffiti Public"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "graffiti_public", "problem": "граффити на городском объекте", "object_type": "city_object", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-graffiti-private",
+      "match": {"category": "Graffiti Private"},
+      "output": {"category_ids": ["building"], "subcategory_id": "graffiti_building", "problem": "граффити на здании", "object_type": "building", "organization_type": "MANAGEMENT_COMPANY", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-signs-normal",
+      "match": {"category": "MTA Parking Traffic Signs Normal Priority"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "traffic_sign", "problem": "повреждён или отсутствует дорожный знак", "object_type": "traffic_sign", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-signs-high",
+      "match": {"category": "MTA Parking Traffic Signs High Priority"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "traffic_sign", "problem": "повреждён или отсутствует важный дорожный знак", "object_type": "traffic_sign", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary", "source_high_priority"]}
+    },
+    {
+      "id": "sf311-rpd-general",
+      "match": {"category": "RPD General"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "public_space", "problem": "проблема городского общественного пространства", "object_type": "public_space", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-damage-property",
+      "match": {"category": "Damage Property"},
+      "output": {"category_ids": ["city_infrastructure"], "subcategory_id": "damaged_city_property", "problem": "повреждён городской объект", "object_type": "city_object", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary"]}
+    },
+    {
+      "id": "sf311-noise",
+      "match": {"category": "Noise"},
+      "output": {"category_ids": ["other"], "subcategory_id": "noise", "problem": "городской шум", "object_type": "public_space", "organization_type": "ADMINISTRATION", "context_tags": ["source_controlled_vocabulary", "taxonomy_edge"]}
+    }
+  ]
+}

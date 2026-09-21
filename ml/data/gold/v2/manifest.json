@@ -1,0 +1,64 @@
+{
+  "annotation_version": "gold-report-v2",
+  "dataset_name": "maxsmartcity-backend-aligned-report-texts",
+  "dataset_version": "gold-v2-reviewed-candidate-v1",
+  "files": {
+    "reports.jsonl": {
+      "record_count": 522,
+      "sha256": "94b649790379943d4d1077db2549796094b6d591f4657ef5e67c801491f72e40"
+    },
+    "test.jsonl": {
+      "record_count": 66,
+      "sha256": "3f72ba11fb7ba0d0d499ba4a0eae204f65479cdaaa51e5b411fbd08d98c20570"
+    },
+    "train.jsonl": {
+      "record_count": 376,
+      "sha256": "49cf1dd6816f672d4de813058a6a66cead8655ea6f4eed0484e2369b314c51f3"
+    },
+    "validation.jsonl": {
+      "record_count": 80,
+      "sha256": "b9d08a51a9887d0793d836efd43bce5c07c0c6a06d7230bc1e64091e288f72e5"
+    }
+  },
+  "inputs": {
+    "ml/data/gold/v2-expansion/examples.jsonl": "52b116e255aa692c1135bc8410252d7ee25c70dfe55972daebf6604f221b5263",
+    "ml/data/gold/v2-expansion/frames.jsonl": "a629a67b8c8a416381bdb0512509fd8cf19eb2254b2ecbdda3cd0ff4d0665729",
+    "ml/data/gold/v2-migrated/manifest.json": "bb82461faacdee53d91e452ea195b1caad205550ac079d49b34563194798050b",
+    "ml/data/gold/v2/sources/llm-candidates.jsonl": "33a5e500c58f5853eaea0f0bd26c73225ae9837edc8f9d7d762fd34ab2acf69f"
+  },
+  "limitations": [
+    "No real anonymized resident messages are included.",
+    "Extraction targets remain empty and require a separate annotation pass.",
+    "Routing and rare categories are deliberately oversampled in the v2 expansion."
+  ],
+  "primary_category_counts": {
+    "None": 40,
+    "building": 76,
+    "city_infrastructure": 66,
+    "electricity": 42,
+    "emergency": 26,
+    "other": 68,
+    "road_and_yard": 74,
+    "waste": 70,
+    "water": 60
+  },
+  "record_count": 522,
+  "required_next_step": "team sign-off before setting records and manifest to FROZEN",
+  "routing_counts": {
+    "ACCEPT": 482,
+    "NEEDS_CLARIFICATION": 26,
+    "NON_INCIDENT": 14
+  },
+  "scenario_count": 261,
+  "source_counts": {
+    "LLM_ASSISTED": 261,
+    "SYNTHETIC_TEMPLATE": 261
+  },
+  "split_counts": {
+    "test": 66,
+    "train": 376,
+    "validation": 80
+  },
+  "status": "REVIEWED_PENDING_TEAM_SIGNOFF",
+  "taxonomy_version": "city-incidents-backend-aligned-v2"
+}

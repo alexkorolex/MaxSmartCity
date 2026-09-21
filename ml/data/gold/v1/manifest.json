@@ -1,0 +1,51 @@
+{
+  "annotation_version": "gold-report-v1",
+  "dataset_name": "maxsmartcity-reviewed-report-texts",
+  "dataset_version": "gold-mvp-v1",
+  "excluded_scope": [
+    "report-to-incident reranking pairs",
+    "hard negatives",
+    "production or real anonymized reports"
+  ],
+  "files": {
+    "reports.jsonl": {
+      "record_count": 362,
+      "sha256": "ec61cda1570d34abfaa48b61732ffbbb449b785cedb6b8fc7e7a27eeb79cfbbc"
+    },
+    "test.jsonl": {
+      "record_count": 48,
+      "sha256": "f50a2b8f8f06d0209633f96b610adda14ab210cfd70cb8f49069baa7e27e07f9"
+    },
+    "train.jsonl": {
+      "record_count": 258,
+      "sha256": "4436f0887a929c0575af8e101ca3014627dc59c94b2446519a36f3f0d4e8e089"
+    },
+    "validation.jsonl": {
+      "record_count": 56,
+      "sha256": "278683e450c7175565bde1938e3a76fe614e25332a77abcd9eb263c119af3f15"
+    }
+  },
+  "inputs": {
+    "ml/configs/canonical-template-seeds.v1.json": "1ba376645c7cd54848f092953ae7a2d9636ea90834fdfed57961dc7622273961",
+    "ml/configs/gold-mvp.v1.json": "cc5bc4347b72cb4addd97f267fa37d71cd1335980a510a5a2796b9c1f7d10dbc",
+    "ml/configs/taxonomy.v1.json": "ad112193e3dbb0f8c1e2076f69d35985960fb0ae52d9f261d92e39fa9a5db9bc",
+    "ml/data/external/canonical/v1/scenarios.jsonl": "b0f27242936b9775307762320f1122accfb5245d8d4ef52950b960d357706bcc",
+    "ml/data/external/interim/template-paraphrase-full-v1/candidates.jsonl": "b7f97827d7053e59a0fc0eace13cf4e159af699cc2b011b9efb5fa2086c6f8ee",
+    "ml/data/external/interim/template-paraphrase-full-v1/quarantine.jsonl": "612fece4a0b1650e38da383ddea1219da80c97aa03011a013418b51f515934a8"
+  },
+  "record_count": 362,
+  "required_next_step": "human sign-off before changing review_status to FROZEN",
+  "scenario_count": 181,
+  "source_counts": {
+    "LLM_ASSISTED": 181,
+    "SYNTHETIC_TEMPLATE": 181
+  },
+  "split_overrides": {
+    "CURATED-holiday-question": "test",
+    "CURATED-panel-explicitly-not-sparking": "test",
+    "CURATED-thanks-only": "train"
+  },
+  "split_seed": 20260921,
+  "status": "REVIEWED_MVP_PENDING_HUMAN_SIGNOFF",
+  "taxonomy_version": "city-incidents-draft-v1"
+}

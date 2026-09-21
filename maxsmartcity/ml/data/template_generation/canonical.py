@@ -108,6 +108,8 @@ class CanonicalTemplateSeedGenerator:
             else "OUTDOOR"
         )
         problem = fact.problem.strip().rstrip(".!?")
+        if "requires_verification" in fact.context_tags and not _has_uncertainty(problem):
+            problem = f"предположительно {problem}"
         texts = (
             f"{fact.street}, дом {fact.house_number}: {problem}.",
             f"По адресу: {fact.street}, дом {fact.house_number}, {problem}.",
@@ -191,3 +193,8 @@ def _string_tuple(payload: dict[str, Any], key: str) -> tuple[str, ...]:
         msg = f"{key} must be a string list"
         raise ValueError(msg)
     return tuple(value)
+
+
+def _has_uncertainty(text: str) -> bool:
+    lowered = text.casefold()
+    return any(marker in lowered for marker in ("предполож", "возмож", "похож", "кажется"))

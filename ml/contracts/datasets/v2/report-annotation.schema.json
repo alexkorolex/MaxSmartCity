@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/contracts/datasets/v2/report-annotation.schema.json",
+  "title": "Backend-aligned report annotation v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_id",
+    "scenario_id",
+    "text",
+    "primary_category",
+    "routing_outcome",
+    "danger_signals",
+    "extracted_features",
+    "provenance",
+    "review_status"
+  ],
+  "properties": {
+    "record_id": {"type": "string", "minLength": 1},
+    "scenario_id": {"type": "string", "minLength": 1},
+    "text": {"type": "string", "minLength": 2, "maxLength": 2000},
+    "subcategory_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "ambiguity": {"type": "boolean"},
+    "primary_category": {
+      "type": ["string", "null"],
+      "enum": [
+        "water",
+        "electricity",
+        "building",
+        "road_and_yard",
+        "waste",
+        "emergency",
+        "city_infrastructure",
+        "other",
+        null
+      ]
+    },
+    "routing_outcome": {
+      "type": "string",
+      "enum": ["ACCEPT", "NEEDS_CLARIFICATION", "NON_INCIDENT", "ABSTAIN"]
+    },
+    "danger_signals": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "OPEN_FLAME",
+          "SMOKE",
+          "SPARKING",
+          "EXPOSED_WIRE",
+          "GAS_SMELL",
+          "FLOODING",
+          "WATER_NEAR_ELECTRICITY",
+          "STRUCTURAL_RISK"
+        ]
+      }
+    },
+    "extracted_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "raw_address": {"type": ["string", "null"]},
+        "entrance": {"type": ["integer", "null"], "minimum": 1},
+        "floor": {"type": ["integer", "null"], "minimum": -5, "maximum": 200},
+        "duration_seconds": {"type": ["integer", "null"], "minimum": 0},
+        "scale_hint": {
+          "type": ["string", "null"],
+          "enum": ["APARTMENT", "ENTRANCE", "HOUSE", "BLOCK", "DISTRICT", "CITY", null]
+        },
+        "problem_continues": {"type": ["boolean", "null"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind"],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": ["HUMAN_AUTHORED", "HUMAN_EDITED", "SYNTHETIC_TEMPLATE", "LLM_ASSISTED"]
+        },
+        "parent_record_id": {"type": ["string", "null"]},
+        "generator_model": {"type": ["string", "null"]},
+        "prompt_version": {"type": ["string", "null"]}
+      }
+    },
+    "review_status": {
+      "type": "string",
+      "enum": ["CANDIDATE", "REVIEWED", "REJECTED", "FROZEN"]
+    },
+    "reviewer": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"routing_outcome": {"const": "ACCEPT"}},
+        "required": ["routing_outcome"]
+      },
+      "then": {"properties": {"primary_category": {"type": "string"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "routing_outcome": {"enum": ["NEEDS_CLARIFICATION", "NON_INCIDENT", "ABSTAIN"]}
+        },
+        "required": ["routing_outcome"]
+      },
+      "then": {"properties": {"primary_category": {"type": "null"}}}
+    }
+  ]
+}

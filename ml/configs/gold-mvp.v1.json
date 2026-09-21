@@ -1,0 +1,51 @@
+{
+    "version": "gold-mvp-v1",
+    "annotation_version": "gold-report-v1",
+    "taxonomy_version": "city-incidents-draft-v1",
+    "preferred_style": "neutral",
+    "split_seed": 20260921,
+    "annotator": "template-paraphrase-pipeline-v1",
+  "reviewer": "codex-assisted-semantic-review-2026-09-21",
+  "split_overrides": {
+    "CURATED-holiday-question": "test",
+    "CURATED-panel-explicitly-not-sparking": "test",
+    "CURATED-thanks-only": "train"
+  },
+    "text_overrides": [
+        {
+            "scenario_spec_id": "CURATED-long-copy-paste",
+            "text": "В сообщении перечислено несколько проблем, но непонятно, какая из них актуальна сейчас.",
+            "reason": "preserve uncertainty about current relevance instead of questioning whether claims are real"
+        },
+        {
+            "scenario_spec_id": "CURATED-open-flame-in-bin",
+            "text": "Возле дома 178 на Набережной улице в мусорном контейнере видно открытое пламя.",
+            "reason": "remove awkward duplicated address phrasing"
+        },
+        {
+            "scenario_spec_id": "CURATED-repeated-user-duplicate",
+            "text": "Повторно сообщаю о переполненном мусорном контейнере у дома 142 на Советской улице.",
+            "reason": "preserve the repeated-user context required for later deduplication logic"
+        },
+    {
+      "scenario_spec_id": "CURATED-thanks-only",
+      "text": "Большое спасибо.",
+      "reason": "add a third non-incident scenario so train, validation and test each cover the class"
+    },
+    {
+      "scenario_spec_id": "CURATED-wrong-organization-mentioned",
+            "text": "В доме 125 на проспекте Мира нет электричества. Пользователь считает, что виноват водоканал.",
+            "reason": "keep the incorrect organization as an attributed user belief, not a system inference"
+        },
+        {
+            "scenario_spec_id": "EXT-SF311-RECENT-CASES-085489f19785",
+            "text": "У дома 18 на Набережной улице переполнен уличный контейнер для мусора.",
+            "reason": "use the corrected source-specific overflowing-container mapping"
+        },
+        {
+            "scenario_spec_id": "EXT-SF311-RECENT-CASES-73bba6b69114",
+            "text": "У дома 18 на Набережной улице мусорный контейнер оставлен вне установленного времени вывоза.",
+            "reason": "use the corrected source-specific container-left-out mapping"
+        }
+    ]
+}

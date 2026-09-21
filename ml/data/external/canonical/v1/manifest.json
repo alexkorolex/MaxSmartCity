@@ -1,0 +1,28 @@
+{
+  "category_counts": {
+    "building": 30,
+    "city_infrastructure": 29,
+    "electricity": 7,
+    "emergency": 5,
+    "needs_clarification": 4,
+    "non_incident": 3,
+    "other": 31,
+    "road_and_yard": 29,
+    "waste": 31,
+    "water": 20
+  },
+  "dataset_name": "external-canonical-scenario-specs",
+  "dataset_version": "external-scenarios-v1",
+  "file": "scenarios.jsonl",
+  "record_count": 181,
+  "schema_version": "canonical-scenario-v1",
+  "seed": 42,
+  "sha256": "b0f27242936b9775307762320f1122accfb5245d8d4ef52950b960d357706bcc",
+  "source_counts": {
+    "bmc-synthetic-complaints": 60,
+    "ml-data-curated-facts": 21,
+    "sf311-recent-cases": 100
+  },
+  "status": "PRE_LLM_FACTS_REQUIRES_REVIEW",
+  "taxonomy_version": "city-incidents-draft-v1"
+}

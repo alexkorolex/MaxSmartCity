@@ -1,0 +1,198 @@
+{
+  "version": "canonical-template-seeds-v1",
+  "building_object_types": ["building", "property", "residential_building"],
+  "outdoor_subcategories": [
+    "blocked_passage",
+    "city_tree",
+    "dangerous_tree",
+    "graffiti_building",
+    "graffiti_public",
+    "public_space",
+    "public_space_obstruction",
+    "road_damage",
+    "sidewalk_or_curb",
+    "street_defect",
+    "street_lighting",
+    "traffic_sign",
+    "waste_container"
+  ],
+  "overrides": [
+    {
+      "scenario_spec_id": "CURATED-address-without-problem",
+      "location_scope": "NONE",
+      "address_required": true,
+      "seed_texts": [
+        "Адрес: {street}, дом {house_number}.",
+        "{street}, дом {house_number}. Описание проблемы отсутствует."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-corrected-house-number",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, нет воды. Номер 64 был указан ошибочно.",
+        "Исправляю номер: {street}, дом {house_number}. В доме нет воды."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-exposed-wire",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "seed_texts": [
+        "Рядом с домом {house_number} по адресу {street} возле детской площадки лежит оголённый провод.",
+        "{street}, дом {house_number}: рядом с детской площадкой виден оголённый провод."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-greeting-only",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": ["Здравствуйте.", "Добрый день."]
+    },
+    {
+      "scenario_spec_id": "CURATED-holiday-question",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": [
+        "Когда в городе будет ближайший праздник?",
+        "Подскажите дату городского праздничного мероприятия."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-thanks-only",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": ["Спасибо.", "Большое спасибо."]
+    },
+    {
+      "scenario_spec_id": "CURATED-long-copy-paste",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": [
+        "В сообщении перечислено несколько разных проблем, но непонятно, какая из них актуальна.",
+        "Не могу точно описать проблему: в скопированном тексте указано сразу несколько неисправностей."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-official-outage-conflict",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, нет воды, хотя адрес не указан в объявлении об отключении.",
+        "В доме по адресу {street}, дом {house_number}, отключена вода, но официально этот адрес в зону отключения не входит."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-official-outage-supported",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, нет воды. Об отключении было официальное сообщение.",
+        "В доме по адресу {street}, дом {house_number}, отключена вода, это указано в официальном объявлении."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-old-closed-incident-mentioned",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, снова нет воды. Предыдущую проблему уже закрывали.",
+        "В доме по адресу {street}, дом {house_number}, повторно отключилась вода после закрытия прошлой заявки."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-open-flame-in-bin",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "seed_texts": [
+        "У дома {house_number} по адресу {street} горит мусор в контейнере.",
+        "{street}, дом {house_number}: в мусорном контейнере видно открытое пламя."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-panel-explicitly-not-sparking",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, нет электричества, щиток не искрит.",
+        "В доме по адресу {street}, дом {house_number}, отключён свет, искрения в щитке нет."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-repeated-user-duplicate",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "seed_texts": [
+        "Повторно сообщаю: у дома {house_number} по адресу {street} переполнен мусорный контейнер.",
+        "Снова пишу о переполненном контейнере по адресу {street}, дом {house_number}."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-same-house-water-and-power",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "В доме по адресу {street}, дом {house_number}, одновременно нет воды и электричества.",
+        "{street}, дом {house_number}: отсутствуют вода и электричество."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-smoke-without-visible-fire",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, в подъезде чувствуется дым, открытого огня не видно.",
+        "В доме по адресу {street}, дом {house_number}, пахнет дымом, но пламени нет."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-sparking-panel",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, искрит электрощиток.",
+        "В доме по адресу {street}, дом {house_number}, видно искрение в электрощитке."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-unknown-city-problem",
+      "location_scope": "NONE",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, есть городская проблема, но подходящую тему выбрать не получается.",
+        "{street}, дом {house_number}: не получается определить вид городской проблемы."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-vague-no-power",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": ["У нас нет света.", "Электричество отключилось, адрес не указан."]
+    },
+    {
+      "scenario_spec_id": "CURATED-vague-no-water",
+      "location_scope": "NONE",
+      "address_required": false,
+      "seed_texts": ["У нас нет воды.", "Вода отключена, адрес не указан."]
+    },
+    {
+      "scenario_spec_id": "CURATED-water-near-electric-panel",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, вода с потолка течёт рядом с электрощитком.",
+        "В доме по адресу {street}, дом {house_number}, вода капает возле электрощитка."
+      ]
+    },
+    {
+      "scenario_spec_id": "CURATED-wrong-organization-mentioned",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "seed_texts": [
+        "По адресу {street}, дом {house_number}, нет электричества. Думаю, что виноват водоканал.",
+        "В доме по адресу {street}, дом {house_number}, отключён свет, пользователь связывает это с водоканалом."
+      ]
+    }
+  ]
+}

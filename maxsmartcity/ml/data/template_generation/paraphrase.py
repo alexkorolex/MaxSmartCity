@@ -60,6 +60,18 @@ def select_one_seed_per_frame(
     return tuple(selected[key] for key in sorted(selected))
 
 
+def select_scenarios(
+    examples: tuple[TemplateExample, ...], scenario_ids: frozenset[str]
+) -> tuple[TemplateExample, ...]:
+    selected = tuple(example for example in examples if example.frame_id in scenario_ids)
+    found = {example.frame_id for example in selected}
+    missing = scenario_ids - found
+    if missing:
+        msg = f"requested scenarios are absent from template seeds: {sorted(missing)}"
+        raise ValueError(msg)
+    return selected
+
+
 def build_paraphrase_messages(
     system_prompt: str,
     example: TemplateExample,
@@ -103,7 +115,8 @@ class TemplateParaphraseValidator:
     _invented_time = re.compile(
         r"\b(?:уже\s+)?(?:\d+|несколько|один|два|две|три|четыре|пять|"
         r"первый|второй|третий)\s*"
-        r"(?:минут\w*|час\w*|дн\w*|сут\w*|недел\w*|месяц\w*)\b|"
+        r"(?:минут(?:у|ы)?|час(?:а|ов)?|дн(?:я|ей)|сут(?:ки|ок)|"
+        r"недел(?:ю|и|ь)|месяц(?:а|ев)?)\b|"
         r"\b(?:давно|всю ночь|уже долго)\b",
         re.IGNORECASE,
     )
@@ -145,12 +158,14 @@ class TemplateParaphraseValidator:
             errors.append("STYLE_NOT_ALLOWED")
         elif style_counts[variant.style_id] != 1:
             errors.append("STYLE_NOT_UNIQUE")
-        if len(text) < 15:
+        if len(text) < 3:
             errors.append("TEXT_TOO_SHORT")
         if len(text) > 240:
             errors.append("TEXT_TOO_LONG")
         if _normalize(text) == _normalize(example.text):
             errors.append("TEXT_UNCHANGED")
+        if set(re.findall(r"\b\d+\b", text)) != set(re.findall(r"\b\d+\b", example.text)):
+            errors.append("NUMERIC_FACTS_NOT_PRESERVED")
         if self._emoji.search(text):
             errors.append("EMOJI_FORBIDDEN")
         if self._slang.search(text):
@@ -163,7 +178,10 @@ class TemplateParaphraseValidator:
             example.text
         ):
             errors.append("UNSUPPORTED_INTENSITY")
-        organization_allowed = "misleading_organization_mention" in example.context_tags
+        organization_allowed = (
+            "misleading_organization_mention" in example.context_tags
+            or self._invented_organization.search(example.text) is not None
+        )
         if self._invented_organization.search(text) and not organization_allowed:
             errors.append("UNSUPPORTED_ORGANIZATION")
         if re.search(r"[!?]{2,}|\.{3,}", text):
@@ -190,11 +208,29 @@ class TemplateParaphraseValidator:
             r"\b(?:повтор\w*|снова|опять|ещё раз)\b", text, re.IGNORECASE
         ):
             errors.append("REPETITION_CONTEXT_NOT_PRESERVED")
+        if "self_correction" in example.context_tags and not re.search(
+            r"\b(?:ошиб\w*|исправ\w*)\b", text, re.IGNORECASE
+        ):
+            errors.append("SELF_CORRECTION_NOT_PRESERVED")
+        if "external_event_conflict" in example.context_tags and not re.search(
+            r"\b(?:объяв\w*|спис\w*|зон\w*)\b", text, re.IGNORECASE
+        ):
+            errors.append("EXTERNAL_EVIDENCE_NOT_PRESERVED")
+        if "requires_verification" in example.context_tags and not re.search(
+            r"\b(?:предполож\w*|возмож\w*|похож\w*|каж(?:ется|утся))\b", text, re.IGNORECASE
+        ):
+            errors.append("UNCERTAINTY_NOT_PRESERVED")
+        if " или " in f" {_normalize(example.text)} " and not re.search(
+            r"\b(?:или|либо)\b", text, re.IGNORECASE
+        ):
+            errors.append("DISJUNCTION_NOT_PRESERVED")
+        if "актуаль" in example.text.casefold() and "актуаль" not in text.casefold():
+            errors.append("CURRENT_RELEVANCE_NOT_PRESERVED")
         if "адрес указан" in text.casefold() and "адрес указан" not in example.text.casefold():
             errors.append("UNSUPPORTED_ADDRESS_META")
-        if "negated_danger" in example.context_tags and not _preserves_required_negation(
-            example, text
-        ):
+        if {"negated_danger", "negated_fire"} & set(
+            example.context_tags
+        ) and not _preserves_required_negation(example, text):
             errors.append("NEGATION_NOT_PRESERVED")
         if _sentence_count(text) > 2:
             errors.append("TOO_MANY_SENTENCES")
@@ -382,10 +418,15 @@ def _preserves_required_negation(example: TemplateExample, text: str) -> bool:
                 for marker in (
                     "огня не видно",
                     "не видно огня",
+                    "огня нет",
                     "пламени нет",
                     "нет пламени",
                     "без открытого огня",
                     "открытого огня нет",
+                    "открытого пламени не наблюдается",
+                    "открытого огня не наблюдается",
+                    "пламени не наблюдается",
+                    "огня не наблюдается",
                 )
             )
         )

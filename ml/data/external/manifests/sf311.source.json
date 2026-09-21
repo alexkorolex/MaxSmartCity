@@ -1,0 +1,22 @@
+{
+  "dataset_id": "sf311-recent-cases",
+  "title": "SF311 Recent Cases",
+  "source_url": "https://data.sfgov.org/d/d9fx-8m7k",
+  "source_page": "https://data.sfgov.org/dataset/SF311-Recent-Cases/d9fx-8m7k",
+  "license": {
+    "name": "Open Data Commons Public Domain Dedication and License (PDDL)",
+    "url": "https://opendatacommons.org/licenses/pddl/1-0/"
+  },
+  "is_synthetic": false,
+  "snapshot_date": "2026-09-21",
+  "raw_file": "raw/sf311/SF311_-_Recent_Cases_20260921.csv",
+  "sha256": "25a0481e57f88d3e8fe5542813e8188596ff27c8851e599cf413abd541772256",
+  "byte_size": 2323625,
+  "record_count": 6759,
+  "usage": "Controlled service vocabulary and frequency hints only; original addresses are discarded.",
+  "limitations": [
+    "All records in this snapshot are open, so it cannot support outcome modelling.",
+    "The DETAILS field is controlled vocabulary rather than resident free text.",
+    "US municipal concepts require an explicit mapping to the project taxonomy."
+  ]
+}

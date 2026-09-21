@@ -1,0 +1,30 @@
+{
+  "dataset_id": "bmc-synthetic-complaints",
+  "title": "Mumbai Nagar Seva — BMC Civic Complaint Resolution 2018–2024",
+  "source_url": "https://www.kaggle.com/competitions/mumbai-nagar-seva-bmc-civic-complaint-resolution-2018-2024/data",
+  "license": {
+    "name": "Creative Commons Attribution 4.0 International",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "is_synthetic": true,
+  "snapshot_date": "2026-09-21",
+  "raw_files": [
+    {
+      "path": "raw/bmc/bmc_train.csv",
+      "sha256": "98d0017272f5622ec4819f9865e45c8136f42355942af27c1164f08aa072c418",
+      "byte_size": 226782373,
+      "record_count": 960000
+    },
+    {
+      "path": "raw/bmc/bmc_data_dictionary.csv",
+      "sha256": "a26fc875be3a979a41e8478b77d52a0258d6ac81323c780b1ec01c19ead4be42",
+      "byte_size": 1959
+    }
+  ],
+  "usage": "Scenario combinations and distribution hints only; no user text is present.",
+  "limitations": [
+    "The competition data is synthetic and must not be treated as real complaint evidence.",
+    "Category-to-department relationships are deterministic in the source.",
+    "The table is streamed and reduced to unique semantic combinations before sampling."
+  ]
+}

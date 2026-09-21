@@ -221,6 +221,8 @@ __marimo__/
 .streamlit/secrets.toml
 # Reproducible local ML stress artifacts (keep configs/manifests documented in ml/README.md)
 ml/data/synthetic/stress-*/
+# Trained weights and local benchmark output are reproducible from versioned configs/data.
+ml/artifacts/
 # Downloaded external datasets and rebuildable intermediate artifacts.
 ml/data/external/raw/
 ml/data/external/interim/

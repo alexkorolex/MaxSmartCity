@@ -16,6 +16,7 @@ from maxsmartcity.ml.data.template_generation.paraphrase import (
     TemplateParaphraseRunner,
     load_template_paraphrase_config,
     select_one_seed_per_frame,
+    select_scenarios,
 )
 from maxsmartcity.ml.data.template_generation.writer import load_template_examples
 
@@ -28,6 +29,7 @@ def main() -> None:
     parser.add_argument("--llm-config", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, default=Path(".env.local"))
+    parser.add_argument("--scenario-ids-file", type=Path)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
 
@@ -41,6 +43,17 @@ def main() -> None:
             raise RuntimeError(msg)
         generated_examples = load_template_examples(args.seeds_file)
     examples = select_one_seed_per_frame(generated_examples)
+    if args.scenario_ids_file is not None:
+        payload = json.loads(args.scenario_ids_file.read_text(encoding="utf-8"))
+        raw_ids = payload.get("scenario_ids") if isinstance(payload, dict) else None
+        if (
+            not isinstance(raw_ids, list)
+            or not raw_ids
+            or not all(isinstance(item, str) and item for item in raw_ids)
+        ):
+            msg = "scenario ids file must contain a non-empty scenario_ids string list"
+            raise ValueError(msg)
+        examples = select_scenarios(examples, frozenset(raw_ids))
     config = load_template_paraphrase_config(args.llm_config)
     system_prompt = load_system_prompt(config.prompt_file)
     if args.execute:

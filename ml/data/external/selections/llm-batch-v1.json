@@ -1,0 +1,202 @@
+{
+  "canonical_input": {
+    "name": "scenarios.jsonl",
+    "sha256": "b0f27242936b9775307762320f1122accfb5245d8d4ef52950b960d357706bcc"
+  },
+  "counts": {
+    "primary_category_ids": {
+      "building": 7,
+      "city_infrastructure": 6,
+      "electricity": 6,
+      "emergency": 1,
+      "needs_clarification": 1,
+      "non_incident": 2,
+      "other": 8,
+      "road_and_yard": 6,
+      "waste": 9,
+      "water": 14
+    },
+    "source_dataset_ids": {
+      "bmc-synthetic-complaints": 20,
+      "ml-data-curated-facts": 20,
+      "sf311-recent-cases": 20
+    },
+    "subcategory_ids": {
+      "address_only": 1,
+      "blocked_passage": 1,
+      "building_power_outage": 2,
+      "burning_waste": 1,
+      "city_tree": 1,
+      "common_property": 1,
+      "drainage_overflow": 1,
+      "electric_service": 1,
+      "exposed_wire": 1,
+      "graffiti_building": 1,
+      "graffiti_public": 1,
+      "greeting": 1,
+      "illegal_construction": 3,
+      "long_unstructured_message": 1,
+      "multiple_service_disruptions": 1,
+      "noise": 3,
+      "noise_or_air_pollution": 1,
+      "pipe_burst": 2,
+      "power_outage_unknown_scope": 1,
+      "property_problem": 2,
+      "public_health": 1,
+      "public_space_obstruction": 2,
+      "public_toilet": 1,
+      "road_damage": 1,
+      "sidewalk_or_curb": 1,
+      "smoke_in_building": 1,
+      "solid_waste": 4,
+      "sparking_electrical_panel": 1,
+      "stray_animals": 1,
+      "street_defect": 1,
+      "street_lighting": 2,
+      "street_waste": 2,
+      "unknown_problem": 1,
+      "unrelated_question": 1,
+      "waste_container": 1,
+      "waste_overflow": 1,
+      "water_leak": 2,
+      "water_near_electricity": 1,
+      "water_service": 1,
+      "water_supply_disruption": 6,
+      "water_supply_unknown_scope": 1
+    }
+  },
+  "quotas": [
+    {
+      "category_id": "building",
+      "count": 3,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "city_infrastructure",
+      "count": 3,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "other",
+      "count": 3,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "road_and_yard",
+      "count": 3,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "waste",
+      "count": 4,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "water",
+      "count": 4,
+      "source_dataset_id": "bmc-synthetic-complaints"
+    },
+    {
+      "category_id": "building",
+      "count": 4,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "city_infrastructure",
+      "count": 3,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "electricity",
+      "count": 1,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "other",
+      "count": 3,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "road_and_yard",
+      "count": 3,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "waste",
+      "count": 3,
+      "source_dataset_id": "sf311-recent-cases"
+    },
+    {
+      "category_id": "water",
+      "count": 3,
+      "source_dataset_id": "sf311-recent-cases"
+    }
+  ],
+  "scenario_count": 60,
+  "scenario_ids": [
+    "CURATED-address-without-problem",
+    "CURATED-corrected-house-number",
+    "CURATED-exposed-wire",
+    "CURATED-greeting-only",
+    "CURATED-holiday-question",
+    "CURATED-long-copy-paste",
+    "CURATED-official-outage-conflict",
+    "CURATED-official-outage-supported",
+    "CURATED-old-closed-incident-mentioned",
+    "CURATED-open-flame-in-bin",
+    "CURATED-panel-explicitly-not-sparking",
+    "CURATED-repeated-user-duplicate",
+    "CURATED-same-house-water-and-power",
+    "CURATED-smoke-without-visible-fire",
+    "CURATED-sparking-panel",
+    "CURATED-unknown-city-problem",
+    "CURATED-vague-no-power",
+    "CURATED-vague-no-water",
+    "CURATED-water-near-electric-panel",
+    "CURATED-wrong-organization-mentioned",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-1bd83ad4888b",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-2b9239ace793",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-2bdd851c92fc",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-2f0419eeb912",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-314fbe44e012",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-3b89833b0cd4",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-5fe0c53f96a6",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-60a0e326900d",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-6ce474b53b4c",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-6f3fc12a1efa",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-74642f976153",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-7607f4a6ba74",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-766c4106840e",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-77a28a550aca",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-7b467c595e63",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-7de35d770964",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-aa5491cf9dfc",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-ad563b0e5090",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-b0b7595d804b",
+    "EXT-BMC-SYNTHETIC-COMPLAINTS-df13e73e809b",
+    "EXT-SF311-RECENT-CASES-0dedf2bcdbba",
+    "EXT-SF311-RECENT-CASES-0f95a1d4c115",
+    "EXT-SF311-RECENT-CASES-25506e86b5b0",
+    "EXT-SF311-RECENT-CASES-25e5df0e8c16",
+    "EXT-SF311-RECENT-CASES-28ec0e4810a4",
+    "EXT-SF311-RECENT-CASES-450afb346f0c",
+    "EXT-SF311-RECENT-CASES-4b89cf4c918d",
+    "EXT-SF311-RECENT-CASES-55010a069e1f",
+    "EXT-SF311-RECENT-CASES-58d344899498",
+    "EXT-SF311-RECENT-CASES-5d06832eff8c",
+    "EXT-SF311-RECENT-CASES-6e33e59cfbd6",
+    "EXT-SF311-RECENT-CASES-7c6c682797b0",
+    "EXT-SF311-RECENT-CASES-9045e495795a",
+    "EXT-SF311-RECENT-CASES-9e47cc8d2b2f",
+    "EXT-SF311-RECENT-CASES-b1ad85a5953f",
+    "EXT-SF311-RECENT-CASES-bfac246c545d",
+    "EXT-SF311-RECENT-CASES-c237a3a7e767",
+    "EXT-SF311-RECENT-CASES-ce95dd3b5ee3",
+    "EXT-SF311-RECENT-CASES-e26f0febc65b",
+    "EXT-SF311-RECENT-CASES-fd6cb04f9c68"
+  ],
+  "schema_version": "llm-scenario-selection-v1",
+  "seed": "maxsmartcity-gold-candidates-v1",
+  "selection_sha256": "3f169a363e4b3efcf9418808ff2740a34294e3044a35caf1bdda3e77ad01e534",
+  "selection_version": "llm-selection-v1"
+}

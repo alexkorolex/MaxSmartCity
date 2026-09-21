@@ -1,0 +1,21 @@
+{
+  "version": "llm-selection-v1",
+  "seed": "maxsmartcity-gold-candidates-v1",
+  "include_all_source_dataset_ids": ["ml-data-curated-facts"],
+  "exclude_scenario_ids": ["CURATED-thanks-only"],
+  "quotas": [
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "building", "count": 3},
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "city_infrastructure", "count": 3},
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "other", "count": 3},
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "road_and_yard", "count": 3},
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "waste", "count": 4},
+    {"source_dataset_id": "bmc-synthetic-complaints", "category_id": "water", "count": 4},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "building", "count": 4},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "city_infrastructure", "count": 3},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "electricity", "count": 1},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "other", "count": 3},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "road_and_yard", "count": 3},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "waste", "count": 3},
+    {"source_dataset_id": "sf311-recent-cases", "category_id": "water", "count": 3}
+  ]
+}

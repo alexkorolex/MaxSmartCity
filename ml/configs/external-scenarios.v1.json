@@ -1,0 +1,261 @@
+{
+  "version": "external-scenarios-v1",
+  "schema_version": "canonical-scenario-v1",
+  "taxonomy_version": "city-incidents-draft-v1",
+  "city_id": "demo-city",
+  "seed": 42,
+  "source_limits": {
+    "sf311": 100,
+    "bmc": 60
+  },
+  "streets": [
+    "улица Ленина",
+    "Советская улица",
+    "проспект Мира",
+    "Садовая улица",
+    "Школьная улица",
+    "Набережная улица"
+  ],
+  "curated_scenarios": [
+    {
+      "id": "water-near-electric-panel",
+      "category_ids": ["water", "emergency"],
+      "subcategory_id": "water_near_electricity",
+      "problem": "вода с потолка попадает рядом с электрощитком",
+      "object_type": "electrical_panel",
+      "severity": "critical",
+      "organization_type": null,
+      "context_tags": ["multi_label", "policy_required"],
+      "danger_signals": ["WATER_NEAR_ELECTRICITY"]
+    },
+    {
+      "id": "sparking-panel",
+      "category_ids": ["electricity", "emergency"],
+      "subcategory_id": "sparking_electrical_panel",
+      "problem": "электрощиток искрит",
+      "object_type": "electrical_panel",
+      "severity": "critical",
+      "organization_type": null,
+      "context_tags": ["policy_required"],
+      "danger_signals": ["SPARKS"]
+    },
+    {
+      "id": "panel-explicitly-not-sparking",
+      "category_ids": ["electricity"],
+      "subcategory_id": "building_power_outage",
+      "problem": "в доме нет электричества, щиток не искрит",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "POWER_GRID",
+      "context_tags": ["negated_danger"],
+      "danger_signals": []
+    },
+    {
+      "id": "exposed-wire",
+      "category_ids": ["electricity", "emergency"],
+      "subcategory_id": "exposed_wire",
+      "problem": "на детской площадке лежит оголённый провод",
+      "object_type": "electrical_wire",
+      "severity": "critical",
+      "organization_type": null,
+      "context_tags": ["children_nearby", "policy_required"],
+      "danger_signals": ["EXPOSED_WIRE"]
+    },
+    {
+      "id": "smoke-without-visible-fire",
+      "category_ids": ["emergency"],
+      "subcategory_id": "smoke_in_building",
+      "problem": "в подъезде чувствуется дым, открытого огня не видно",
+      "object_type": "residential_building",
+      "severity": "critical",
+      "organization_type": null,
+      "context_tags": ["negated_fire", "policy_required"],
+      "danger_signals": ["SMOKE"]
+    },
+    {
+      "id": "open-flame-in-bin",
+      "category_ids": ["waste", "emergency"],
+      "subcategory_id": "burning_waste",
+      "problem": "горит мусор в контейнере возле дома",
+      "object_type": "waste_container",
+      "severity": "critical",
+      "organization_type": null,
+      "context_tags": ["policy_required"],
+      "danger_signals": ["FIRE"]
+    },
+    {
+      "id": "vague-no-water",
+      "category_ids": ["water", "needs_clarification"],
+      "subcategory_id": "water_supply_unknown_scope",
+      "problem": "нет воды, адрес и масштаб не указаны",
+      "object_type": "unknown",
+      "severity": "unknown",
+      "organization_type": null,
+      "context_tags": ["short_text"],
+      "danger_signals": [],
+      "needs_clarification": true,
+      "ambiguity": true
+    },
+    {
+      "id": "vague-no-power",
+      "category_ids": ["electricity", "needs_clarification"],
+      "subcategory_id": "power_outage_unknown_scope",
+      "problem": "нет света, адрес и масштаб не указаны",
+      "object_type": "unknown",
+      "severity": "unknown",
+      "organization_type": null,
+      "context_tags": ["short_text"],
+      "danger_signals": [],
+      "needs_clarification": true,
+      "ambiguity": true
+    },
+    {
+      "id": "wrong-organization-mentioned",
+      "category_ids": ["electricity"],
+      "subcategory_id": "building_power_outage",
+      "problem": "в доме нет электричества, пользователь ошибочно обвиняет водоканал",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "POWER_GRID",
+      "context_tags": ["misleading_organization_mention"],
+      "danger_signals": []
+    },
+    {
+      "id": "corrected-house-number",
+      "category_ids": ["water"],
+      "subcategory_id": "water_supply_disruption",
+      "problem": "пользователь исправляет номер дома в том же сообщении",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "WATER_UTILITY",
+      "context_tags": ["self_correction", "address_ambiguity"],
+      "danger_signals": [],
+      "ambiguity": true
+    },
+    {
+      "id": "same-house-water-and-power",
+      "category_ids": ["water", "electricity"],
+      "subcategory_id": "multiple_service_disruptions",
+      "problem": "в одном доме одновременно нет воды и электричества",
+      "object_type": "residential_building",
+      "severity": "high",
+      "organization_type": null,
+      "context_tags": ["multi_label", "multiple_assignments"],
+      "danger_signals": []
+    },
+    {
+      "id": "old-closed-incident-mentioned",
+      "category_ids": ["water"],
+      "subcategory_id": "water_supply_disruption",
+      "problem": "новое отключение воды после ранее закрытого инцидента",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "WATER_UTILITY",
+      "context_tags": ["same_house_different_time", "stale_candidate"],
+      "danger_signals": []
+    },
+    {
+      "id": "official-outage-supported",
+      "category_ids": ["water"],
+      "subcategory_id": "water_supply_disruption",
+      "problem": "отключение воды подтверждено официальным внешним событием",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "WATER_UTILITY",
+      "context_tags": ["external_event_supported"],
+      "danger_signals": []
+    },
+    {
+      "id": "official-outage-conflict",
+      "category_ids": ["water"],
+      "subcategory_id": "water_supply_disruption",
+      "problem": "адрес обращения не входит в зону официального отключения",
+      "object_type": "residential_building",
+      "severity": "medium",
+      "organization_type": "WATER_UTILITY",
+      "context_tags": ["external_event_conflict", "hard_negative"],
+      "danger_signals": []
+    },
+    {
+      "id": "greeting-only",
+      "category_ids": ["non_incident"],
+      "subcategory_id": "greeting",
+      "problem": "приветствие без сообщения о городской проблеме",
+      "object_type": "none",
+      "severity": "none",
+      "organization_type": null,
+      "context_tags": ["noise"],
+      "danger_signals": []
+    },
+    {
+      "id": "holiday-question",
+      "category_ids": ["non_incident"],
+      "subcategory_id": "unrelated_question",
+      "problem": "вопрос о городском празднике без сообщения об инциденте",
+      "object_type": "none",
+      "severity": "none",
+      "organization_type": null,
+      "context_tags": ["noise"],
+      "danger_signals": []
+    },
+    {
+      "id": "thanks-only",
+      "category_ids": ["non_incident"],
+      "subcategory_id": "gratitude",
+      "problem": "благодарность без сообщения о городской проблеме",
+      "object_type": "none",
+      "severity": "none",
+      "organization_type": null,
+      "context_tags": ["noise"],
+      "danger_signals": []
+    },
+    {
+      "id": "unknown-city-problem",
+      "category_ids": ["other"],
+      "subcategory_id": "unknown_problem",
+      "problem": "содержательная городская проблема вне согласованной taxonomy",
+      "object_type": "unknown",
+      "severity": "unknown",
+      "organization_type": null,
+      "context_tags": ["ood"],
+      "danger_signals": [],
+      "ambiguity": true
+    },
+    {
+      "id": "address-without-problem",
+      "category_ids": ["needs_clarification"],
+      "subcategory_id": "address_only",
+      "problem": "указан только адрес без описания проблемы",
+      "object_type": "unknown",
+      "severity": "unknown",
+      "organization_type": null,
+      "context_tags": ["incomplete"],
+      "danger_signals": [],
+      "needs_clarification": true
+    },
+    {
+      "id": "long-copy-paste",
+      "category_ids": ["other", "needs_clarification"],
+      "subcategory_id": "long_unstructured_message",
+      "problem": "длинный скопированный текст содержит несколько неподтверждённых проблем",
+      "object_type": "unknown",
+      "severity": "unknown",
+      "organization_type": null,
+      "context_tags": ["very_long_text", "multiple_claims"],
+      "danger_signals": [],
+      "needs_clarification": true,
+      "ambiguity": true
+    },
+    {
+      "id": "repeated-user-duplicate",
+      "category_ids": ["waste"],
+      "subcategory_id": "waste_overflow",
+      "problem": "один пользователь многократно отправляет сообщение о переполненном контейнере",
+      "object_type": "waste_container",
+      "severity": "medium",
+      "organization_type": "ADMINISTRATION",
+      "context_tags": ["repeated_user", "deduplication"],
+      "danger_signals": []
+    }
+  ]
+}

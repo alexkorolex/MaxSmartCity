@@ -1,0 +1,235 @@
+{
+  "version": "gold-v2-expansion-v1",
+  "seed": 20260921,
+  "scenarios_per_profile": 4,
+  "addresses": [
+    ["улица Ленина", "14"],
+    ["Советская улица", "27"],
+    ["проспект Мира", "41"],
+    ["Садовая улица", "58"],
+    ["Школьная улица", "73"],
+    ["Набережная улица", "96"]
+  ],
+  "profiles": [
+    {
+      "id": "cold-water-outage",
+      "primary_category": "water",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "water_supply_disruption",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["нет холодной воды", "пропала холодная вода", "холодная вода не поступает"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "hot-water-outage",
+      "primary_category": "water",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "hot_water_disruption",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["нет горячей воды", "горячая вода не поступает", "пропала горячая вода"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "water-leak",
+      "primary_category": "water",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "water_leak",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["подвал затапливает водой", "из повреждённой трубы льётся вода", "вода течёт с потолка в подъезде"],
+      "danger_signals": ["FLOODING"],
+      "context_tags": []
+    },
+    {
+      "id": "building-power-outage",
+      "primary_category": "electricity",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "building_power_outage",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["во всём доме нет электричества", "в доме отключился свет", "электричество в доме отсутствует"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "entrance-lighting",
+      "primary_category": "electricity",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "entrance_lighting",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["в подъезде не работает освещение", "на лестничной площадке не горит свет", "в коридоре подъезда темно из-за неисправного света"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "sparking-panel",
+      "primary_category": "electricity",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "sparking_electrical_panel",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["искрит электрощиток", "в щитке видно искрение", "электрощит издаёт треск и искрит"],
+      "danger_signals": ["SPARKING"],
+      "context_tags": ["policy_required"]
+    },
+    {
+      "id": "exposed-wire",
+      "primary_category": "electricity",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "exposed_wire",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["возле тротуара лежит оголённый провод", "у детской площадки оборван электрический провод", "с опоры свисает оголённый провод"],
+      "danger_signals": ["EXPOSED_WIRE"],
+      "context_tags": ["policy_required"]
+    },
+    {
+      "id": "gas-smell",
+      "primary_category": "emergency",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "gas_smell",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["в подъезде пахнет газом", "на лестничной площадке чувствуется запах газа", "в доме ощущается запах газа"],
+      "danger_signals": ["GAS_SMELL"],
+      "context_tags": ["policy_required"]
+    },
+    {
+      "id": "smoke-no-flame",
+      "primary_category": "emergency",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "smoke_in_building",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["в подъезде чувствуется дым, открытого огня не видно", "в доме появился дым, пламени нет", "на лестнице пахнет дымом, огня не видно"],
+      "danger_signals": ["SMOKE"],
+      "context_tags": ["negated_fire", "policy_required"]
+    },
+    {
+      "id": "structural-risk",
+      "primary_category": "emergency",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "structural_risk",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["увеличивается трещина в несущей стене", "с потолка падают крупные куски перекрытия", "часть стены начала обрушаться"],
+      "danger_signals": ["STRUCTURAL_RISK"],
+      "context_tags": ["policy_required"]
+    },
+    {
+      "id": "roof-leak",
+      "primary_category": "building",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "roof_leak",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["протекает крыша", "с крыши вода попадает в подъезд", "на верхнем этаже течёт потолок"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "elevator-fault",
+      "primary_category": "building",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "elevator_fault",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["не работает лифт", "лифт не приезжает на этажи", "двери лифта не открываются"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "road-damage",
+      "primary_category": "road_and_yard",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "road_damage",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["на проезжей части глубокая яма", "разрушено дорожное покрытие", "на дороге образовалась большая выбоина"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "blocked-passage",
+      "primary_category": "road_and_yard",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "blocked_passage",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["проезд во двор перекрыт", "к дому невозможно проехать", "подъездная дорога загорожена"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "waste-overflow",
+      "primary_category": "waste",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "waste_overflow",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["мусорный контейнер переполнен", "мусор скопился вокруг контейнера", "контейнеры заполнены и мусор не вывезен"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "street-lighting",
+      "primary_category": "city_infrastructure",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "street_lighting",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["не работает уличный фонарь", "на улице не горит освещение", "фонари возле дома не включаются"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "stray-animals",
+      "primary_category": "other",
+      "routing_outcome": "ACCEPT",
+      "subcategory_id": "stray_animals",
+      "location_scope": "OUTDOOR",
+      "address_required": true,
+      "problem_variants": ["возле дома находится стая безнадзорных собак", "на детской площадке ходят безнадзорные собаки", "во дворе постоянно находятся безнадзорные животные"],
+      "danger_signals": [],
+      "context_tags": []
+    },
+    {
+      "id": "vague-incident",
+      "primary_category": null,
+      "routing_outcome": "NEEDS_CLARIFICATION",
+      "subcategory_id": "unknown_problem",
+      "location_scope": "NONE",
+      "address_required": false,
+      "problem_variants": ["у нас что-то сломалось", "есть проблема, но не могу точно описать", "ничего не работает", "не могу понять, что именно неисправно"],
+      "danger_signals": [],
+      "context_tags": ["incomplete"]
+    },
+    {
+      "id": "multi-issue",
+      "primary_category": null,
+      "routing_outcome": "NEEDS_CLARIFICATION",
+      "subcategory_id": "multiple_service_disruptions",
+      "location_scope": "BUILDING",
+      "address_required": true,
+      "problem_variants": ["одновременно нет воды и электричества", "не работает лифт и нет горячей воды", "в подъезде нет света и течёт труба"],
+      "danger_signals": [],
+      "context_tags": ["multiple_claims"]
+    },
+    {
+      "id": "non-incident",
+      "primary_category": null,
+      "routing_outcome": "NON_INCIDENT",
+      "subcategory_id": "non_incident_message",
+      "location_scope": "NONE",
+      "address_required": false,
+      "problem_variants": ["хочу поблагодарить за помощь с прошлым обращением", "передаю привет сотрудникам", "подскажите, когда состоится городской праздник", "подскажите часы работы администрации"],
+      "danger_signals": [],
+      "context_tags": ["noise"]
+    }
+  ]
+}

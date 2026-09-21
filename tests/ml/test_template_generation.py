@@ -23,6 +23,7 @@ from maxsmartcity.ml.data.template_generation.paraphrase import (
     build_paraphrase_messages,
     load_template_paraphrase_config,
     select_one_seed_per_frame,
+    select_scenarios,
 )
 from maxsmartcity.ml.data.template_generation.writer import (
     load_template_examples,
@@ -140,6 +141,15 @@ def test_paraphrase_pilot_selects_one_clean_seed_per_frame() -> None:
 
     assert len(selected) == 10
     assert len({example.frame_id for example in selected}) == 10
+
+
+def test_paraphrase_selection_filters_requested_scenario() -> None:
+    examples = TemplateExampleGenerator(load_template_generation_config(CONFIG_PATH)).generate()
+
+    selected = select_scenarios(examples, frozenset({examples[0].frame_id}))
+
+    assert len(selected) == 2
+    assert {example.frame_id for example in selected} == {examples[0].frame_id}
 
 
 def test_paraphrase_prompt_contains_fact_contract_without_labels() -> None:
@@ -266,6 +276,64 @@ def test_paraphrase_validator_preserves_spark_negation_and_forbids_added_address
     assert all("NEGATION_NOT_PRESERVED" not in errors for _, errors in spark_results)
     assert "FORBIDDEN_ADDRESS_ADDED" not in no_address_results[0][1]
     assert "FORBIDDEN_ADDRESS_ADDED" in no_address_results[1][1]
+
+
+def test_paraphrase_validator_preserves_corrections_disjunction_and_external_evidence() -> None:
+    example = TemplateExampleGenerator(load_template_generation_config(CONFIG_PATH)).generate()[0]
+    validator = TemplateParaphraseValidator()
+    corrected = replace(
+        example,
+        text=f"{example.street}, дом {example.house_number}: номер 64 указан ошибочно.",
+        context_tags=("self_correction",),
+    )
+    external = replace(
+        example,
+        text=f"{example.street}, дом {example.house_number}: адрес не указан в объявлении.",
+        context_tags=("external_event_conflict",),
+    )
+    disjunction = replace(
+        example,
+        text=f"{example.street}, дом {example.house_number}: утечка или прорыв трубы.",
+    )
+
+    corrected_result = validator.validate(
+        corrected,
+        (
+            GeneratedVariant(
+                f"По адресу {example.street}, дом {example.house_number}, есть проблема.",
+                "neutral",
+                True,
+            ),
+            GeneratedVariant(corrected.text + " Обращение уточнено.", "natural", True),
+        ),
+    )
+    external_result = validator.validate(
+        external,
+        (
+            GeneratedVariant(
+                f"В доме {example.house_number} на {example.street} нет воды по графику.",
+                "neutral",
+                True,
+            ),
+            GeneratedVariant(external.text + " Информация сохранена.", "natural", True),
+        ),
+    )
+    disjunction_result = validator.validate(
+        disjunction,
+        (
+            GeneratedVariant(
+                f"По адресу {example.street}, дом {example.house_number}, утечка и прорыв трубы.",
+                "neutral",
+                True,
+            ),
+            GeneratedVariant(disjunction.text + " Проблема наблюдается.", "natural", True),
+        ),
+    )
+
+    assert "NUMERIC_FACTS_NOT_PRESERVED" in corrected_result[0][1]
+    assert "SELF_CORRECTION_NOT_PRESERVED" in corrected_result[0][1]
+    assert "EXTERNAL_EVIDENCE_NOT_PRESERVED" in external_result[0][1]
+    assert "DISJUNCTION_NOT_PRESERVED" in disjunction_result[0][1]
 
 
 def test_paraphrase_validator_rejects_inferred_scope_intensity_and_lost_repetition() -> None:

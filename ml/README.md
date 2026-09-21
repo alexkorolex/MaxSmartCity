@@ -1,8 +1,8 @@
 # ML / DL Layer
 
-Каркас ML-контура «Умного города». Текущая стадия предназначена для согласования
-контрактов и локальной отладки datasets. Она не скачивает модели, не вызывает LLM и не
-содержит обученных checkpoints.
+ML-контур «Умного города»: контракты, локальные datasets, воспроизводимый CPU baseline и
+заглушки для компонентов, которые зависят от backend/Data Ingestion или новых датасетов.
+Репозиторий не содержит обученных checkpoints и не вызывает LLM при тестах/обучении baseline.
 
 ## Архитектурные правила
 
@@ -27,10 +27,14 @@
 [`data/external/README.md`](data/external/README.md). Он по умолчанию строит только план;
 реальный запрос требует явного `--execute`, а результат остаётся кандидатом до ручной ревизии.
 
-Первый reviewed MVP dataset находится в [`data/gold/v1`](data/gold/v1/README.md): 362 текста,
-181 сценарий и leakage-safe train/validation/test splits. Он пригоден для baseline-экспериментов,
-но сохраняет статус `REVIEWED_MVP_PENDING_HUMAN_SIGNOFF`, пока участник команды не подтвердит
-его перевод в `FROZEN`. Пары для реранкинга и hard negatives в этот набор не входят.
+Backend-aligned dataset находится в [`data/gold/v2`](data/gold/v2/README.md): 522 текста,
+261 сценарий и leakage-safe train/validation/test splits. Category, routing и danger разделены;
+статус остаётся `REVIEWED_PENDING_TEAM_SIGNOFF` до командной приёмки и независимого real/OOD test.
+
+Отдельный synthetic benchmark для retrieval/reranking находится в
+[`data/matching/dev-v1`](data/matching/README.md): 200 incidents, 1 100 queries, 1 000 qrels и
+3 000 positive/hard-negative pairs. План Jev-like эксперимента с Qwen3.5-4B и RTX 3060 — в
+[`docs/jev-qwen35-plan.md`](docs/jev-qwen35-plan.md).
 
 ## Структура
 
@@ -40,7 +44,10 @@ maxsmartcity/ml/
 ├── application/     # use cases, fallback and input policy
 ├── ports/           # model/backend/ingestion interfaces
 ├── adapters/        # baselines, Jev scaffold and dependency stubs
-└── data/            # configs, splits and synthetic world generation
+├── data/            # configs, splits and synthetic world generation
+├── training/        # reproducible CPU training
+├── evaluation/      # classification/calibration/selective metrics
+└── inference/       # trusted local artifact loader
 
 ml/
 ├── configs/
@@ -95,26 +102,35 @@ uv run python -m maxsmartcity.ml.data.synthetic.cli \
 - `dev-v2`: 300 Scenario (200 incident + 100 noise), 1 100 Reports, 200 counterfactuals;
 - `stress-mass-outage-v2`: 10 000 Reports, 100 домов, один Incident.
 
-## Что делать на ноутбуке
+## Обучение, метрики и smoke inference
 
-1. Согласовать draft taxonomy и schemas с backend/product.
-2. Проверить synthetic records визуально и расширить configs.
-3. Добавить noise, counterfactual, mass-event и adversarial generators.
-4. Проверить canonical facts, сгенерировать LLM-кандидаты и вручную принять Gold.
-5. Зафиксировать dataset manifests и splits.
-6. Реализовать TF-IDF/BM25 baseline и посчитать первые метрики.
+```powershell
+uv sync --locked --group dev
+.\ml\scripts\train_category_baseline.ps1
+uv run --locked python -m maxsmartcity.ml.inference.cli `
+  --artifact ml/artifacts/category-tfidf-logreg-v2 `
+  --text "В доме 12 третий час нет холодной воды"
+```
+
+Подробности: [`training/README.md`](training/README.md),
+[`evaluation/README.md`](evaluation/README.md), [`inference/README.md`](inference/README.md).
+
+## Что ещё делать на ноутбуке
+
+1. Командой принять восемь stable category codes и Gold v2.
+2. Добавить 80–120 независимо написанных real/OOD сообщений без sibling-парафраз в train.
+3. Разметить extraction spans/features на отдельном срезе.
+4. Просмотреть synthetic retrieval/reranking pairs и составить 50–100 human-reviewed сценариев.
 
 ## Что делать на машине с RTX 3060
 
 Только после принятия datasets:
 
-1. Подготовить train/evaluation scripts и locked model dependencies.
-2. Обучить category/extraction baseline.
-3. Подключить multilingual embeddings и candidate retrieval.
-4. Обучить incident pair/cross-encoder или Jev-like NLI ranker.
-5. Сохранить checkpoint вместе с dataset hash, taxonomy version, git commit и config hash.
-6. Выполнить calibration: ECE, Brier, risk-coverage.
-7. После этого реализовать inference/batch API и минимальные model-loading tests.
+1. Сравнить multilingual retrieval/encoder baseline с rule baseline на готовых qrels/pairs.
+2. Обучить incident pair/cross-encoder и Qwen3.5-4B bf16 LoRA Jev-like NLI ranker.
+3. Проверить модель через LM Studio/Bionic после merge/export в GGUF.
+4. Выполнить отдельную calibration моделей решений.
+5. Провести GPU/RAM/throughput benchmark и подключить inference/batch API.
 
 `UntrainedJevIncidentRanker` намеренно падает контролируемой ошибкой: случайный или
 непроверенный checkpoint не должен незаметно стать production recommendation.

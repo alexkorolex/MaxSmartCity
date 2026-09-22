@@ -30,6 +30,14 @@ class ResidentTokenResponse:
 
 
 @dataclass
+class ResidentLoginRequest:
+    """Sent by the resident's own browser - redeems the single-use code the bot gave them
+    in chat. Not guarded by the bot shared secret: the code itself is the credential."""
+
+    code: str
+
+
+@dataclass
 class StaffLoginRequest:
     """Staff still authenticate with a login/password - just proxied through our API so
     clients never talk to Keycloak directly. The password is forwarded, never stored."""

@@ -13,6 +13,8 @@ from litestar_granian import GranianPlugin
 from src.cli import OrchestrationCLIPlugin
 from src.database.cache import CacheSettings
 from src.database.config import DatabaseSettings
+from src.max_bot.cli import MaxBotCLIPlugin
+from src.max_bot.controllers import MaxWebhookController
 from src.observability.logs import structlog_plugin
 from src.observability.prometheus import prometheus_config
 
@@ -23,13 +25,14 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
     settings = DatabaseSettings(database_url) if database_url else DatabaseSettings.from_environment()
     cache_settings = CacheSettings(redis_url) if redis_url else CacheSettings.from_environment()
     return Litestar(
-        route_handlers=[PrometheusController],
+        route_handlers=[PrometheusController, MaxWebhookController],
         plugins=[
             GranianPlugin(),
             SQLAlchemyInitPlugin(config=settings.plugin_config()),
             AutowirePlugin(AutowireConfig(domain_packages=["src.domains"])),
             structlog_plugin,
             OrchestrationCLIPlugin(),
+            MaxBotCLIPlugin(),
         ],
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),

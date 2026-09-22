@@ -25,6 +25,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.12-slim AS runtime
 
+# Needed to verify TLS certificates for outbound HTTPS calls (e.g. the MAX Bot API).
+# MAX's certificate chains up to the Russian Ministry of Digital Development's own CA,
+# which isn't in the public trust store - see etc/max_api/MAX_API_AGENT_CONTEXT.md §2.
+COPY etc/max_api/certs/*.crt /usr/local/share/ca-certificates/
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
 

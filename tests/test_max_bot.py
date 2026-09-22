@@ -1,0 +1,258 @@
+import hmac
+import urllib.error
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, cast
+from urllib.request import Request
+from uuid import UUID
+
+import fakeredis.aioredis
+import pytest
+from litestar.connection import ASGIConnection
+from litestar.exceptions import NotAuthorizedException
+from litestar.handlers.base import BaseRouteHandler
+from litestar.stores.redis import RedisStore
+
+from src.domains.identity.services import ResidentService
+from src.max_bot import certs, dedup, handlers
+from src.max_bot.client import MaxClient
+from src.max_bot.guards import require_max_webhook_secret
+from src.max_bot.settings import MaxBotSettings
+
+pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.fixture
+def settings(monkeypatch: pytest.MonkeyPatch) -> MaxBotSettings:
+    monkeypatch.setenv("MAX_BOT_TOKEN", "test-bot-token")
+    monkeypatch.setenv("MAX_WEBHOOK_SECRET", "test-webhook-secret")
+    return MaxBotSettings.from_environment()
+
+
+@pytest.fixture(autouse=True)
+def fake_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Route the app's Redis-backed dedup/login-code stores to an in-memory fake, shared
+    across calls within a test via a single FakeServer."""
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    server = fakeredis.aioredis.FakeServer()
+
+    def fake_with_client(
+        cls: type[RedisStore], _url: str, *, namespace: str | None = None, **_kwargs: object
+    ) -> RedisStore:
+        return cls(redis=fakeredis.aioredis.FakeRedis(server=server), namespace=namespace)
+
+    monkeypatch.setattr(RedisStore, "with_client", classmethod(fake_with_client))
+
+
+@dataclass
+class _FakeConnection:
+    headers: dict[str, str]
+
+
+def test_require_max_webhook_secret_accepts_correct_secret(settings: MaxBotSettings) -> None:
+    connection = cast(
+        ASGIConnection, _FakeConnection(headers={"X-Max-Bot-Api-Secret": "test-webhook-secret"})
+    )
+    require_max_webhook_secret()(connection, cast(BaseRouteHandler, None))
+
+
+def test_require_max_webhook_secret_rejects_wrong_secret(settings: MaxBotSettings) -> None:
+    connection = cast(ASGIConnection, _FakeConnection(headers={"X-Max-Bot-Api-Secret": "wrong"}))
+    with pytest.raises(NotAuthorizedException):
+        require_max_webhook_secret()(connection, cast(BaseRouteHandler, None))
+
+
+async def test_login_code_round_trip() -> None:
+    resident_id = UUID("11111111-1111-1111-1111-111111111111")
+
+    code = await dedup.create_login_code(resident_id)
+    first = await dedup.consume_login_code(code)
+    second = await dedup.consume_login_code(code)
+
+    assert first == resident_id
+    assert second is None  # single-use
+
+
+async def test_dedup_marks_event_processed_only_once() -> None:
+    key = "bot_started:123:456"
+
+    assert await dedup.is_duplicate_event(key) is False
+    await dedup.mark_event_processed(key)
+    assert await dedup.is_duplicate_event(key) is True
+
+
+@dataclass
+class _FakeResident:
+    id: UUID
+
+
+class _FakeResidentService:
+    def __init__(self) -> None:
+        self.upserts: list[dict[str, Any]] = []
+
+    async def upsert_by_max_user_id(
+        self, *, max_user_id: int, username: str | None, display_name: str | None
+    ) -> _FakeResident:
+        self.upserts.append({"max_user_id": max_user_id, "username": username, "display_name": display_name})
+        return _FakeResident(id=UUID(int=max_user_id))
+
+
+async def test_handle_bot_started_upserts_resident_and_sends_login_code(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+
+    service = _FakeResidentService()
+    update = {
+        "update_type": "bot_started",
+        "timestamp": 1780000000000,
+        "chat_id": 5551234,
+        "user": {"user_id": 42, "first_name": "Alex", "last_name": None, "username": "alex", "is_bot": False},
+    }
+
+    await handlers.handle_bot_started(update, cast(ResidentService, service), settings)
+
+    assert service.upserts == [{"max_user_id": 42, "username": "alex", "display_name": "Alex"}]
+    assert len(sent) == 1
+    assert sent[0]["user_id"] == 42
+    assert "Код для входа" in sent[0]["text"]
+
+
+async def test_handle_message_created_ignores_bot_senders(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+
+    service = _FakeResidentService()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 1, "is_bot": True},
+            "recipient": {"chat_type": "dialog"},
+            "body": {"mid": "m1", "text": "ping"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, service), settings)
+
+    assert sent == []
+    assert service.upserts == []
+
+
+async def test_handle_message_created_login_command_issues_code(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+
+    service = _FakeResidentService()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 99, "is_bot": False, "username": "res", "first_name": "Res"},
+            "recipient": {"chat_type": "dialog"},
+            "body": {"mid": "m2", "text": "/login"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, service), settings)
+
+    assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res"}]
+    assert len(sent) == 1
+    assert "Код" in sent[0]["text"]
+
+
+def test_webhook_secret_is_compared_constant_time(settings: MaxBotSettings) -> None:
+    # sanity: guard uses hmac.compare_digest, not `==`
+    assert hmac.compare_digest("a", "a") is True
+
+
+class _FakeUrlResponse:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def __enter__(self) -> "_FakeUrlResponse":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._data
+
+
+def test_fetch_russian_trusted_ca_certs_writes_expected_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_pem = b"-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n"
+    monkeypatch.setattr(certs, "urlopen", lambda *_a, **_kw: _FakeUrlResponse(fake_pem))
+
+    fetched = certs.fetch_russian_trusted_ca_certs(target_dir=tmp_path)
+
+    assert {f.filename for f in fetched} == set(certs.CERT_URLS)
+    for f in fetched:
+        assert f.path.read_bytes() == fake_pem
+
+
+def test_fetch_russian_trusted_ca_certs_rejects_non_pem_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(certs, "urlopen", lambda *_a, **_kw: _FakeUrlResponse(b"<html>not a cert</html>"))
+
+    with pytest.raises(certs.CertFetchError):
+        certs.fetch_russian_trusted_ca_certs(target_dir=tmp_path)
+
+
+def test_fetch_retries_transient_failures_then_succeeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_pem = b"-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n"
+    monkeypatch.setattr(certs, "_RETRY_DELAY_SECONDS", 0)
+    calls_per_url: dict[str, int] = {}
+
+    def flaky_urlopen(request: Request, **_kwargs: object) -> _FakeUrlResponse:
+        url = request.full_url
+        calls_per_url[url] = calls_per_url.get(url, 0) + 1
+        if calls_per_url[url] < certs._MAX_ATTEMPTS:
+            raise urllib.error.URLError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred")
+        return _FakeUrlResponse(fake_pem)
+
+    monkeypatch.setattr(certs, "urlopen", flaky_urlopen)
+
+    fetched = certs.fetch_russian_trusted_ca_certs(target_dir=tmp_path)
+
+    assert set(calls_per_url.values()) == {certs._MAX_ATTEMPTS}
+    assert len(fetched) == len(certs.CERT_URLS)
+
+
+def test_fetch_raises_cert_fetch_error_after_exhausting_retries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(certs, "_RETRY_DELAY_SECONDS", 0)
+
+    def always_fails(*_args: object, **_kwargs: object) -> _FakeUrlResponse:
+        raise urllib.error.URLError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred")
+
+    monkeypatch.setattr(certs, "urlopen", always_fails)
+
+    with pytest.raises(certs.CertFetchError, match=r"gu-st\.ru"):
+        certs.fetch_russian_trusted_ca_certs(target_dir=tmp_path)

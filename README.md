@@ -11,7 +11,7 @@ Backend на [Litestar](https://litestar.dev/): учёт городских ин
 - Логи — JSON (structlog), пригодны для сбора Loki/Promtail
 - Grafana + Loki + Promtail — просмотр логов всех контейнеров
 - Prometheus-метрики (`/metrics`)
-- Авторизация — Keycloak (штаб/сотрудники, с LDAP-федерацией) + собственный JWT для жителей через бота
+- Авторизация — Keycloak (штаб/сотрудники, с LDAP-федерацией) + собственный JWT для жителей через бота MAX
 - Docker Compose — вся оркестрация (`db`, `redis`, `migrate`, `keycloak`, `backend`, `loki`, `promtail`, `grafana`)
 
 ## Быстрый старт
@@ -108,17 +108,20 @@ ldap**, заполнить адрес/bind DN/base DN вашего катало�
 Реальных connection-данных LDAP тут нет — заводить свой LDAP-сервер в этой
 итерации не входило в задачу.
 
-**Жители** приходят только через бота и никогда не вводят логин/пароль.
-Бот — единственный клиент этих ручек, аутентифицируется отдельным
-shared-секретом (`BOT_SHARED_SECRET`, заголовок `X-Bot-Secret`), а не сам
-житель. Домен `auth` (`src/domains/auth/`) — это две отдельные ручки:
+**Жители** приходят только через бота MAX и никогда не вводят логин/пароль.
+Три ручки в `src/domains/auth/controllers.py` (`ResidentAuthController`,
+`/auth/residents/*`):
 
-1. `POST /auth/residents/authenticate` — регистрирует/обновляет жителя по
-   его `max_user_id` (без выдачи токена);
-2. `POST /auth/residents/token` — выдаёт короткоживущий JWT
+1. `POST /auth/residents/authenticate` — вызывается ботом (заголовок
+   `X-Bot-Secret`), регистрирует/обновляет жителя по его `max_user_id`, без
+   выдачи токена;
+2. `POST /auth/residents/token` — тоже только бот; выдаёт короткоживущий JWT
    (`litestar[jwt]`, `src/security/resident.py`) уже зарегистрированному
-   жителю; 404, если `authenticate` для него ещё не вызывался. Разделение
-   на два шага позволяет боту перевыпускать токен без повторной регистрации.
+   жителю по `max_user_id`; 404, если `authenticate` ещё не вызывался;
+3. `POST /auth/residents/login` — вызывается браузером самого жителя, без
+   `X-Bot-Secret`. Принимает одноразовый код, который жителю прислал бот в
+   чате (см. ниже), и обменивает его на тот же JWT. Код — сам по себе
+   credential, поэтому эта ручка не требует секрета бота.
 
 ```bash
 curl -X POST http://localhost:${APP_PORT}/auth/residents/authenticate \
@@ -128,6 +131,9 @@ curl -X POST http://localhost:${APP_PORT}/auth/residents/authenticate \
 curl -X POST http://localhost:${APP_PORT}/auth/residents/token \
   -H "X-Bot-Secret: ${BOT_SHARED_SECRET}" \
   -d '{"max_user_id": 123456}'
+
+curl -X POST http://localhost:${APP_PORT}/auth/residents/login \
+  -d '{"code": "<код из чата с ботом>"}'
 ```
 
 Кто угодно с валидным токеном (сотрудник или житель) может спросить, кто он:
@@ -136,6 +142,52 @@ curl -X POST http://localhost:${APP_PORT}/auth/residents/token \
 существующие эндпоинты (reports/incidents/geo/...) не тронуты, чтобы не
 сломать уже написанные тесты; расширять список защищённых роутов — отдельная
 следующая итерация.
+
+## MAX-бот: вход жителей через мессенджер
+
+Источник правды по MAX Bot API — [etc/max_api/](etc/max_api/)
+(`MAX_API_AGENT_CONTEXT.md`, `MAX_WEBHOOK_IMPLEMENTATION.md`, официальная
+OpenAPI-схема). Реализация в `src/max_bot/`:
+
+- `client.py` — тонкий `aiohttp`-клиент MAX Bot API (`platform-api2.max.ru`,
+  `Authorization: <token>` без `Bearer`, без токена в query — как требует
+  документация);
+- `controllers.py` — `POST /webhook/max`, единственная публичная ручка,
+  закрыта гвардом `require_max_webhook_secret()` (constant-time сравнение
+  `X-Max-Bot-Api-Secret`), дедуп по составному ключу события (Redis, TTL 24ч
+  — у `Update` нет единого id, ключ собирается из полей конкретного
+  сабтайпа) — событие помечается обработанным только при успехе, чтобы MAX
+  мог повторить доставку при реальном сбое;
+- `handlers.py` — бизнес-логика: `bot_started`/сообщение `/login` находят
+  или создают `identity.resident` (`ResidentService.upsert_by_max_user_id`,
+  общий код с `/auth/residents/authenticate`) и присылают в чат одноразовый
+  код (`dedup.create_login_code`, Redis, TTL 5 мин, одноразовый) —
+  который дальше обменивается на JWT через `POST /auth/residents/login`;
+- `cli.py` — `litestar max-subscribe` / `max-subscriptions` / `max-unsubscribe`,
+  управление Webhook-подпиской в MAX через ту же Litestar CLI-команду,
+  что и `litestar up` (`src/cli.py`).
+
+Ключевой сценарий: пользователь жмёт Start (или пишет `/login`) → бот
+регистрирует его как `Resident` → присылает код → пользователь вводит код на
+сайте → сайт вызывает `POST /auth/residents/login` → получает JWT.
+
+```bash
+# Однократно после деплоя (нужен публичный HTTPS URL, см. MAX_WEBHOOK_PUBLIC_URL):
+uv run litestar max-subscribe
+uv run litestar max-subscriptions
+```
+
+**Важный нюанс окружения**, не связанный с самим MAX API: сертификат
+`platform-api2.max.ru` выпущен CA Минцифры («Russian Trusted Root/Sub CA»),
+которого нет в стандартном trust store большинства базовых образов —
+документация прямо требует добавить его вручную. Файлы уже лежат в
+[etc/max_api/certs/](etc/max_api/certs/) и подключены в [Dockerfile](Dockerfile)
+(`update-ca-certificates` на этапе сборки). Перевыпустить их (например, если
+Минцифры однажды ротирует CA) — `uv run litestar max-fetch-certs`, скачивает
+актуальные `russian_trusted_{root,sub}_ca.crt` с `gu-st.ru` и перезаписывает
+файлы в том же месте; после этого нужно пересобрать образ backend. Проверено
+вживую реальным TLS-запросом к `platform-api2.max.ru`. TLS-проверка
+никогда не отключается — так и должно оставаться.
 
 ## Разработка без Docker
 

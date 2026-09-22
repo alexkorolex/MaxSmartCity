@@ -1,11 +1,13 @@
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from litestar.testing import TestClient
+
+from src.max_bot.dedup import create_login_code
 
 ISSUER = "http://localhost:8080/realms/maxsmartcity"
 AUDIENCE = "maxsmartcity-backend"
@@ -159,3 +161,33 @@ def test_resident_auth_and_token_flow(api_client: TestClient) -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
     assert admin_only.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_resident_web_login_redeems_bot_issued_code(api_client: TestClient) -> None:
+    """The bridge the MAX bot uses: a code minted for a resident (e.g. in
+    ``src.max_bot.handlers``) can be redeemed by the resident's own browser for a JWT,
+    with no bot secret involved."""
+    authenticated = api_client.post(
+        "/auth/residents/authenticate",
+        json={"max_user_id": 909090, "username": "webuser", "display_name": "Web User"},
+        headers={"X-Bot-Secret": "test-bot-secret"},
+    )
+    assert authenticated.status_code == 201, authenticated.text
+    resident_id = authenticated.json()["resident_id"]
+
+    code = await create_login_code(UUID(resident_id))
+
+    rejected = api_client.post("/auth/residents/login", json={"code": "not-a-real-code"})
+    assert rejected.status_code == 401
+
+    logged_in = api_client.post("/auth/residents/login", json={"code": code})
+    assert logged_in.status_code == 201, logged_in.text
+    assert logged_in.json()["resident_id"] == resident_id
+
+    reused = api_client.post("/auth/residents/login", json={"code": code})
+    assert reused.status_code == 401  # single-use
+
+    me = api_client.get("/identity/me", headers={"Authorization": f"Bearer {logged_in.json()['token']}"})
+    assert me.status_code == 200
+    assert me.json()["actor_id"] == resident_id

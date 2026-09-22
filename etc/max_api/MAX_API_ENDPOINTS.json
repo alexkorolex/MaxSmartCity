@@ -1,0 +1,256 @@
+{
+  "verified_at": "2026-09-22",
+  "openapi": {
+    "version": "0.0.33",
+    "title": "Max Bot API",
+    "license": "Apache 2.0",
+    "raw_schema_url": "https://raw.githubusercontent.com/max-messenger/api-schema/refs/heads/main/schema.yaml",
+    "repository": "https://github.com/max-messenger/api-schema"
+  },
+  "base_url": "https://platform-api2.max.ru",
+  "authorization": {
+    "header": "Authorization: <access_token>",
+    "query_token_supported": false
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/me",
+      "operationId": "getMyInfo",
+      "purpose": "Информация о текущем боте"
+    },
+    {
+      "method": "PATCH",
+      "path": "/me/commands",
+      "operationId": "editMyCommands",
+      "purpose": "Изменить список команд бота"
+    },
+    {
+      "method": "GET",
+      "path": "/chats/{chatId}",
+      "operationId": "getChat",
+      "purpose": "Получить чат/канал"
+    },
+    {
+      "method": "PATCH",
+      "path": "/chats/{chatId}",
+      "operationId": "editChat",
+      "purpose": "Изменить чат/канал"
+    },
+    {
+      "method": "POST",
+      "path": "/chats/{chatId}/actions",
+      "operationId": "sendAction",
+      "purpose": "Отправить действие бота"
+    },
+    {
+      "method": "GET",
+      "path": "/chats/{chatId}/pin",
+      "operationId": "getPinnedMessage",
+      "purpose": "Получить закреплённое сообщение"
+    },
+    {
+      "method": "PUT",
+      "path": "/chats/{chatId}/pin",
+      "operationId": "pinMessage",
+      "purpose": "Закрепить сообщение"
+    },
+    {
+      "method": "DELETE",
+      "path": "/chats/{chatId}/pin",
+      "operationId": "unpinMessage",
+      "purpose": "Открепить сообщение"
+    },
+    {
+      "method": "GET",
+      "path": "/chats/{chatId}/members/me",
+      "operationId": "getMembership",
+      "purpose": "Членство текущего бота"
+    },
+    {
+      "method": "DELETE",
+      "path": "/chats/{chatId}/members/me",
+      "operationId": "leaveChat",
+      "purpose": "Удалить бота из чата/канала"
+    },
+    {
+      "method": "GET",
+      "path": "/chats/{chatId}/members/admins",
+      "operationId": "getAdmins",
+      "purpose": "Получить администраторов"
+    },
+    {
+      "method": "POST",
+      "path": "/chats/{chatId}/members/admins",
+      "operationId": "postAdmins",
+      "purpose": "Назначить/изменить администраторов"
+    },
+    {
+      "method": "DELETE",
+      "path": "/chats/{chatId}/members/admins/{userId}",
+      "operationId": "deleteAdmins",
+      "purpose": "Снять права администратора"
+    },
+    {
+      "method": "GET",
+      "path": "/chats/{chatId}/members",
+      "operationId": "getMembers",
+      "purpose": "Получить участников"
+    },
+    {
+      "method": "POST",
+      "path": "/chats/{chatId}/members",
+      "operationId": "addMembers",
+      "purpose": "Добавить участников; метод ограничивается/выводится из эксплуатации"
+    },
+    {
+      "method": "DELETE",
+      "path": "/chats/{chatId}/members",
+      "operationId": "removeMember",
+      "purpose": "Удалить участника"
+    },
+    {
+      "method": "GET",
+      "path": "/subscriptions",
+      "operationId": "getSubscriptions",
+      "purpose": "Получить Webhook-подписки"
+    },
+    {
+      "method": "POST",
+      "path": "/subscriptions",
+      "operationId": "subscribe",
+      "purpose": "Создать Webhook-подписку"
+    },
+    {
+      "method": "DELETE",
+      "path": "/subscriptions",
+      "operationId": "unsubscribe",
+      "purpose": "Удалить Webhook-подписку"
+    },
+    {
+      "method": "POST",
+      "path": "/uploads",
+      "operationId": "getUploadUrl",
+      "purpose": "Получить URL загрузки медиа"
+    },
+    {
+      "method": "GET",
+      "path": "/messages",
+      "operationId": "getMessages",
+      "purpose": "Получить сообщения"
+    },
+    {
+      "method": "POST",
+      "path": "/messages",
+      "operationId": "sendMessage",
+      "purpose": "Отправить сообщение/пост"
+    },
+    {
+      "method": "PUT",
+      "path": "/messages",
+      "operationId": "editMessage",
+      "purpose": "Редактировать сообщение"
+    },
+    {
+      "method": "DELETE",
+      "path": "/messages",
+      "operationId": "deleteMessage",
+      "purpose": "Удалить сообщение"
+    },
+    {
+      "method": "GET",
+      "path": "/messages/{messageId}",
+      "operationId": "getMessageById",
+      "purpose": "Получить сообщение по ID"
+    },
+    {
+      "method": "GET",
+      "path": "/messages/{messageId}/comments",
+      "operationId": "getComments",
+      "purpose": "Получить комментарии к посту"
+    },
+    {
+      "method": "POST",
+      "path": "/messages/{messageId}/comments",
+      "operationId": "sendComment",
+      "purpose": "Отправить комментарий"
+    },
+    {
+      "method": "PUT",
+      "path": "/messages/{messageId}/comments",
+      "operationId": "editComment",
+      "purpose": "Редактировать комментарий"
+    },
+    {
+      "method": "DELETE",
+      "path": "/messages/{messageId}/comments",
+      "operationId": "deleteComment",
+      "purpose": "Удалить комментарий"
+    },
+    {
+      "method": "GET",
+      "path": "/messages/{messageId}/comments/{commentId}",
+      "operationId": "getCommentById",
+      "purpose": "Получить комментарий по ID"
+    },
+    {
+      "method": "GET",
+      "path": "/videos/{videoToken}",
+      "operationId": "getVideoAttachmentDetails",
+      "purpose": "Получить сведения о видео"
+    },
+    {
+      "method": "POST",
+      "path": "/answers",
+      "operationId": "answerOnCallback",
+      "purpose": "Ответить на callback"
+    },
+    {
+      "method": "GET",
+      "path": "/updates",
+      "operationId": "getUpdates",
+      "purpose": "Long Polling обновления"
+    }
+  ],
+  "update_types": [
+    "message_created",
+    "message_callback",
+    "message_edited",
+    "message_removed",
+    "comment_created",
+    "comment_edited",
+    "comment_removed",
+    "bot_added",
+    "bot_removed",
+    "user_added",
+    "user_removed",
+    "bot_started",
+    "bot_stopped",
+    "dialog_cleared",
+    "dialog_removed",
+    "dialog_muted",
+    "dialog_unmuted",
+    "chat_title_changed",
+    "bot_admin_permissions_changed"
+  ],
+  "attachment_types": [
+    "image",
+    "video",
+    "audio",
+    "file",
+    "sticker",
+    "contact",
+    "inline_keyboard",
+    "share",
+    "location"
+  ],
+  "button_types": {
+    "callback": "callback payload до 1024 символов; генерирует message_callback",
+    "link": "URL до 2048 символов",
+    "request_geo_location": "запрашивает геопозицию; quick=false по умолчанию",
+    "request_contact": "запрашивает контакт текущего пользователя",
+    "message": "отправляет заранее заданный текст от пользователя",
+    "open_app": "открывает mini app; web_app обязателен, payload до 512 символов",
+    "clipboard": "копирует payload; payload до 1024 символов"
+  }
+}

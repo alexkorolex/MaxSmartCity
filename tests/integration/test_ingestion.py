@@ -1,5 +1,7 @@
 import asyncio
 import json
+import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -8,7 +10,17 @@ import pytest
 from sqlalchemy import Row, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from src.domains.ingestion.gis_zkh import transform
 from src.domains.ingestion.importer import import_file
+
+GIS_FIXTURE = Path(__file__).parents[1] / "fixtures" / "gis_zkh_public_houses.csv"
+
+
+def gis_dataset(tmp_path: Path) -> dict[str, Any]:
+    archive = tmp_path / "public-gis-zkh.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        bundle.write(GIS_FIXTURE, "houses.csv")
+    return transform([archive], datetime.fromisoformat("2026-09-22T20:35:00+03:00"))
 
 
 def make_dataset(
@@ -57,6 +69,42 @@ async def house_row(database_url: str, code: str, key: str = "house-1") -> Row[A
     )
     assert len(result) == 1
     return result[0]
+
+
+@pytest.mark.anyio
+async def test_gis_pilot_is_repeatable_preserves_house_id_and_keeps_official_provenance(
+    database_url: str, tmp_path: Path
+) -> None:
+    legacy = make_dataset(f"legacy-{uuid4()}", "Брянск", number="8", with_link=False)
+    legacy["houses"][0]["street"] = "ул. Евдокимова"
+    legacy_path = save(tmp_path / "legacy.json", legacy)
+    await import_file(legacy_path, database_url)
+    house_id = (await house_row(database_url, legacy["source"]["code"]))[0]
+
+    pilot_path = save(tmp_path / "gis-pilot.json", gis_dataset(tmp_path))
+    first = await import_file(pilot_path, database_url)
+    second = await import_file(pilot_path, database_url)
+    assert first["houses_created"] == 3
+    assert first["houses_updated"] == 1
+    assert second["houses_created"] == second["links_created"] == 0
+    assert second["error_count"] == 0
+    assert (await house_row(database_url, "gis-zkh-public-pilot", "gis-zkh:house-bryansk-8"))[0] == house_id
+    assert await rows(
+        database_url,
+        "SELECT hs.fias_id,hs.official_status,hs.management_method,hs.provenance->>'archive_member' "
+        "FROM ingestion.house_source hs JOIN ingestion.source s ON s.id=hs.source_id "
+        "WHERE s.code='gis-zkh-public-pilot' AND hs.source_key='gis-zkh:house-bryansk-8'",
+    ) == [("fias-bryansk-8", "Исправен", "Управляющая организация", "houses.csv")]
+    assert await rows(
+        database_url,
+        "SELECT count(*) FROM ingestion.organization_source os JOIN ingestion.source s ON s.id=os.source_id "
+        "WHERE s.code='gis-zkh-public-pilot'",
+    ) == [(2,)]
+    assert await rows(
+        database_url,
+        "SELECT count(*) FROM ingestion.house_organization ho JOIN ingestion.source s ON s.id=ho.source_id "
+        "WHERE s.code='gis-zkh-public-pilot'",
+    ) == [(3,)]
 
 
 @pytest.mark.anyio

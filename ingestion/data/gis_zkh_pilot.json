@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "source": {
+    "code": "gis-zkh-public-pilot",
+    "url": "https://dom.gosuslugi.ru/#!/houses",
+    "data_kind": "REAL",
+    "retrieved_at": "2026-09-22T20:43:00+03:00"
+  },
+  "houses": [],
+  "organizations": [],
+  "links": [],
+  "not_found": [
+    {
+      "city": "Брянск",
+      "street": "улица Евдокимова",
+      "house_number": "8",
+      "status": "NOT_FOUND",
+      "searched_archives": [
+        "Сведения_об_объектах_жилищного_фонда_на_20-09-2026.tar.gz"
+      ]
+    },
+    {
+      "city": "Брянск",
+      "street": "улица Евдокимова",
+      "house_number": "10",
+      "status": "NOT_FOUND",
+      "searched_archives": [
+        "Сведения_об_объектах_жилищного_фонда_на_20-09-2026.tar.gz"
+      ]
+    },
+    {
+      "city": "Бахчисарай",
+      "street": "улица Мира",
+      "house_number": "9",
+      "status": "NOT_FOUND",
+      "searched_archives": [
+        "Сведения_об_объектах_жилищного_фонда_на_20-09-2026.tar.gz"
+      ]
+    },
+    {
+      "city": "Бахчисарай",
+      "street": "улица Мира",
+      "house_number": "3",
+      "status": "NOT_FOUND",
+      "searched_archives": [
+        "Сведения_об_объектах_жилищного_фонда_на_20-09-2026.tar.gz"
+      ]
+    }
+  ]
+}

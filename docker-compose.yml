@@ -63,7 +63,7 @@ services:
       command:
         - sh
         - -c
-        - python -m src.domains.ingestion ingestion/data/bryansk.json && python -m src.domains.ingestion ingestion/data/bryansk_cian.json && python -m src.domains.ingestion ingestion/data/bakhchysarai.json
+        - python -m src.domains.ingestion ingestion/data/bryansk.json && python -m src.domains.ingestion ingestion/data/bryansk_cian.json && python -m src.domains.ingestion ingestion/data/bakhchysarai.json && python -m src.domains.ingestion ingestion/data/gis_zkh_pilot.json
       depends_on:
         migrate:
           condition: service_completed_successfully

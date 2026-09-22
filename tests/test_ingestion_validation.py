@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import CreateIndex
 
 from src.domains.ingestion.importer import (
     MAX_FILE_BYTES,
@@ -10,6 +12,7 @@ from src.domains.ingestion.importer import (
     validate_link,
     validate_organization,
 )
+from src.domains.ingestion.models import house_source, organization_source
 
 
 def dataset() -> dict[str, object]:
@@ -121,3 +124,64 @@ def test_required_row_fields_and_link_keys_are_validated() -> None:
         validate_organization({"key": "one", "type": "MANAGING_COMPANY"})
     with pytest.raises(ValueError, match="organization_key"):
         validate_link({"house_key": "one", "relationship": "MANAGES"})
+
+
+def test_gis_zkh_fields_and_deterministic_address_aliases_are_validated() -> None:
+    house = validate_house(
+        {
+            "key": "official-1",
+            "city": "Брянск",
+            "street": "ул. Евдокимова",
+            "house_number": "8 корпус 2",
+            "fias_id": "fias-1",
+            "official_status": "Исправен",
+            "management_method": "Управляющая организация",
+            "provenance": {"archive_member": "houses.csv"},
+        }
+    )
+    assert house["street"] == "улица Евдокимова"
+    assert house["house_number"] == "8 КОРП. 2"
+    assert house["fias_id"] == "fias-1"
+    assert (
+        validate_organization(
+            {
+                "key": "org",
+                "name": "УК",
+                "type": "MANAGING_COMPANY",
+                "inn": "3201000001",
+                "ogrn": "1023200000001",
+            }
+        )["inn"]
+        == "3201000001"
+    )
+    with pytest.raises(ValueError, match="inn"):
+        validate_organization({"key": "org", "name": "УК", "type": "MANAGING_COMPANY", "inn": "by-name"})
+    with pytest.raises(ValueError, match="period_to"):
+        validate_link(
+            {
+                "house_key": "house",
+                "organization_key": "org",
+                "relationship": "MANAGES",
+                "period_from": "2026-02-01",
+                "period_to": "2026-01-01",
+            }
+        )
+
+
+def test_gis_zkh_partial_indexes_match_the_migration() -> None:
+    indexes = {
+        index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+        for index in house_source.indexes
+    }
+    indexes.update(
+        {
+            index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+            for index in organization_source.indexes
+        }
+    )
+    assert indexes["ix_house_source_fias_id"] == (
+        "CREATE INDEX ix_house_source_fias_id ON ingestion.house_source (fias_id) WHERE fias_id IS NOT NULL"
+    )
+    assert indexes["ix_organization_source_inn"] == (
+        "CREATE INDEX ix_organization_source_inn ON ingestion.organization_source (inn) WHERE inn IS NOT NULL"
+    )

@@ -3,15 +3,30 @@ from typing import Annotated
 from uuid import UUID
 
 from advanced_alchemy.filters import LimitOffset
-from litestar import Controller, Router, get
+from litestar import Controller, Router, get, post
 from litestar.di import NamedDependency, Provide
+from litestar.exceptions import ClientException, NotFoundException
 from litestar.params import FromPath, Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
 from src.domains.collaboration.models import Assignment, WorkItem
-from src.domains.collaboration.schemas import AssignmentReadDTO, WorkItemReadDTO
-from src.domains.collaboration.services import AssignmentService, WorkItemService
+from src.domains.collaboration.schemas import (
+    AssignmentReadDTO,
+    TransitionAssignmentCommand,
+    TransitionAssignmentResult,
+    WorkItemReadDTO,
+)
+from src.domains.collaboration.services import (
+    AssignmentService,
+    CollaborationConflictError,
+    CollaborationNotFoundError,
+    WorkItemService,
+)
+from src.security.dependency import provide_principal
+from src.security.guards import require_roles
+from src.security.principal import Principal
 
 
 def provide_assignment_service(db_session: NamedDependency[AsyncSession]) -> AssignmentService:
@@ -43,6 +58,29 @@ class AssignmentController(Controller):
     ) -> Assignment:
         with database_action("get", "collaboration.Assignment"):
             return await service.get(item_id)
+
+    @post(
+        "/{item_id:uuid}/status",
+        status_code=200,
+        name="collaboration:Assignment:transition",
+        guards=[require_roles("admin", "housing_worker", "district_admin")],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def transition_status(
+        self,
+        item_id: FromPath[UUID],
+        data: TransitionAssignmentCommand,
+        service: NamedDependency[AssignmentService],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> TransitionAssignmentResult:
+        try:
+            async with db_session.begin():
+                return await service.transition(item_id, data, changed_by=principal.actor_id)
+        except CollaborationNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (CollaborationConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
 
 
 def provide_workitem_service(db_session: NamedDependency[AsyncSession]) -> WorkItemService:

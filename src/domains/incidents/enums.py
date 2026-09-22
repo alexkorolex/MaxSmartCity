@@ -43,3 +43,15 @@ class ResolutionDisputeStatus(StrEnum):
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
     RESOLVED = "RESOLVED"
+
+
+class GroupingMode(StrEnum):
+    AUTO = "AUTO"
+    CONFIRM_INCIDENT = "CONFIRM_INCIDENT"
+    FORCE_NEW = "FORCE_NEW"
+
+
+class GroupingOutcome(StrEnum):
+    ATTACHED = "ATTACHED"
+    CREATED = "CREATED"
+    NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"

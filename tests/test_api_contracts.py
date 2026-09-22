@@ -41,6 +41,14 @@ def test_aggregate_routes_do_not_allow_unrestricted_mutations(api_schema: dict[s
         assert "patch" not in api_schema["paths"][f"{path}/{{item_id}}"]
 
 
+def test_incident_core_exposes_commands_instead_of_generic_mutations(
+    api_schema: dict[str, Any],
+) -> None:
+    assert "post" in api_schema["paths"]["/incidents/group-reports/{report_id}"]
+    assert "post" in api_schema["paths"]["/incidents/{item_id}/status"]
+    assert "post" in api_schema["paths"]["/collaboration/assignments/{item_id}/status"]
+
+
 @pytest.mark.parametrize("field", ["id", "version", "status", "created_at", "unknown_field"])
 def test_incident_dto_rejects_server_managed_fields(field: str) -> None:
     @post("/", dto=IncidentCreateDTO, sync_to_thread=False)

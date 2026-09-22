@@ -8,10 +8,12 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     String,
     Text,
     false,
     func,
+    text,
     true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -35,7 +37,17 @@ class ProblemCategory(Entity):
 
 class Report(Entity):
     __tablename__ = "report"
-    __table_args__ = ({"schema": "reports"},)
+    __table_args__ = (
+        Index(
+            "uq_report_source_external_id",
+            "source_type",
+            "source_external_id",
+            unique=True,
+            postgresql_where=text("source_external_id IS NOT NULL"),
+        ),
+        Index("ix_report_grouping_candidates", "house_id", "category_id", "status", "received_at"),
+        {"schema": "reports"},
+    )
 
     resident_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.resident.id"))
     source_type: Mapped[ReportSourceType] = mapped_column(

@@ -115,26 +115,6 @@ uv run --locked python -m maxsmartcity.ml.inference.cli `
 Подробности: [`training/README.md`](training/README.md),
 [`evaluation/README.md`](evaluation/README.md), [`inference/README.md`](inference/README.md).
 
-## Что ещё делать на ноутбуке
-
-1. Командой принять восемь stable category codes и Gold v2.
-2. Добавить 80–120 независимо написанных real/OOD сообщений без sibling-парафраз в train.
-3. Разметить extraction spans/features на отдельном срезе.
-4. Просмотреть synthetic retrieval/reranking pairs и составить 50–100 human-reviewed сценариев.
-
-## Что делать на машине с RTX 3060
-
-Только после принятия datasets:
-
-1. Сравнить multilingual retrieval/encoder baseline с rule baseline на готовых qrels/pairs.
-2. Обучить incident pair/cross-encoder и Qwen3.5-4B bf16 LoRA Jev-like NLI ranker.
-3. Проверить модель через LM Studio/Bionic после merge/export в GGUF.
-4. Выполнить отдельную calibration моделей решений.
-5. Провести GPU/RAM/throughput benchmark и подключить inference/batch API.
-
-`UntrainedJevIncidentRanker` намеренно падает контролируемой ошибкой: случайный или
-непроверенный checkpoint не должен незаметно стать production recommendation.
-
 ## Проверки
 
 ```bash

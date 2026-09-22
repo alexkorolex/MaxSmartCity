@@ -15,6 +15,7 @@ from src.database.cache import CacheSettings
 from src.database.config import DatabaseSettings
 from src.max_bot.cli import MaxBotCLIPlugin
 from src.max_bot.controllers import MaxWebhookController
+from src.max_bot.startup import auto_subscribe_max_webhook
 from src.observability.logs import structlog_plugin
 from src.observability.prometheus import prometheus_config
 
@@ -38,6 +39,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         ],
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),
+        on_startup=[auto_subscribe_max_webhook],
         openapi_config=OpenAPIConfig(
             title="Max Smart City Project",
             version="0.0.1",

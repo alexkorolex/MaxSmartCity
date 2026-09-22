@@ -14,8 +14,8 @@ from litestar.handlers.base import BaseRouteHandler
 from litestar.stores.redis import RedisStore
 
 from src.domains.identity.services import ResidentService
-from src.max_bot import certs, dedup, handlers
-from src.max_bot.client import MaxClient
+from src.max_bot import certs, dedup, handlers, startup
+from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.guards import require_max_webhook_secret
 from src.max_bot.settings import MaxBotSettings
 
@@ -31,6 +31,10 @@ def anyio_backend() -> str:
 def settings(monkeypatch: pytest.MonkeyPatch) -> MaxBotSettings:
     monkeypatch.setenv("MAX_BOT_TOKEN", "test-bot-token")
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "test-webhook-secret")
+    monkeypatch.setenv("WEB_APP_LOGIN_URL", "https://app.example.com/auth/max")
+    # Deliberately absent by default (some tests set it back) - must not leak in from
+    # whatever the developer's own shell happens to have exported.
+    monkeypatch.delenv("MAX_WEBHOOK_PUBLIC_URL", raising=False)
     return MaxBotSettings.from_environment()
 
 
@@ -75,7 +79,7 @@ async def test_login_code_round_trip() -> None:
     second = await dedup.consume_login_code(code)
 
     assert first == resident_id
-    assert second is None  # single-use
+    assert second is None
 
 
 async def test_dedup_marks_event_processed_only_once() -> None:
@@ -102,7 +106,7 @@ class _FakeResidentService:
         return _FakeResident(id=UUID(int=max_user_id))
 
 
-async def test_handle_bot_started_upserts_resident_and_sends_login_code(
+async def test_handle_bot_started_registers_resident_and_sends_welcome(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sent: list[dict[str, Any]] = []
@@ -125,7 +129,38 @@ async def test_handle_bot_started_upserts_resident_and_sends_login_code(
     assert service.upserts == [{"max_user_id": 42, "username": "alex", "display_name": "Alex"}]
     assert len(sent) == 1
     assert sent[0]["user_id"] == 42
-    assert "Код для входа" in sent[0]["text"]
+    assert "Добро пожаловать" in sent[0]["text"]
+    button = sent[0]["attachments"][0]["payload"]["buttons"][0][0]
+    assert button["type"] == "link"
+    assert button["url"].startswith("https://app.example.com/auth/max?code=")
+
+
+async def test_handle_message_created_start_command_sends_welcome(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+
+    service = _FakeResidentService()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 7, "is_bot": False, "username": "res", "first_name": "Res"},
+            "recipient": {"chat_type": "dialog"},
+            "body": {"mid": "m0", "text": "/start"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, service), settings)
+
+    assert service.upserts == [{"max_user_id": 7, "username": "res", "display_name": "Res"}]
+    assert len(sent) == 1
+    assert "Добро пожаловать" in sent[0]["text"]
+    assert sent[0]["attachments"][0]["type"] == "inline_keyboard"
 
 
 async def test_handle_message_created_ignores_bot_senders(
@@ -154,7 +189,7 @@ async def test_handle_message_created_ignores_bot_senders(
     assert service.upserts == []
 
 
-async def test_handle_message_created_login_command_issues_code(
+async def test_handle_message_created_login_command_issues_login_link(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sent: list[dict[str, Any]] = []
@@ -178,7 +213,9 @@ async def test_handle_message_created_login_command_issues_code(
 
     assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res"}]
     assert len(sent) == 1
-    assert "Код" in sent[0]["text"]
+    assert "ссылка" in sent[0]["text"].lower()
+    button = sent[0]["attachments"][0]["payload"]["buttons"][0][0]
+    assert button["url"].startswith("https://app.example.com/auth/max?code=")
 
 
 def test_webhook_secret_is_compared_constant_time(settings: MaxBotSettings) -> None:
@@ -256,3 +293,52 @@ def test_fetch_raises_cert_fetch_error_after_exhausting_retries(
 
     with pytest.raises(certs.CertFetchError, match=r"gu-st\.ru"):
         certs.fetch_russian_trusted_ca_certs(target_dir=tmp_path)
+
+
+async def test_auto_subscribe_skips_when_no_public_url_configured(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Explicitly absent, regardless of what the ambient shell environment has set -
+    # nothing to register.
+    monkeypatch.delenv("MAX_WEBHOOK_PUBLIC_URL", raising=False)
+    calls: list[object] = []
+
+    async def fake_subscribe(self: MaxClient, **kwargs: object) -> None:
+        calls.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "subscribe", fake_subscribe)
+
+    await startup.auto_subscribe_max_webhook()
+
+    assert calls == []
+
+
+async def test_auto_subscribe_registers_when_public_url_configured(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MAX_WEBHOOK_PUBLIC_URL", "https://bot.example.com/webhook/max")
+    calls: list[dict[str, object]] = []
+
+    async def fake_subscribe(self: MaxClient, **kwargs: object) -> None:
+        calls.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "subscribe", fake_subscribe)
+
+    await startup.auto_subscribe_max_webhook()
+
+    assert len(calls) == 1
+    assert calls[0]["url"] == "https://bot.example.com/webhook/max"
+    assert calls[0]["secret"] == "test-webhook-secret"
+
+
+async def test_auto_subscribe_never_raises_on_api_failure(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MAX_WEBHOOK_PUBLIC_URL", "https://bot.example.com/webhook/max")
+
+    async def failing_subscribe(self: MaxClient, **_kwargs: object) -> None:
+        raise MaxApiError(503, "temporarily unavailable")
+
+    monkeypatch.setattr(MaxClient, "subscribe", failing_subscribe)
+
+    await startup.auto_subscribe_max_webhook()  # must not raise

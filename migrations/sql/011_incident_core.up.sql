@@ -41,10 +41,10 @@ CREATE TABLE incidents.incident_grouping_decision (
 
 -- statement-breakpoint
 
-CREATE INDEX ix_incidents_grouping_decision_report_id
+CREATE INDEX ix_incidents_incident_grouping_decision_report_id
 ON incidents.incident_grouping_decision (report_id);
 
 -- statement-breakpoint
 
-CREATE INDEX ix_incidents_grouping_decision_selected_incident_id
+CREATE INDEX ix_incidents_incident_grouping_decision_selected_incident_id
 ON incidents.incident_grouping_decision (selected_incident_id);

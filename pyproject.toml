@@ -20,10 +20,12 @@ dependencies = [
     "litestar-granian>=0.16.0",
     "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy,structlog]>=2.24.0",
     "sqlalchemy>=2.0.54",
+    "aiohttp>=3.14.3",
 ]
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.26.1",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "ruff>=0.16.8",

@@ -231,3 +231,5 @@ ml/data/external/interim/
 .pytest-tmp/
 tmp/
 .idea/
+
+etc/max_api/certs

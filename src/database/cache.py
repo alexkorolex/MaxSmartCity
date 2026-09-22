@@ -17,3 +17,9 @@ class CacheSettings:
 
     def response_cache_store(self) -> RedisStore:
         return RedisStore.with_client(self.url, namespace="response_cache")
+
+    def max_webhook_dedup_store(self) -> RedisStore:
+        return RedisStore.with_client(self.url, namespace="max_webhook_dedup")
+
+    def max_login_code_store(self) -> RedisStore:
+        return RedisStore.with_client(self.url, namespace="max_login_code")

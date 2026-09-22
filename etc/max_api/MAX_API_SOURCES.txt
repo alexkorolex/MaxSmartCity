@@ -1,0 +1,17 @@
+MAX API official sources — verified 2026-09-22
+
+https://dev.max.ru/docs-api
+https://dev.max.ru/docs-api/changelog-api
+https://dev.max.ru/docs-api/use-cases/event-notifications
+https://dev.max.ru/docs-api/methods/POST/subscriptions
+https://dev.max.ru/docs-api/use-cases/getting-chat-id
+https://dev.max.ru/docs-api/methods/POST/messages
+https://dev.max.ru/docs-api/use-cases/sending-messages/text-formatting
+https://dev.max.ru/docs-api/use-cases/sending-messages/attachment-types
+https://dev.max.ru/docs-api/use-cases/sending-messages/keyboard
+https://dev.max.ru/docs-api/use-cases/sending-messages/media
+https://dev.max.ru/docs-api/methods/POST/uploads
+https://dev.max.ru/docs-api/methods/POST/answers
+https://dev.max.ru/docs-api/use-cases/comment-moderation
+https://github.com/max-messenger/api-schema
+https://raw.githubusercontent.com/max-messenger/api-schema/refs/heads/main/schema.yaml

@@ -7,6 +7,7 @@ from src.database.logging import database_action
 from src.domains.auth.schemas import (
     ResidentAuthenticateRequest,
     ResidentAuthenticateResponse,
+    ResidentLoginRequest,
     ResidentTokenRequest,
     ResidentTokenResponse,
     StaffLinkMaxIdRequest,
@@ -16,8 +17,9 @@ from src.domains.auth.schemas import (
     StaffRegisterRequest,
     StaffRegisterResponse,
 )
-from src.domains.identity.models import OperatorUser, Resident
+from src.domains.identity.models import OperatorUser
 from src.domains.identity.services import OperatorUserService, ResidentService
+from src.max_bot.dedup import consume_login_code
 from src.security.dependency import provide_principal
 from src.security.guards import RESIDENT_TOKEN_ISSUER, require_bot_secret, require_roles, require_staff
 from src.security.keycloak import KeycloakLoginError, login_staff_with_password
@@ -36,41 +38,30 @@ def provide_operator_user_service(db_session: NamedDependency[AsyncSession]) -> 
 
 
 class ResidentAuthController(Controller):
-    """Auth endpoints for the resident-facing bot only.
+    """Auth endpoints for residents.
 
-    Residents never provide a login/password themselves; the bot is the only client
-    here, authenticating itself with a shared secret (``X-Bot-Secret``). The flow is
-    two steps on purpose: ``authenticate`` registers/updates the resident, ``token``
-    mints a fresh JWT for an already-known one - so the bot can refresh a token
-    without repeating registration every time.
+    ``authenticate``/``token`` are called by the bot only (shared secret, ``X-Bot-Secret``)
+    - residents never provide a login/password themselves. ``login`` is the odd one out:
+    it is called by the resident's own browser, redeeming the single-use code the bot
+    (or ``POST /webhook/max``, see ``src/max_bot``) handed them in chat, so it carries no
+    bot-secret guard.
     """
 
     path = "/auth/residents"
     tags = ("auth",)
-    guards = (require_bot_secret(),)
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
         self.dependencies = {"service": Provide(provide_resident_service, sync_to_thread=False)}
 
-    @post("/authenticate", name="auth:Resident:authenticate")
+    @post("/authenticate", name="auth:Resident:authenticate", guards=[require_bot_secret()])
     async def authenticate(
         self, data: ResidentAuthenticateRequest, service: NamedDependency[ResidentService]
     ) -> ResidentAuthenticateResponse:
         with database_action("upsert", "identity.Resident"):
-            resident = await service.get_one_or_none(max_user_id=data.max_user_id)
-            if resident is None:
-                resident = await service.create(
-                    Resident(
-                        max_user_id=data.max_user_id,
-                        username=data.username,
-                        display_name=data.display_name,
-                    )
-                )
-            elif data.username != resident.username or data.display_name != resident.display_name:
-                resident = await service.update(
-                    {"username": data.username, "display_name": data.display_name}, item_id=resident.id
-                )
+            resident = await service.upsert_by_max_user_id(
+                max_user_id=data.max_user_id, username=data.username, display_name=data.display_name
+            )
         return ResidentAuthenticateResponse(
             resident_id=str(resident.id),
             max_user_id=resident.max_user_id,
@@ -78,7 +69,7 @@ class ResidentAuthController(Controller):
             display_name=resident.display_name,
         )
 
-    @post("/token", name="auth:Resident:token")
+    @post("/token", name="auth:Resident:token", guards=[require_bot_secret()])
     async def issue_token(
         self, data: ResidentTokenRequest, service: NamedDependency[ResidentService]
     ) -> ResidentTokenResponse:
@@ -86,6 +77,25 @@ class ResidentAuthController(Controller):
             resident = await service.get_one_or_none(max_user_id=data.max_user_id)
         if resident is None:
             raise NotFoundException("Resident is not registered; call /auth/residents/authenticate first")
+
+        settings = SecuritySettings.from_environment()
+        token = resident_jwt_auth(settings).create_token(
+            identifier=str(resident.id), token_issuer=RESIDENT_TOKEN_ISSUER
+        )
+        return ResidentTokenResponse(token=token, resident_id=str(resident.id))
+
+    @post("/login", name="auth:Resident:login")
+    async def login(
+        self, data: ResidentLoginRequest, service: NamedDependency[ResidentService]
+    ) -> ResidentTokenResponse:
+        resident_id = await consume_login_code(data.code)
+        if resident_id is None:
+            raise NotAuthorizedException("Invalid or expired code")
+
+        with database_action("get", "identity.Resident"):
+            resident = await service.get_one_or_none(id=resident_id)
+        if resident is None:
+            raise NotFoundException("Resident no longer exists")
 
         settings = SecuritySettings.from_environment()
         token = resident_jwt_auth(settings).create_token(

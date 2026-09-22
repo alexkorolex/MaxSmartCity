@@ -1,12 +1,11 @@
-"""Repeatable, source-keyed import of houses and reference organizations."""
-
 import hashlib
 import json
 import math
+import re
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -16,6 +15,25 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 from src.database.config import DatabaseSettings
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
+
+
+def _normalized_spaces(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _normalize_street(value: str) -> str:
+    normalized = _normalized_spaces(value)
+    match = re.fullmatch(r"(?i:ул\.?)\s+(.+)", normalized)
+    if match:
+        return f"улица {match.group(1)}"
+    return normalized
+
+
+def _normalize_house_number(value: str) -> str:
+    normalized = _normalized_spaces(value).upper()
+    normalized = re.sub(r"(?i)\bКОРПУС\.?\s*", "КОРП. ", normalized)
+    normalized = re.sub(r"(?i)\bК\.?\s*(?=\d)", "КОРП. ", normalized)
+    return _normalized_spaces(normalized)
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -51,7 +69,7 @@ def required_string(row: dict[str, Any], field: str, maximum: int) -> str:
     value = row.get(field)
     if not isinstance(value, str) or not value.strip() or len(value) > maximum:
         raise ValueError(f"{field} must be a nonempty string of at most {maximum} characters")
-    return " ".join(value.split())
+    return _normalized_spaces(value)
 
 
 def optional_string(row: dict[str, Any], field: str, maximum: int) -> str | None:
@@ -105,6 +123,13 @@ def validate_house(row: object) -> dict[str, Any]:
         f"{fields['city']}, {fields['street']}, д. {fields['house_number']}"
     )
     fields["external_id"] = optional_string(row, "external_id", 255)
+    fields["fias_id"] = optional_string(row, "fias_id", 255)
+    fields["official_status"] = optional_string(row, "official_status", 128)
+    fields["management_method"] = optional_string(row, "management_method", 128)
+    fields["canonical_address"] = optional_string(row, "canonical_address", 1000)
+    fields["provenance"] = optional_object(row, "provenance")
+    fields["street"] = _normalize_street(fields["street"])
+    fields["house_number"] = _normalize_house_number(fields["house_number"])
     lat, lon = row.get("latitude"), row.get("longitude")
     if (lat is None) != (lon is None):
         raise ValueError("latitude and longitude must be supplied together")
@@ -126,21 +151,55 @@ def validate_house(row: object) -> dict[str, Any]:
 def validate_organization(row: object) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise ValueError("organization must be an object")
-    return {
+    result = {
         "key": required_string(row, "key", 255),
         "name": required_string(row, "name", 255),
         "type": required_string(row, "type", 64),
         "external_id": optional_string(row, "external_id", 255),
+        "inn": optional_string(row, "inn", 12),
+        "ogrn": optional_string(row, "ogrn", 15),
+        "provenance": optional_object(row, "provenance"),
     }
+    if result["inn"] is not None and (not result["inn"].isdigit() or len(result["inn"]) not in (10, 12)):
+        raise ValueError("inn must contain 10 or 12 digits")
+    if result["ogrn"] is not None and (not result["ogrn"].isdigit() or len(result["ogrn"]) not in (13, 15)):
+        raise ValueError("ogrn must contain 13 or 15 digits")
+    return result
 
 
-def validate_link(row: object) -> dict[str, str]:
+def optional_object(row: dict[str, Any], field: str) -> dict[str, Any]:
+    value = row.get(field)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{field} must be an object")
+    return cast(dict[str, Any], _db_safe_json(value))
+
+
+def optional_date(row: dict[str, Any], field: str) -> str | None:
+    value = optional_string(row, field, 10)
+    if value is None:
+        return None
+    try:
+        return datetime.fromisoformat(value).date().isoformat()
+    except ValueError as exc:
+        raise ValueError(f"{field} must be an ISO 8601 date") from exc
+
+
+def validate_link(row: object) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise ValueError("link must be an object")
-    return {
+    result = {
         key: required_string(row, key, limit)
         for key, limit in (("house_key", 255), ("organization_key", 255), ("relationship", 64))
     }
+    result["basis"] = optional_string(row, "basis", 2000)
+    result["period_from"] = optional_date(row, "period_from")
+    result["period_to"] = optional_date(row, "period_to")
+    result["provenance"] = optional_object(row, "provenance")
+    if result["period_from"] and result["period_to"] and result["period_to"] < result["period_from"]:
+        raise ValueError("period_to cannot precede period_from")
+    return result
 
 
 async def _source(connection: AsyncConnection, source: dict[str, Any]) -> UUID:
@@ -326,10 +385,18 @@ async def _house(
             )
     await connection.execute(
         text(
-            "INSERT INTO ingestion.house_source(source_id,source_key,house_id,retrieved_at,external_id) "
-            "VALUES (:source_id,:key,:house_id,:retrieved_at,:external_id) "
+            "INSERT INTO ingestion.house_source("
+            "source_id,source_key,house_id,retrieved_at,external_id,fias_id,canonical_address,"
+            "official_status,management_method,provenance) "
+            "VALUES (:source_id,:key,:house_id,:retrieved_at,:external_id,:fias_id,:canonical_address,"
+            ":official_status,:management_method,CAST(:provenance AS jsonb)) "
             "ON CONFLICT(source_id,source_key) DO UPDATE SET retrieved_at=excluded.retrieved_at, "
-            "external_id=COALESCE(excluded.external_id,ingestion.house_source.external_id)"
+            "external_id=COALESCE(excluded.external_id,ingestion.house_source.external_id),"
+            "fias_id=COALESCE(excluded.fias_id,ingestion.house_source.fias_id),"
+            "canonical_address=COALESCE(excluded.canonical_address,ingestion.house_source.canonical_address),"
+            "official_status=COALESCE(excluded.official_status,ingestion.house_source.official_status),"
+            "management_method=COALESCE(excluded.management_method,ingestion.house_source.management_method),"
+            "provenance=ingestion.house_source.provenance || excluded.provenance"
         ),
         {
             "source_id": source_id,
@@ -337,6 +404,11 @@ async def _house(
             "house_id": house_id,
             "retrieved_at": retrieved_at,
             "external_id": row["external_id"],
+            "fias_id": row["fias_id"],
+            "canonical_address": row["canonical_address"],
+            "official_status": row["official_status"],
+            "management_method": row["management_method"],
+            "provenance": json.dumps(row["provenance"], ensure_ascii=False),
         },
     )
     return status
@@ -377,10 +449,14 @@ async def _organization(
     await connection.execute(
         text(
             "INSERT INTO ingestion.organization_source"
-            "(source_id,source_key,organization_id,retrieved_at,external_id) "
-            "VALUES (:source_id,:key,:organization_id,:retrieved_at,:external_id) "
+            "(source_id,source_key,organization_id,retrieved_at,external_id,inn,ogrn,provenance) "
+            "VALUES (:source_id,:key,:organization_id,:retrieved_at,:external_id,:inn,:ogrn,"
+            "CAST(:provenance AS jsonb)) "
             "ON CONFLICT(source_id,source_key) DO UPDATE SET retrieved_at=excluded.retrieved_at, "
-            "external_id=COALESCE(excluded.external_id,ingestion.organization_source.external_id)"
+            "external_id=COALESCE(excluded.external_id,ingestion.organization_source.external_id),"
+            "inn=COALESCE(excluded.inn,ingestion.organization_source.inn),"
+            "ogrn=COALESCE(excluded.ogrn,ingestion.organization_source.ogrn),"
+            "provenance=ingestion.organization_source.provenance || excluded.provenance"
         ),
         {
             "source_id": source_id,
@@ -388,6 +464,9 @@ async def _organization(
             "organization_id": organization_id,
             "retrieved_at": retrieved_at,
             "external_id": row["external_id"],
+            "inn": row["inn"],
+            "ogrn": row["ogrn"],
+            "provenance": json.dumps(row["provenance"], ensure_ascii=False),
         },
     )
     return status
@@ -449,10 +528,16 @@ async def _link(
         await connection.execute(
             text(
                 "INSERT INTO ingestion.house_organization"
-                "(source_id,house_id,organization_id,relationship,retrieved_at) "
-                "VALUES (:source_id,:house_id,:organization_id,:relationship,:retrieved_at) "
+                "(source_id,house_id,organization_id,relationship,retrieved_at,basis,period_from,"
+                "period_to,provenance) "
+                "VALUES (:source_id,:house_id,:organization_id,:relationship,:retrieved_at,:basis,"
+                ":period_from,:period_to,CAST(:provenance AS jsonb)) "
                 "ON CONFLICT(source_id,house_id,organization_id,relationship) DO UPDATE "
-                "SET retrieved_at=GREATEST(ingestion.house_organization.retrieved_at,excluded.retrieved_at) "
+                "SET retrieved_at=GREATEST(ingestion.house_organization.retrieved_at,excluded.retrieved_at),"
+                "basis=COALESCE(excluded.basis,ingestion.house_organization.basis),"
+                "period_from=COALESCE(excluded.period_from,ingestion.house_organization.period_from),"
+                "period_to=COALESCE(excluded.period_to,ingestion.house_organization.period_to),"
+                "provenance=ingestion.house_organization.provenance || excluded.provenance "
                 "RETURNING (xmax = 0)"
             ),
             {
@@ -461,6 +546,10 @@ async def _link(
                 "organization_id": organization_id,
                 "relationship": row["relationship"],
                 "retrieved_at": retrieved_at,
+                "basis": row["basis"],
+                "period_from": row["period_from"],
+                "period_to": row["period_to"],
+                "provenance": json.dumps(row["provenance"], ensure_ascii=False),
             },
         )
     ).scalar_one()
@@ -475,8 +564,6 @@ async def import_file(path: Path, database_url: str | None = None) -> dict[str, 
     run_id = uuid4()
     try:
         async with engine.begin() as connection:
-            # A single import lock serializes address reconciliation across sources.
-            # Holding several address locks could deadlock when files order rows differently.
             await connection.execute(text("SELECT pg_advisory_xact_lock(61744, 1)"))
             source_id = await _source(connection, dataset["source"])
             await connection.execute(

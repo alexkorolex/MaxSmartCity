@@ -69,14 +69,15 @@ Ingestion загружает подготовленные JSON-файлы неп
 `ingestion.house_organization`; назначений Incidents импорт не создаёт.
 
 При обычном `docker compose up -d --build` сервис `ingest` после миграции загружает
-`ingestion/data/bryansk.json`, `ingestion/data/bryansk_cian.json` и
-`ingestion/data/bakhchysarai.json`. Вручную после
+`ingestion/data/bryansk.json`, `ingestion/data/bryansk_cian.json`,
+`ingestion/data/bakhchysarai.json` и `ingestion/data/gis_zkh_pilot.json`. Вручную после
 запуска БД и миграций:
 
 ```bash
 uv run --locked python -m src.domains.ingestion ingestion/data/bryansk.json
 uv run --locked python -m src.domains.ingestion ingestion/data/bryansk_cian.json
 uv run --locked python -m src.domains.ingestion ingestion/data/bakhchysarai.json
+uv run --locked python -m src.domains.ingestion ingestion/data/gis_zkh_pilot.json
 ```
 
 Команда использует `DATABASE_URL` из окружения или `.env` и печатает ID запуска,
@@ -110,6 +111,50 @@ docker compose run --rm ingest
 в `ingestion.error` и не связывается с чужим домом. При совпадении дома из разных
 источников атрибуты `REAL` имеют приоритет над `DEMO`; внутри одного класса более
 старая дата получения не перезаписывает более новую.
+
+### Пилот ГИС ЖКХ
+
+Для четырёх адресов пилота есть отдельный источник `gis-zkh-public-pilot`.
+Его данные взяты из ручной выгрузки публичного реестра объектов жилищного фонда
+ГИС ЖКХ. Система не подключается к ГИС ЖКХ во время работы: в репозитории лежат
+только итоговый JSON, небольшой обезличенный CSV-образец и манифест архива;
+исходный ZIP в Git не добавляется.
+
+Порядок обновления снимка:
+
+1. Откройте публичный [реестр объектов жилищного фонда](https://dom.gosuslugi.ru/#!/houses),
+   нажмите «Скачать» и дождитесь архива (`tar.gz` на дату этого снимка). При необходимости проверьте реквизиты УК
+   в [реестре управляющих организаций и решений](https://cdn.dom.gosuslugi.ru/webhelp/new/topics/public_part/management_company_and_solution_list_och/t_navigate-och.html).
+2. Сохраните архив вне рабочей копии и зафиксируйте его имя, дату получения,
+   размер и SHA-256. Не добавляйте полный архив в Git.
+3. Постройте снимок и манифест, указав фактическое время получения архива:
+
+   ```bash
+   uv run --locked python -m src.domains.ingestion.gis_zkh \
+     --archive C:/Downloads/gis-zkh-houses.tar.gz \
+     --retrieved-at 2026-09-22T20:35:00+03:00 \
+     --output ingestion/data/gis_zkh_pilot.json \
+     --manifest ingestion/data/gis_zkh_manifest.json
+   ```
+
+4. Просмотрите `not_found` и таблицу расхождений в `ingestion/data/`. Статус
+   `NOT_FOUND` означает, что запись не попала в выгрузку; импорт не изменяет
+   ранее загруженный дом. Не сопоставляйте УК по похожему названию.
+5. Импортируйте итоговый JSON обычной командой:
+
+   ```bash
+   uv run --locked python -m src.domains.ingestion ingestion/data/gis_zkh_pilot.json
+   ```
+
+Адаптер читает CSV внутри ZIP потоково и выбирает только Брянск, ул. Евдокимова,
+дома 8 и 10, а также Бахчисарай, ул. Мира, дома 9 и 3. Он приводит `ул.` к
+`улица` и варианты корпуса к одной записи, не объединяя разные номера домов.
+Для найденных домов сохраняются идентификаторы ГИС ЖКХ и ФИАС, канонический
+адрес, состояние, способ управления и член архива. Для УК сохраняются только
+явно указанные в выгрузке ID, ИНН и ОГРН; для связи — основание и период, если
+они присутствуют. Поля находятся в provenance-таблицах `ingestion.house_source`,
+`ingestion.organization_source` и `ingestion.house_organization`; `house_id`
+остаётся прежним при повторной загрузке.
 
 Интеграционные тесты требуют отдельную пустую PostgreSQL/PostGIS базу. После её
 создания задайте `TEST_DATABASE_URL` и запустите:

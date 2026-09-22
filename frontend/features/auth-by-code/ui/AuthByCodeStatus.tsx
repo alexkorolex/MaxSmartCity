@@ -1,5 +1,7 @@
 import { Flex, Spinner, Typography } from '@maxhub/max-ui';
 
+import { EmptyState, WarningIcon } from '@/shared/ui';
+
 import { useAuthByCode } from '../model/useAuthByCode';
 
 export function AuthByCodeStatus() {
@@ -7,22 +9,26 @@ export function AuthByCodeStatus() {
 
   if (!hasCode) {
     return (
-      <Typography.Text variant="body" color="secondary">
-        Ссылка неполная — код входа не найден. Вернитесь в бота MAX и попробуйте снова.
-      </Typography.Text>
+      <EmptyState
+        icon={<WarningIcon width={28} height={28} />}
+        title="Ссылка неполная"
+        description="Код входа не найден. Вернитесь в бота MAX и попробуйте снова."
+      />
     );
   }
 
   if (isError) {
     return (
-      <Typography.Text variant="body" color="secondary">
-        Ссылка для входа устарела или уже использована. Вернитесь в бота MAX и запросите новую командой /login.
-      </Typography.Text>
+      <EmptyState
+        icon={<WarningIcon width={28} height={28} />}
+        title="Ссылка устарела"
+        description="Она уже использована или истекла. Вернитесь в бота MAX и запросите новую командой /login."
+      />
     );
   }
 
   return (
-    <Flex direction="column" align="center" gap={12}>
+    <Flex direction="column" align="center" gap="var(--space-3)">
       <Spinner size={24} appearance="primary" />
       <Typography.Text variant="body" color="secondary">
         {isPending ? 'Выполняем вход…' : 'Секунду…'}

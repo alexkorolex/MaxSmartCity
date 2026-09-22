@@ -1,5 +1,7 @@
 import { CellHeader, CellList, CellSimple, Radio } from '@maxhub/max-ui';
 
+import { ListCard } from '@/shared/ui';
+
 import { useTheme, type ThemePreference } from '../model/useTheme';
 
 const OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -12,7 +14,8 @@ export function ThemeSwitch() {
   const { preference, setPreference } = useTheme();
 
   return (
-    <CellList mode="island" header={<CellHeader>Тема оформления</CellHeader>}>
+    <ListCard>
+    <CellList mode="full-width" header={<CellHeader>Тема оформления</CellHeader>}>
       {OPTIONS.map((option) => (
         <CellSimple
           key={option.value}
@@ -29,5 +32,6 @@ export function ThemeSwitch() {
         />
       ))}
     </CellList>
+    </ListCard>
   );
 }

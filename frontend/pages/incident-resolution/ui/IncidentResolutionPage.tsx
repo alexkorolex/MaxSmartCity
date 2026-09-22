@@ -1,4 +1,4 @@
-import { Button, Textarea, Typography } from '@maxhub/max-ui';
+import { Button, Flex, Textarea, Typography } from '@maxhub/max-ui';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -9,7 +9,7 @@ import {
   useIncident,
 } from '@/entities/incident';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, EmptyState, PageLayout } from '@/shared/ui';
+import { AsyncState, CheckCircleIcon, EmptyState, PageLayout } from '@/shared/ui';
 
 export function IncidentResolutionPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
@@ -34,10 +34,11 @@ export function IncidentResolutionPage() {
   };
 
   return (
-    <PageLayout title="Решение по проблеме">
+    <PageLayout title="Проверка решения" subtitle="Подтвердите результат работ" backTo={ROUTES.incident(incidentId)} withNavSpacing={false}>
       <AsyncState isLoading={incident.isLoading} error={incident.error}>
         {incident.data && !canConfirmOrDispute(incident.data.status) && (
           <EmptyState
+            icon={<CheckCircleIcon width={28} height={28} />}
             title="Сейчас нечего подтверждать"
             description="Этот инцидент не ожидает подтверждения решения."
           />
@@ -45,13 +46,37 @@ export function IncidentResolutionPage() {
 
         {incident.data && canConfirmOrDispute(incident.data.status) && (
           <>
-            <Typography.Text variant="body" color="primary">
-              «{incident.data.title}» отмечена как решённая. Подтвердите, если проблема действительно устранена,
-              или сообщите, что она осталась.
-            </Typography.Text>
+            <Flex
+              direction="column"
+              align="center"
+              gap="var(--space-3)"
+              className="surface-card"
+              style={{ padding: 'var(--space-6) var(--space-4)', textAlign: 'center' }}
+            >
+              <Flex
+                align="center"
+                justify="center"
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 'var(--radius-full)',
+                  background: 'color-mix(in srgb, var(--success) 16%, transparent)',
+                  color: 'var(--success)',
+                }}
+              >
+                <CheckCircleIcon width={26} height={26} />
+              </Flex>
+              <Typography.Text variant="body-strong" color="primary">
+                «{incident.data.title}»
+              </Typography.Text>
+              <Typography.Text variant="description" color="secondary">
+                Отмечена как решённая. Подтвердите, если проблема действительно устранена, или сообщите, что она
+                осталась.
+              </Typography.Text>
+            </Flex>
 
             {!isDisputing ? (
-              <>
+              <Flex direction="column" gap="var(--space-2)">
                 <Button
                   variant="primary"
                   size="large"
@@ -64,9 +89,9 @@ export function IncidentResolutionPage() {
                 <Button variant="destructive" size="large" stretched onClick={() => setIsDisputing(true)}>
                   Проблема не решена
                 </Button>
-              </>
+              </Flex>
             ) : (
-              <>
+              <Flex direction="column" gap="var(--space-2)">
                 <Textarea
                   mode="primary"
                   placeholder="Опишите, что именно не решено"
@@ -87,7 +112,7 @@ export function IncidentResolutionPage() {
                 <Button variant="ghost" size="medium" stretched onClick={() => setIsDisputing(false)}>
                   Отмена
                 </Button>
-              </>
+              </Flex>
             )}
           </>
         )}

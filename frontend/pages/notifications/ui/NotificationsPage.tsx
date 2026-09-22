@@ -8,11 +8,8 @@ import {
   useNotifications,
 } from '@/entities/notification';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, EmptyState, PageLayout } from '@/shared/ui';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
+import { formatDateTime } from '@/shared/lib';
+import { AsyncState, BellIcon, EmptyState, ListCard, PageLayout } from '@/shared/ui';
 
 function NotificationRow({ notification }: { notification: AppNotification }) {
   const markRead = useMarkNotificationRead();
@@ -20,10 +17,20 @@ function NotificationRow({ notification }: { notification: AppNotification }) {
 
   const cellProps = {
     title: notification.title,
-    subtitle: `${notification.body} · ${formatDate(notification.created_at)}`,
+    subtitle: `${notification.body} · ${formatDateTime(notification.created_at)}`,
     subtitleMode: 'tertiary' as const,
     separator: true,
-    before: !notification.is_read ? <span style={{ color: 'var(--blue)', fontSize: 20, lineHeight: 1 }}>●</span> : undefined,
+    before: !notification.is_read ? (
+      <span
+        style={{
+          display: 'block',
+          width: 9,
+          height: 9,
+          borderRadius: 'var(--radius-full)',
+          background: 'var(--blue)',
+        }}
+      />
+    ) : undefined,
     onClick: () => {
       if (!notification.is_read) markRead.mutate(notification.id);
     },
@@ -48,6 +55,7 @@ export function NotificationsPage() {
   return (
     <PageLayout
       title="Уведомления"
+      subtitle="Изменения по вашим обращениям"
       action={
         hasUnread ? (
           <Button variant="ghost" size="small" onClick={() => markAllRead.mutate()} loading={markAllRead.isPending}>
@@ -58,13 +66,19 @@ export function NotificationsPage() {
     >
       <AsyncState isLoading={notifications.isLoading} error={notifications.error} onRetry={() => notifications.refetch()}>
         {notifications.data && notifications.data.length === 0 ? (
-          <EmptyState title="Уведомлений нет" description="Здесь будут появляться обновления по вашим обращениям" />
+          <EmptyState
+            icon={<BellIcon width={28} height={28} />}
+            title="Уведомлений нет"
+            description="Здесь будут появляться обновления по вашим обращениям"
+          />
         ) : (
-          <CellList mode="island">
+          <ListCard>
+          <CellList mode="full-width">
             {notifications.data?.map((notification) => (
               <NotificationRow key={notification.id} notification={notification} />
             ))}
           </CellList>
+          </ListCard>
         )}
       </AsyncState>
     </PageLayout>

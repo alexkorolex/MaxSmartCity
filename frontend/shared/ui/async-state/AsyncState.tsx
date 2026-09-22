@@ -19,7 +19,7 @@ function errorMessage(error: unknown): string {
 export function AsyncState({ isLoading, error, children, onRetry }: AsyncStateProps) {
   if (isLoading) {
     return (
-      <Flex justify="center" align="center" gap={8}>
+      <Flex justify="center" align="center" style={{ padding: '48px 0' }}>
         <Spinner size={24} appearance="primary" />
       </Flex>
     );
@@ -27,12 +27,12 @@ export function AsyncState({ isLoading, error, children, onRetry }: AsyncStatePr
 
   if (error) {
     return (
-      <Flex direction="column" align="center" gap={8}>
+      <Flex direction="column" align="center" gap={12} style={{ padding: '40px 24px', textAlign: 'center' }}>
         <Typography.Text variant="body" color="secondary">
           {errorMessage(error)}
         </Typography.Text>
         {onRetry && (
-          <Button variant="ghost" size="small" onClick={onRetry}>
+          <Button variant="secondary" size="small" onClick={onRetry}>
             Повторить
           </Button>
         )}

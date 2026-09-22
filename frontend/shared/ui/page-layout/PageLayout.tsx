@@ -1,36 +1,56 @@
-import { Container, Flex, Typography } from '@maxhub/max-ui';
+import { Container, Flex, IconButton, Typography } from '@maxhub/max-ui';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+
+import { ArrowLeftIcon } from '@/shared/ui/icons';
 
 interface PageLayoutProps {
   title?: string;
+  subtitle?: string;
   action?: ReactNode;
+  backTo?: string;
+  eyebrow?: string;
   children: ReactNode;
-  /** Reserves space at the bottom so content isn't hidden behind the bottom nav bar.
-   * Turn off for pages rendered without the nav widget (e.g. the auth callback page). */
   withNavSpacing?: boolean;
 }
 
-export function PageLayout({ title, action, children, withNavSpacing = true }: PageLayoutProps) {
+type PageHeadingProps = Omit<PageLayoutProps, 'children' | 'withNavSpacing'>;
+
+function PageHeading({ title, subtitle, action, backTo, eyebrow }: PageHeadingProps) {
+  if (!title && !action) return null;
+
   return (
-    <Container fullWidth>
-      <Flex
-        direction="column"
-        gap={16}
-        style={{
-          paddingTop: 16,
-          paddingBottom: withNavSpacing ? 'calc(var(--bottom-nav-height) + 16px)' : 16,
-        }}
-      >
+    <header className="page-heading">
+      {backTo && (
+        <IconButton asChild variant="ghost" size="small" aria-label="Назад">
+          <Link to={backTo}><ArrowLeftIcon /></Link>
+        </IconButton>
+      )}
+      <div className="page-heading__copy">
+        {eyebrow && <span className="page-heading__eyebrow">{eyebrow}</span>}
         {title && (
-          <Flex justify="space-between" align="center">
-            <Typography.Text variant="header" color="primary">
-              {title}
-            </Typography.Text>
-            {action}
-          </Flex>
+          <Typography.Text asChild variant="header" color="primary">
+            <h1>{title}</h1>
+          </Typography.Text>
         )}
-        {children}
-      </Flex>
-    </Container>
+        {subtitle && <Typography.Text variant="description" color="secondary">{subtitle}</Typography.Text>}
+      </div>
+      {action && <div className="page-heading__action">{action}</div>}
+    </header>
+  );
+}
+
+export function PageLayout(props: PageLayoutProps) {
+  const { children, withNavSpacing = true } = props;
+
+  return (
+    <main className={`app-page${withNavSpacing ? ' app-page--with-nav' : ''}`}>
+      <Container fullWidth>
+        <Flex direction="column" gap="var(--space-4)" className="page-content">
+          <PageHeading {...props} />
+          {children}
+        </Flex>
+      </Container>
+    </main>
   );
 }

@@ -1,9 +1,9 @@
-import { Button, CellHeader, CellList, CellSimple, Radio, Switch, Textarea, Typography } from '@maxhub/max-ui';
+import { Button, CellHeader, CellList, CellSimple, Flex, Radio, Switch, Textarea, Typography } from '@maxhub/max-ui';
 import { useNavigate } from 'react-router-dom';
 
-import { PRIORITY_LABELS, useProblemCategories, type Priority } from '@/entities/report';
+import { PRIORITY_LABELS, PRIORITY_TONES, useProblemCategories, type Priority } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState } from '@/shared/ui';
+import { AsyncState, ListCard, ToneDot, WarningIcon } from '@/shared/ui';
 
 import { useReportForm } from '../model/useReportForm';
 
@@ -15,9 +15,10 @@ export function ReportForm() {
   const form = useReportForm((reportId) => navigate(ROUTES.myReports, { state: { createdReportId: reportId } }));
 
   return (
-    <>
-      <CellList mode="island" header={<CellHeader>Описание проблемы</CellHeader>}>
-        <div style={{ padding: '8px 16px 16px' }}>
+    <div className="form-stack">
+      <ListCard>
+      <CellList mode="full-width" header={<CellHeader>Описание проблемы</CellHeader>}>
+        <div className="field-card__body">
           <Textarea
             mode="primary"
             placeholder="Что случилось? Укажите как можно больше деталей — это поможет быстрее найти решение."
@@ -27,13 +28,16 @@ export function ReportForm() {
           />
         </div>
       </CellList>
+      </ListCard>
 
-      <CellList mode="island" header={<CellHeader>Категория (необязательно)</CellHeader>}>
+      <ListCard>
+      <CellList mode="full-width" header={<CellHeader>Категория (необязательно)</CellHeader>}>
         <AsyncState isLoading={categories.isLoading} error={categories.error}>
           {categories.data?.map((category) => (
             <CellSimple
               key={category.id}
               title={category.name}
+              before={category.is_critical ? <WarningIcon width={18} height={18} style={{ color: 'var(--error)' }} /> : undefined}
               after={
                 <Radio
                   name="category"
@@ -46,12 +50,15 @@ export function ReportForm() {
           ))}
         </AsyncState>
       </CellList>
+      </ListCard>
 
-      <CellList mode="island" header={<CellHeader>Срочность</CellHeader>}>
+      <ListCard>
+      <CellList mode="full-width" header={<CellHeader>Срочность</CellHeader>}>
         {URGENCY_OPTIONS.map((option) => (
           <CellSimple
             key={option}
             title={PRIORITY_LABELS[option]}
+            before={<ToneDot tone={PRIORITY_TONES[option]} />}
             after={
               <Radio
                 name="urgency"
@@ -63,8 +70,10 @@ export function ReportForm() {
           />
         ))}
       </CellList>
+      </ListCard>
 
-      <CellList mode="island">
+      <ListCard>
+      <CellList mode="full-width">
         <CellSimple
           title="Проблема ещё продолжается"
           subtitle="Отключите, если проблема уже устранена сама собой"
@@ -78,21 +87,24 @@ export function ReportForm() {
           }
         />
       </CellList>
+      </ListCard>
 
-      {form.validationError && (
-        <Typography.Text variant="description" color="secondary" style={{ color: 'var(--error)' }}>
-          {form.validationError}
-        </Typography.Text>
-      )}
-      {form.submitError && (
-        <Typography.Text variant="description" style={{ color: 'var(--error)' }}>
-          Не удалось отправить обращение. Попробуйте ещё раз.
-        </Typography.Text>
+      {(form.validationError || form.submitError) && (
+        <Flex
+          className="surface-card"
+          style={{ padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--error)' }}
+        >
+          <Typography.Text variant="description" style={{ color: 'var(--error)' }}>
+            {form.validationError ?? 'Не удалось отправить обращение. Попробуйте ещё раз.'}
+          </Typography.Text>
+        </Flex>
       )}
 
-      <Button variant="primary" size="large" stretched loading={form.isSubmitting} onClick={form.submit}>
-        Отправить
-      </Button>
-    </>
+      <div className="sticky-submit">
+        <Button variant="primary" size="large" stretched loading={form.isSubmitting} onClick={form.submit}>
+          Отправить обращение
+        </Button>
+      </div>
+    </div>
   );
 }

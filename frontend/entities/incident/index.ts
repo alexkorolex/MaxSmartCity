@@ -1,4 +1,4 @@
-export { canConfirmOrDispute, INCIDENT_STATUS_LABELS } from './lib/statusLabels';
+export { canConfirmOrDispute, INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES } from './lib/statusLabels';
 export {
   incidentDisputesQueryKey,
   incidentQueryKey,

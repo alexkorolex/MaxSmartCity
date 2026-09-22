@@ -5,8 +5,8 @@ import { PageLayout } from '@/shared/ui';
 
 export function AuthMaxPage() {
   return (
-    <PageLayout title="Вход" withNavSpacing={false}>
-      <Flex direction="column" align="center" justify="center" style={{ paddingTop: 48 }}>
+    <PageLayout withNavSpacing={false}>
+      <Flex className="auth-stage" direction="column" align="center" justify="center" gap="var(--space-4)">
         <AuthByCodeStatus />
       </Flex>
     </PageLayout>

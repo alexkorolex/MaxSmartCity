@@ -1,4 +1,4 @@
-export { PRIORITY_LABELS, REPORT_STATUS_LABELS } from './lib/statusLabels';
+export { PRIORITY_LABELS, PRIORITY_TONES, REPORT_STATUS_LABELS, REPORT_STATUS_TONES } from './lib/statusLabels';
 export {
   myReportsQueryKey,
   problemCategoriesQueryKey,

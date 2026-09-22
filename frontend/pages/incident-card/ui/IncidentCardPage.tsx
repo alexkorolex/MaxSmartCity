@@ -1,46 +1,78 @@
-import { Button, CellHeader, CellList, CellSimple, Typography } from '@maxhub/max-ui';
+import { Button, CellHeader, CellList, CellSimple, Flex, Typography } from '@maxhub/max-ui';
 import { Link, useParams } from 'react-router-dom';
 
-import { canConfirmOrDispute, INCIDENT_STATUS_LABELS, useIncident } from '@/entities/incident';
+import {
+  canConfirmOrDispute,
+  INCIDENT_STATUS_LABELS,
+  INCIDENT_STATUS_TONES,
+  useIncident,
+} from '@/entities/incident';
+import { PRIORITY_LABELS, PRIORITY_TONES } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, PageLayout } from '@/shared/ui';
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-}
+import { formatCalendarDate } from '@/shared/lib';
+import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
 
 export function IncidentCardPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
   const incident = useIncident(incidentId);
 
   return (
-    <PageLayout title="Карточка инцидента">
+    <PageLayout title="Инцидент" subtitle="Подробности и текущий статус" backTo={ROUTES.myHouse} withNavSpacing={false}>
       <AsyncState isLoading={incident.isLoading} error={incident.error} onRetry={() => incident.refetch()}>
         {incident.data && (
           <>
-            <Typography.Text variant="title" color="primary">
-              {incident.data.title}
-            </Typography.Text>
-            {incident.data.description && (
-              <Typography.Text variant="body" color="secondary">
-                {incident.data.description}
+            <Flex
+              direction="column"
+              gap="var(--space-3)"
+              className="surface-card detail-hero"
+            >
+              <Flex gap="var(--space-2)" wrap="wrap">
+                <StatusBadge
+                  label={INCIDENT_STATUS_LABELS[incident.data.status]}
+                  tone={INCIDENT_STATUS_TONES[incident.data.status]}
+                />
+                <StatusBadge
+                  label={PRIORITY_LABELS[incident.data.priority]}
+                  tone={PRIORITY_TONES[incident.data.priority]}
+                />
+              </Flex>
+              <Typography.Text variant="title" color="primary">
+                {incident.data.title}
               </Typography.Text>
-            )}
+              {incident.data.description && (
+                <Typography.Text variant="body" color="secondary">
+                  {incident.data.description}
+                </Typography.Text>
+              )}
+            </Flex>
 
-            <CellList mode="island" header={<CellHeader>Статус</CellHeader>}>
-              <CellSimple title="Статус" subtitle={INCIDENT_STATUS_LABELS[incident.data.status]} subtitleMode="tertiary" />
-              <CellSimple title="Первое обращение" subtitle={formatDate(incident.data.first_report_at)} subtitleMode="tertiary" />
-              <CellSimple title="Ожидаемый срок решения" subtitle={formatDate(incident.data.expected_resolution_at)} subtitleMode="tertiary" />
+            <ListCard>
+            <CellList mode="full-width" header={<CellHeader>Сроки</CellHeader>}>
+              <CellSimple title="Первое обращение" subtitle={formatCalendarDate(incident.data.first_report_at, { year: true, fallback: '—' })} subtitleMode="tertiary" />
+              <CellSimple title="Ожидаемый срок решения" subtitle={formatCalendarDate(incident.data.expected_resolution_at, { year: true, fallback: '—' })} subtitleMode="tertiary" />
               {incident.data.resolved_at && (
-                <CellSimple title="Решено" subtitle={formatDate(incident.data.resolved_at)} subtitleMode="tertiary" />
+                <CellSimple title="Решено" subtitle={formatCalendarDate(incident.data.resolved_at, { year: true })} subtitleMode="tertiary" />
               )}
             </CellList>
+            </ListCard>
 
             {canConfirmOrDispute(incident.data.status) && (
-              <Button asChild variant="primary" size="large" stretched>
-                <Link to={ROUTES.incidentResolution(incident.data.id)}>Подтвердить или оспорить решение</Link>
-              </Button>
+              <Flex
+                direction="column"
+                gap="var(--space-3)"
+                className="surface-card"
+                style={{ padding: 'var(--space-4)', borderColor: 'var(--warning)' }}
+              >
+                <Typography.Text variant="body-strong" color="primary">
+                  Проблема отмечена как решённая
+                </Typography.Text>
+                <Typography.Text variant="description" color="secondary">
+                  Подтвердите, что всё в порядке, или сообщите, если проблема осталась.
+                </Typography.Text>
+                <Button asChild variant="primary" size="large" stretched>
+                  <Link to={ROUTES.incidentResolution(incident.data.id)}>Подтвердить или оспорить решение</Link>
+                </Button>
+              </Flex>
             )}
           </>
         )}

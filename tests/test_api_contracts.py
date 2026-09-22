@@ -35,10 +35,19 @@ def test_crud_schemas_are_generated_from_domain_models(api_schema: dict[str, Any
 
 
 def test_aggregate_routes_do_not_allow_unrestricted_mutations(api_schema: dict[str, Any]) -> None:
-    for path in ("/incidents", "/reports", "/collaboration/assignments", "/collaboration/work-items"):
+    for path in ("/incidents", "/collaboration/assignments", "/collaboration/work-items"):
         assert "get" in api_schema["paths"][path]
         assert "post" not in api_schema["paths"][path]
         assert "patch" not in api_schema["paths"][f"{path}/{{item_id}}"]
+
+
+def test_reports_create_is_the_only_mutation_and_is_resident_gated(api_schema: dict[str, Any]) -> None:
+    """``/reports`` is the one aggregate root with a POST: residents self-report through
+    it (guarded by ``require_resident()`` - see ``tests/integration/test_resident_api.py``
+    for the 401/ownership behavior), but it still allows no PATCH."""
+    assert "get" in api_schema["paths"]["/reports"]
+    assert "post" in api_schema["paths"]["/reports"]
+    assert "patch" not in api_schema["paths"]["/reports/{item_id}"]
 
 
 @pytest.mark.parametrize("field", ["id", "version", "status", "created_at", "unknown_field"])

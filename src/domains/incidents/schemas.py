@@ -1,10 +1,11 @@
 """Litestar contracts generated from the incident aggregate."""
 
+from dataclasses import dataclass
 from typing import ClassVar
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
-from src.domains.incidents.models import Incident
+from src.domains.incidents.models import Incident, ResolutionDispute
 
 
 class IncidentCreateDTO(SQLAlchemyDTO[Incident]):
@@ -44,3 +45,12 @@ class IncidentUpdateDTO(SQLAlchemyDTO[Incident]):
         partial=True,
         forbid_unknown_fields=True,
     )
+
+
+@dataclass
+class IncidentDisputeRequest:
+    comment: str
+
+
+class ResolutionDisputeReadDTO(SQLAlchemyDTO[ResolutionDispute]):
+    config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()

@@ -63,3 +63,12 @@ class ResidentUpdateDTO(SQLAlchemyDTO[Resident]):
 
 class ResidentReadDTO(SQLAlchemyDTO[Resident]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()
+
+
+@dataclass
+class ResidentSelfUpdateRequest:
+    """Self-service profile edits only - ``max_user_id``/``username``/``bot_status`` are
+    bot-owned and never editable here."""
+
+    notifications_enabled: bool | None = None
+    display_name: str | None = None

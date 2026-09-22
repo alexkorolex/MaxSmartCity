@@ -11,3 +11,6 @@ __pycache__
 !.env.ml.example
 ml/artifacts
 tmp
+
+frontend/node_modules
+frontend/dist

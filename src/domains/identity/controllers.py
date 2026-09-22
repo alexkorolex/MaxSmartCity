@@ -10,7 +10,7 @@ from litestar.params import FromPath, Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
-from src.domains.identity.models import Department, Organization
+from src.domains.identity.models import Department, Organization, Resident
 from src.domains.identity.schemas import (
     DepartmentCreateDTO,
     DepartmentReadDTO,
@@ -19,10 +19,12 @@ from src.domains.identity.schemas import (
     OrganizationReadDTO,
     OrganizationUpdateDTO,
     PrincipalRead,
+    ResidentReadDTO,
+    ResidentSelfUpdateRequest,
 )
-from src.domains.identity.services import DepartmentService, OrganizationService
+from src.domains.identity.services import DepartmentService, OrganizationService, ResidentService
 from src.security.dependency import provide_principal
-from src.security.guards import require_roles
+from src.security.guards import require_resident, require_roles
 from src.security.principal import Principal
 
 
@@ -153,6 +155,10 @@ class DepartmentController(Controller):
             await service.delete(item_id)
 
 
+def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> ResidentService:
+    return ResidentService(session=db_session, auto_commit=True)
+
+
 class MeController(Controller):
     """Whoever holds a valid token - staff via Keycloak or a resident via the bot - can
     ask who they are."""
@@ -162,7 +168,10 @@ class MeController(Controller):
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
-        self.dependencies = {"principal": Provide(provide_principal)}
+        self.dependencies = {
+            "principal": Provide(provide_principal),
+            "resident_service": Provide(provide_resident_service, sync_to_thread=False),
+        }
 
     @get("/", name="identity:me")
     async def get_me(self, principal: NamedDependency[Principal]) -> PrincipalRead:
@@ -173,3 +182,39 @@ class MeController(Controller):
             organization_id=str(principal.organization_id) if principal.organization_id else None,
             department_id=str(principal.department_id) if principal.department_id else None,
         )
+
+    @get(
+        "/resident",
+        name="identity:me:resident:get",
+        guards=[require_resident()],
+        return_dto=ResidentReadDTO,
+    )
+    async def get_my_resident_profile(
+        self,
+        resident_service: NamedDependency[ResidentService],
+        principal: NamedDependency[Principal],
+    ) -> Resident:
+        with database_action("get", "identity.Resident"):
+            return await resident_service.get(principal.actor_id)
+
+    @patch(
+        "/resident",
+        name="identity:me:resident:update",
+        guards=[require_resident()],
+        return_dto=ResidentReadDTO,
+    )
+    async def update_my_resident_profile(
+        self,
+        data: ResidentSelfUpdateRequest,
+        resident_service: NamedDependency[ResidentService],
+        principal: NamedDependency[Principal],
+    ) -> Resident:
+        with database_action("update", "identity.Resident"):
+            updates: dict[str, object] = {}
+            if data.notifications_enabled is not None:
+                updates["notifications_enabled"] = data.notifications_enabled
+            if data.display_name is not None:
+                updates["display_name"] = data.display_name
+            if not updates:
+                return await resident_service.get(principal.actor_id)
+            return await resident_service.update(updates, item_id=principal.actor_id)

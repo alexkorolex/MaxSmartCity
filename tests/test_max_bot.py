@@ -14,10 +14,12 @@ from litestar.handlers.base import BaseRouteHandler
 from litestar.stores.redis import RedisStore
 
 from src.domains.identity.services import ResidentService
-from src.max_bot import certs, dedup, handlers, startup
+from src.max_bot import certs, dedup, handlers, identity, startup
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.guards import require_max_webhook_secret
 from src.max_bot.settings import MaxBotSettings
+
+FAKE_BOT_USERNAME = "max_smart_city_bot"
 
 pytestmark = pytest.mark.anyio
 
@@ -51,6 +53,18 @@ def fake_redis(monkeypatch: pytest.MonkeyPatch) -> None:
         return cls(redis=fakeredis.aioredis.FakeRedis(server=server), namespace=namespace)
 
     monkeypatch.setattr(RedisStore, "with_client", classmethod(fake_with_client))
+
+
+@pytest.fixture(autouse=True)
+def fake_bot_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock MAX's ``/me`` bot-info call and reset the process-lifetime username cache, so
+    every test resolves the same fixed username independent of test order or network."""
+    monkeypatch.setattr(identity, "_cached_username", None)
+
+    async def fake_get_me(_self: MaxClient) -> dict[str, Any]:
+        return {"user_id": 1, "first_name": "Max Smart City", "is_bot": True, "username": FAKE_BOT_USERNAME}
+
+    monkeypatch.setattr(MaxClient, "get_me", fake_get_me)
 
 
 @dataclass
@@ -130,9 +144,12 @@ async def test_handle_bot_started_registers_resident_and_sends_welcome(
     assert len(sent) == 1
     assert sent[0]["user_id"] == 42
     assert "Добро пожаловать" in sent[0]["text"]
-    button = sent[0]["attachments"][0]["payload"]["buttons"][0][0]
-    assert button["type"] == "link"
-    assert button["url"].startswith("https://app.example.com/auth/max?code=")
+    open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
+    assert open_app_button["type"] == "open_app"
+    assert open_app_button["web_app"] == FAKE_BOT_USERNAME
+    assert open_app_button["payload"]
+    assert link_button["type"] == "link"
+    assert link_button["url"].startswith("https://app.example.com/auth/max?code=")
 
 
 async def test_handle_message_created_start_command_sends_welcome(
@@ -214,8 +231,9 @@ async def test_handle_message_created_login_command_issues_login_link(
     assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res"}]
     assert len(sent) == 1
     assert "ссылка" in sent[0]["text"].lower()
-    button = sent[0]["attachments"][0]["payload"]["buttons"][0][0]
-    assert button["url"].startswith("https://app.example.com/auth/max?code=")
+    open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
+    assert open_app_button["type"] == "open_app"
+    assert link_button["url"].startswith("https://app.example.com/auth/max?code=")
 
 
 def test_webhook_secret_is_compared_constant_time(settings: MaxBotSettings) -> None:

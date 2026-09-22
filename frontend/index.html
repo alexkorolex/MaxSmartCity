@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Max Smart City</title>
+    <script>
+      (function () {
+        try {
+          var stored = window.localStorage.getItem('maxsc.theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- MAX Bridge: exposes window.WebApp when running as a mini app inside MAX.
+         Harmless outside MAX - the app only reads from it if it's actually present. -->
+    <script src="https://st.max.ru/js/max-web-app.js"></script>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

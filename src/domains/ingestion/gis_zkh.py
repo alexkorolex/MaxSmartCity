@@ -7,10 +7,10 @@ import json
 import re
 import tarfile
 import zipfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Buffer, Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any, Protocol, cast
 
 from src.domains.ingestion.importer import _normalize_house_number, _normalize_street
 
@@ -87,7 +87,11 @@ def _address_key(address: str) -> tuple[str, str, str] | None:
     return None
 
 
-def _open_csv(stream: BinaryIO, member_name: str = "CSV") -> Iterator[dict[str, str]]:
+class _BinaryReadable(Protocol):
+    def read(self, size: int = -1, /) -> bytes: ...
+
+
+def _open_csv(stream: _BinaryReadable, member_name: str = "CSV") -> Iterator[dict[str, str]]:
     sample = stream.read(4096)
     for encoding in ("utf-8-sig", "utf-16", "cp1251"):
         try:
@@ -103,12 +107,12 @@ def _open_csv(stream: BinaryIO, member_name: str = "CSV") -> Iterator[dict[str, 
         delimiter = ";"
     else:
         return
-    prefixed = io.BufferedReader(_PrefixedBinary(sample, stream))
+    prefixed = io.BufferedReader(cast(Any, _PrefixedBinary(sample, stream)))
     yield from csv.DictReader(io.TextIOWrapper(prefixed, encoding=encoding), delimiter=delimiter)
 
 
 class _PrefixedBinary(io.RawIOBase):
-    def __init__(self, prefix: bytes, stream: BinaryIO) -> None:
+    def __init__(self, prefix: bytes, stream: _BinaryReadable) -> None:
         self._prefix = memoryview(prefix)
         self._stream = stream
 
@@ -118,16 +122,17 @@ class _PrefixedBinary(io.RawIOBase):
     def seekable(self) -> bool:
         return False
 
-    def readinto(self, buffer: bytearray) -> int:
+    def readinto(self, buffer: Buffer) -> int:
+        target = memoryview(buffer)
         if self._prefix:
-            count = min(len(buffer), len(self._prefix))
-            buffer[:count] = self._prefix[:count]
+            count = min(len(target), len(self._prefix))
+            target[:count] = self._prefix[:count]
             self._prefix = self._prefix[count:]
             return count
-        data = self._stream.read(len(buffer))
+        data = self._stream.read(len(target))
         if not data:
             return 0
-        buffer[: len(data)] = data
+        target[: len(data)] = data
         return len(data)
 
 
@@ -226,7 +231,11 @@ def transform(archives: list[Path], retrieved_at: datetime) -> dict[str, Any]:
         city = _value(raw, HOUSE_ALIASES["city"])
         street = _value(raw, HOUSE_ALIASES["street"])
         number = _value(raw, HOUSE_ALIASES["house_number"])
-        address_key = _key(city, street, number) if all((city, street, number)) else None
+        address_key = (
+            _key(city, street, number)
+            if city is not None and street is not None and number is not None
+            else None
+        )
         if address_key not in PILOT_KEYS and canonical:
             address_key = _address_key(canonical)
         if address_key not in PILOT_KEYS or address_key in found:

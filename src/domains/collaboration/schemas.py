@@ -1,7 +1,11 @@
+from dataclasses import dataclass
+from datetime import datetime
 from typing import ClassVar
+from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.domains.collaboration.enums import AssignmentRole, AssignmentStatus
 from src.domains.collaboration.models import Assignment, WorkItem
 
 
@@ -40,6 +44,39 @@ class AssignmentUpdateDTO(SQLAlchemyDTO[Assignment]):
 
 class AssignmentReadDTO(SQLAlchemyDTO[Assignment]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()
+
+
+@dataclass(slots=True)
+class TransitionAssignmentCommand:
+    target_status: AssignmentStatus
+    expected_version: int
+    reason: str | None = None
+
+
+@dataclass(slots=True)
+class TransitionAssignmentResult:
+    assignment_id: UUID
+    status: AssignmentStatus
+    version: int
+
+
+@dataclass(slots=True)
+class CreateAssignmentCommand:
+    incident_id: UUID
+    organization_id: UUID
+    role: AssignmentRole
+    required: bool = True
+    due_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class CreateAssignmentResult:
+    assignment_id: UUID
+    incident_id: UUID
+    organization_id: UUID
+    role: AssignmentRole
+    status: AssignmentStatus
+    version: int
 
 
 class WorkItemCreateDTO(SQLAlchemyDTO[WorkItem]):

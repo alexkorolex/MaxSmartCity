@@ -1,4 +1,4 @@
-# Generated synthetic datasets
+# Сгенерированные синтетические наборы данных
 
 ## `dev-v2`
 

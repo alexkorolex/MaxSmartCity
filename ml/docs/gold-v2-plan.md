@@ -1,58 +1,60 @@
-# Gold v2: backend-aligned generation plan
+# Gold v2: план генерации, согласованный с backend
 
-## Why v1 is not the final Gold
+## Почему v1 не считается финальным Gold
 
-Backend stores zero or one `ProblemCategory` on a report. `NEEDS_CLARIFICATION` is a report status,
-while danger flags and extracted features have their own fields. Gold v1 mixed these concerns in a
-single label list, so it remains a useful pipeline smoke dataset but must not be frozen as the final
-category benchmark.
+Backend хранит у обращения не более одной `ProblemCategory`. `NEEDS_CLARIFICATION` — статус
+обращения, а признаки опасности и извлечённые характеристики находятся в отдельных полях. Gold v1
+смешивал эти сущности в одном списке меток. Он остаётся полезным набором для дымовой проверки
+пайплайна, но не может стать финальным замороженным бенчмарком категорий.
 
-Gold v2 uses four independent targets:
+В Gold v2 используются четыре независимые целевые переменные:
 
-1. `primary_category`: one of the eight codes in `taxonomy.backend-aligned.v2.json`, or null when the
-   routing outcome prevents classification;
-2. `routing_outcome`: `ACCEPT`, `NEEDS_CLARIFICATION`, `NON_INCIDENT` or `ABSTAIN`;
-3. `danger_signals`: a multi-label list;
-4. observable extraction fields such as raw address, entrance, floor, duration, scale and
+1. `primary_category` — один из восьми кодов в `taxonomy.backend-aligned.v2.json` или `null`, если
+   результат маршрутизации не позволяет классифицировать обращение;
+2. `routing_outcome` — `ACCEPT`, `NEEDS_CLARIFICATION`, `NON_INCIDENT` или `ABSTAIN`;
+3. `danger_signals` — список меток;
+4. наблюдаемые поля: исходный адрес, подъезд, этаж, продолжительность, масштаб и
    `problem_continues`.
 
-## Implemented size and provenance
+## Реализованный объём и происхождение данных
 
-| Slice | Current result | How it is produced |
+| Часть | Текущий результат | Способ получения |
 |---|---:|---|
-| Full Gold v2 candidate | 261 scenarios / 522 texts | grounded template plus one reviewed controlled LLM paraphrase |
-| Accepted category records | 241 scenarios / 482 texts | eight backend-aligned primary categories |
-| Routing cases | 20 scenarios / 40 texts | 26 clarification and 14 non-incident messages |
-| Frozen real/OOD test | not collected | team-authored or anonymized real reports; no sibling paraphrases in train |
+| Полный набор кандидатов Gold v2 | 261 сценарий / 522 текста | Привязанный к фактам шаблон и одна проверенная контролируемая перефразировка LLM |
+| Принятые записи категорий | 241 сценарий / 482 текста | Восемь основных категорий, согласованных с backend |
+| Случаи маршрутизации | 20 сценариев / 40 текстов | 26 запросов на уточнение и 14 сообщений, не относящихся к инцидентам |
+| Замороженный тест на реальных/OOD-данных | Не собран | Написанные командой или реальные обезличенные обращения; без родственных перефразировок в обучении |
 
-The generated target was reduced after review: 522 clean texts are preferable to padding the set
-with low-value paraphrases. The remaining priority is 80–120 independent real/OOD texts, not more
-siblings of the same synthetic scenarios. Class balance is enforced by scenario.
+После ревизии целевой объём генерации уменьшен: 522 чистых текста полезнее, чем заполнение набора
+малоценными перефразировками. Главный приоритет — 80–120 независимых реальных/OOD-текстов, а не
+новые варианты тех же синтетических сценариев. Баланс классов обеспечивается на уровне сценариев.
 
-## API policy
+## Политика работы с API
 
-- Accepted generation model: `mistral-medium-3-5` through AITUNNEL. Small/Qwen pilot outputs were
-  not selected.
-- Temperature: `0.25` for fact-preserving lexicalization. Diversity comes from seed frames and
-  explicit style, not high-temperature improvisation.
-- One API call returns exactly two variants (`neutral`, `natural`), both schema validated.
-- Emoji, slang, invented urgency, organizations, time, address and danger facts are rejected.
-- First run a 20-scenario pilot. Continue only if factual preservation is at least 95% after manual
-  review and no systematic style defect is observed.
-- API outputs are candidates, never Gold. Accepted records retain prompt/model/version provenance;
-  rejected records stay quarantined.
+- Принятая модель генерации — `mistral-medium-3-5` через AITUNNEL. Результаты пилотных запусков
+  Small/Qwen не выбраны.
+- Температура — `0.25`, чтобы сохранять факты при лексикализации. Разнообразие создают исходные
+  конструкции и явно заданный стиль, а не импровизация при высокой температуре.
+- Один запрос API возвращает ровно два варианта: `neutral` и `natural`. Оба проходят проверку схемы.
+- Эмодзи, сленг, выдуманные срочность, организации, время, адреса и признаки опасности отклоняются.
+- Сначала запускается пилот на 20 сценариях. Продолжать можно, только если ручная проверка
+  подтверждает сохранение не менее 95 % фактов и не выявляет системного дефекта стиля.
+- Ответы API — кандидаты, а не Gold. Принятые записи сохраняют происхождение, модель и версию
+  промпта; отклонённые записи остаются в карантине.
 
-At the price recorded on 2026-09-21 (30 ₽ input and 120 ₽ output per 1M tokens), even a conservative
-100k input + 100k output budget costs about 15 ₽. The 300 ₽ balance is therefore ample; quality and
-review time, not token cost, are the limiting factors.
+По цене, зафиксированной 21 сентября 2026 года — 30 ₽ за 1 млн входных и 120 ₽ за 1 млн выходных
+токенов, — консервативный бюджет в 100 тыс. входных и 100 тыс. выходных токенов стоит около 15 ₽.
+Баланса в 300 ₽ достаточно; ограничения задают качество и время проверки, а не стоимость токенов.
 
-## Completed gate and remaining freeze gate
+## Пройденные проверки и условие заморозки
 
-The controlled run and semantic review are complete. Before declaring the dataset `FROZEN`:
+Контролируемая генерация и семантическая ревизия завершены. До присвоения набору статуса `FROZEN`
+нужно:
 
-1. backend/team approves the same eight stable `ProblemCategory.code` values;
-2. a human-authored/anonymized frozen test is separated before further model selection;
-3. extraction targets receive their own annotation pass.
+1. утвердить с backend и командой те же восемь стабильных значений `ProblemCategory.code`;
+2. выделить написанный людьми или реальный обезличенный замороженный тест до дальнейшего выбора
+   моделей;
+3. отдельно разметить целевые поля извлечения.
 
-The rebuild snapshot and non-secret API audit live under `ml/data/gold/v2/sources`. The key remains
-only in `.env.local`; neither plans nor manifests contain it.
+Снимок для пересборки и несекретный аудит API находятся в `ml/data/gold/v2/sources`. Ключ хранится
+только в `.env.local`; его нет в планах и манифестах.

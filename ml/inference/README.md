@@ -1,4 +1,4 @@
-# Inference
+# Инференс
 
 Локальный smoke-test обученного category checkpoint:
 
@@ -15,7 +15,7 @@ version. Пустой текст всегда приводит к `ABSTAIN`.
 проверяет SHA-256 модели и согласованность model/taxonomy version с manifest. Для передачи
 checkpoint нужен доверенный artifact storage.
 
-## HTTP inference
+## Инференс по HTTP
 
 После обучения:
 

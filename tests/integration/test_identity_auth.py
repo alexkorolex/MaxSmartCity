@@ -162,6 +162,17 @@ def test_resident_auth_and_token_flow(api_client: TestClient) -> None:
     )
     assert admin_only.status_code == 403
 
+    assert api_client.get("/geo/houses").status_code == 401
+    assert api_client.get("/reports").status_code == 401
+    assert api_client.get("/incidents").status_code == 401
+
+    resident_headers = {"Authorization": f"Bearer {token}"}
+    assert api_client.get("/geo/houses", headers=resident_headers).status_code == 200
+    assert api_client.get("/reports/mine", headers=resident_headers).status_code == 200
+    assert api_client.get("/incidents/my-house", headers=resident_headers).status_code == 200
+    assert api_client.get("/reports", headers=resident_headers).status_code == 403
+    assert api_client.get("/incidents", headers=resident_headers).status_code == 403
+
 
 @pytest.mark.anyio
 async def test_resident_web_login_redeems_bot_issued_code(api_client: TestClient) -> None:

@@ -35,10 +35,27 @@ def test_crud_schemas_are_generated_from_domain_models(api_schema: dict[str, Any
 
 
 def test_aggregate_routes_do_not_allow_unrestricted_mutations(api_schema: dict[str, Any]) -> None:
-    for path in ("/incidents", "/reports", "/collaboration/assignments", "/collaboration/work-items"):
+    for path in ("/incidents", "/reports", "/collaboration/work-items"):
         assert "get" in api_schema["paths"][path]
         assert "post" not in api_schema["paths"][path]
         assert "patch" not in api_schema["paths"][f"{path}/{{item_id}}"]
+    assert "patch" not in api_schema["paths"]["/collaboration/assignments/{item_id}"]
+
+
+def test_incident_core_exposes_commands_instead_of_generic_mutations(
+    api_schema: dict[str, Any],
+) -> None:
+    assert "post" in api_schema["paths"]["/reports/intake"]
+    assert "get" in api_schema["paths"]["/reports/mine"]
+    assert "get" in api_schema["paths"]["/geo/houses"]
+    assert "get" in api_schema["paths"]["/incidents/my-house"]
+    assert "post" in api_schema["paths"]["/reports/{item_id}/grouping-decision"]
+    assert "post" in api_schema["paths"]["/incidents/group-reports/{report_id}"]
+    assert "post" in api_schema["paths"]["/incidents/{item_id}/status"]
+    assert "get" in api_schema["paths"]["/incidents/{item_id}/card"]
+    assert "post" in api_schema["paths"]["/incidents/{item_id}/resolution-feedback"]
+    assert "post" in api_schema["paths"]["/collaboration/assignments"]
+    assert "post" in api_schema["paths"]["/collaboration/assignments/{item_id}/status"]
 
 
 @pytest.mark.parametrize("field", ["id", "version", "status", "created_at", "unknown_field"])

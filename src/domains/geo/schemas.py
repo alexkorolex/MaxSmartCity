@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from typing import ClassVar
+from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
@@ -51,6 +53,16 @@ class HouseUpdateDTO(SQLAlchemyDTO[House]):
 
 class HouseReadDTO(SQLAlchemyDTO[House]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()
+
+
+@dataclass(slots=True)
+class HouseOption:
+    """Compact house contract used by resident report forms."""
+
+    house_id: UUID
+    address: str
+    city: str | None
+    district: str | None
 
 
 class AffectedObjectCreateDTO(SQLAlchemyDTO[AffectedObject]):

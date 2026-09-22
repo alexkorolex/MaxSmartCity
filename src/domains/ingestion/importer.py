@@ -189,7 +189,7 @@ def optional_date(row: dict[str, Any], field: str) -> str | None:
 def validate_link(row: object) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise ValueError("link must be an object")
-    result = {
+    result: dict[str, Any] = {
         key: required_string(row, key, limit)
         for key, limit in (("house_key", 255), ("organization_key", 255), ("relationship", 64))
     }

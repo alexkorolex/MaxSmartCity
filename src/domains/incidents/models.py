@@ -24,6 +24,7 @@ from src.common.models import Association, Record, VersionedEntity, utc_now
 from src.database.spatial import GeometryText
 from src.domains.incidents.enums import (
     AffectedHouseSource,
+    GroupingOutcome,
     IncidentRelationType,
     IncidentStatus,
     LinkSource,
@@ -33,7 +34,10 @@ from src.domains.incidents.enums import (
 
 class Incident(VersionedEntity):
     __tablename__ = "incident"
-    __table_args__ = ({"schema": "incidents"},)
+    __table_args__ = (
+        Index("ix_incident_grouping_candidates", "category_id", "status", "last_report_at"),
+        {"schema": "incidents"},
+    )
 
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
@@ -85,9 +89,32 @@ class IncidentReportLink(Record):
     unlink_reason: Mapped[str | None] = mapped_column(Text)
 
 
+class IncidentGroupingDecision(Record):
+    """Immutable explanation of an automatic or user-confirmed grouping decision."""
+
+    __tablename__ = "incident_grouping_decision"
+    __table_args__ = ({"schema": "incidents"},)
+
+    report_id: Mapped[UUID] = mapped_column(ForeignKey("reports.report.id"), index=True)
+    outcome: Mapped[GroupingOutcome] = mapped_column(
+        Enum(GroupingOutcome, native_enum=False, create_constraint=True, name="grouping_outcome")
+    )
+    selected_incident_id: Mapped[UUID | None] = mapped_column(ForeignKey("incidents.incident.id"), index=True)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(7, 6))
+    runner_up_score: Mapped[Decimal | None] = mapped_column(Numeric(7, 6))
+    candidate_incident_ids: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
+    reason_codes: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
+    policy_version: Mapped[str] = mapped_column(String(64))
+    scorer_version: Mapped[str] = mapped_column(String(64))
+    request_id: Mapped[UUID | None] = mapped_column()
+
+
 class IncidentAffectedHouse(Association):
     __tablename__ = "incident_affected_house"
-    __table_args__ = ({"schema": "incidents"},)
+    __table_args__ = (
+        Index("ix_incident_affected_house_house", "house_id", "incident_id"),
+        {"schema": "incidents"},
+    )
 
     incident_id: Mapped[UUID] = mapped_column(ForeignKey("incidents.incident.id"), primary_key=True)
     house_id: Mapped[UUID] = mapped_column(ForeignKey("geo.house.id"), primary_key=True)

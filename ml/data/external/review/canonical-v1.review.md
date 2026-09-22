@@ -1,53 +1,59 @@
-# Canonical external scenarios v1 — pre-LLM review
+# Канонические внешние сценарии v1: ревизия до обработки LLM
 
-Review date: 2026-09-21  
-Dataset SHA-256: `8c77892bbb977e1e79a2b6099712d7a747271d8698964ea4e54f34ce993c4b2c`  
-Decision: **accepted as input facts for LLM enrichment, not accepted as Gold**
+Дата проверки: 21 сентября 2026 года
 
-## Scope
+SHA-256 набора: `8c77892bbb977e1e79a2b6099712d7a747271d8698964ea4e54f34ce993c4b2c`
 
-A deterministic, source-stratified sample of 100 unique facts was inspected: 40 of 100 SF311
-facts, 40 of 60 BMC facts, and all 20 curated edge cases. The evenly spaced sample was taken from
-each source after sorting by `scenario_spec_id`; it therefore does not depend on row order.
+Решение: **принять как входные факты для обогащения LLM, но не как Gold**
 
-Automated checks cover all 180 facts:
+## Объём проверки
 
-- 180 unique `scenario_spec_id` values;
-- only category IDs present in `taxonomy.v1.json`;
-- every location is synthetic and belongs to `demo-city`;
-- no source address columns are included in the canonical records;
-- the file contains exactly 100 SF311, 60 BMC and 20 curated facts;
-- all 13 BMC category rules are exercised;
-- all 21 included SF311 mapping rules are exercised.
+Проверена детерминированная стратифицированная по источникам выборка из 100 уникальных фактов:
+40 из 100 фактов SF311, 40 из 60 фактов BMC и все 20 подготовленных пограничных случаев. Равномерная
+выборка взята из каждого источника после сортировки по `scenario_spec_id`, поэтому результат не
+зависит от порядка строк.
 
-Source coverage measured before sampling:
+Автоматические проверки охватывают все 180 фактов:
 
-| Source | Rows | Unique semantic keys | Mapped rows | Unmapped rows |
+- 180 уникальных значений `scenario_spec_id`;
+- только идентификаторы категорий из `taxonomy.v1.json`;
+- каждый адрес синтетический и относится к `demo-city`;
+- канонические записи не содержат исходных колонок с адресами;
+- файл содержит ровно 100 фактов SF311, 60 BMC и 20 подготовленных фактов;
+- задействованы все 13 правил категорий BMC;
+- задействовано каждое из 21 включённого правила сопоставления SF311.
+
+Покрытие источников до формирования выборки:
+
+| Источник | Строки | Уникальные семантические ключи | Сопоставленные строки | Несопоставленные строки |
 | --- | ---: | ---: | ---: | ---: |
-| SF311 snapshot | 6,759 | 437 | 4,494 | 2,265 |
-| BMC synthetic table | 960,000 | 1,871 | 960,000 | 0 |
+| Снимок SF311 | 6 759 | 437 | 4 494 | 2 265 |
+| Синтетическая таблица BMC | 960 000 | 1 871 | 960 000 | 0 |
 
-The 2,265 omitted SF311 rows are deliberate: their source categories are outside the current
-Smart City taxonomy (for example encampments, transport feedback, abandoned vehicles and permit
-applications). They must not silently become `other`; adding one requires a reviewed mapping rule.
+2 265 строк SF311 исключены намеренно: их исходные категории не входят в текущую таксономию
+«Умного города», например лагеря бездомных, отзывы о транспорте, брошенные автомобили и заявки на
+разрешения. Их нельзя без проверки относить к `other`; для добавления каждого случая требуется
+утверждённое правило сопоставления.
 
-## Semantic findings
+## Результаты семантической проверки
 
-1. SF311 is useful as controlled vocabulary, not as Russian resident text. `TYPE` and `DETAILS`
-   must be supplied to the later lexicalization prompt together with the normalized fact.
-2. BMC adds property/channel/severity combinations, but its rows are synthetic and repetitive.
-   They provide scenario structure, never evidence of real-world frequency or model quality.
-3. `other` currently contains noise, air pollution, stray animals and public-health edge cases.
-   This is acceptable for v1 only; the product/domain team should decide whether these become
-   stable taxonomy categories before Gold annotation.
-4. Emergency and multi-label behavior is intentionally concentrated in the 20 curated facts.
-   External source mappings must not infer emergency status merely from severity wording.
-5. The source descriptions are intentionally neutral and fact-like. Natural style, typos,
-   ambiguity and paraphrases belong to the later LLM stage and must retain the locked labels.
+1. SF311 полезен как контролируемый словарь, но не как текст российского жителя. Поля `TYPE` и
+   `DETAILS` нужно передавать будущему промпту лексикализации вместе с нормализованным фактом.
+2. BMC добавляет комбинации объекта, канала и серьёзности, но его строки синтетические и
+   повторяются. Они задают структуру сценариев, а не частоту событий в реальном мире или качество
+   модели.
+3. Категория `other` сейчас включает шум, загрязнение воздуха, бездомных животных и пограничные
+   случаи общественного здоровья. Для v1 это допустимо; до Gold-разметки продуктовая и доменная
+   команды должны решить, нужны ли для них стабильные категории таксономии.
+4. Экстренные и многометочные случаи намеренно сосредоточены в 20 подготовленных фактах. Правила
+   внешних источников не должны определять экстренность только по формулировке серьёзности.
+5. Описания источников намеренно нейтральны и похожи на факты. Естественный стиль, опечатки,
+   неоднозначность и перефразировки относятся к следующему этапу LLM и должны сохранять
+   зафиксированные метки.
 
-## Gate for the next stage
+## Условие перехода к следующему этапу
 
-Before an API run, a human should approve the taxonomy edge cases and the 20 curated facts. The
-LLM output then needs schema validation, factual consistency checks, deduplication, scenario-level
-splitting and a separate human Gold pass. The current review is a preparation audit, not an
-annotation sign-off.
+До запуска API человек должен утвердить пограничные случаи таксономии и 20 подготовленных фактов.
+Затем ответы LLM должны пройти проверку схемы, фактической согласованности, дедупликацию, разбиение
+по сценариям и отдельную ручную Gold-разметку. Эта ревизия проверяет подготовку данных и не
+заменяет приёмку разметки.

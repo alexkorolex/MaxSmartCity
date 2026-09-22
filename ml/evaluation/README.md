@@ -1,4 +1,4 @@
-# Evaluation
+# Оценка моделей
 
 Training сохраняет все метрики в `metrics.json`. Повторная оценка существующего checkpoint:
 
@@ -20,7 +20,7 @@ matrices, top-1 accuracy, Brier, ECE, coverage, selective accuracy, abstain rati
 - Jev-like: accuracy при coverage, ECE/Brier и risk-coverage;
 - stress: throughput, p50/p95, queue drain и RAM/GPU.
 
-## Воспроизводимые benchmark-прогоны без изменения datasets
+## Воспроизводимые бенчмарки без изменения наборов данных
 
 Rule-based incident ranking на существующем `matching/dev-v1`:
 

@@ -12,7 +12,7 @@ from src.domains.incidents.models import Incident, IncidentReportLink
 def test_models_have_domain_schemas_and_resolvable_foreign_keys() -> None:
     metadata = ModelRegistry.load()
 
-    assert len(metadata.tables) == 42
+    assert len(metadata.tables) == 43
     assert {table.schema for table in metadata.tables.values()} == set(ModelRegistry.schemas())
     for table in metadata.sorted_tables:
         assert isinstance(table, Table)
@@ -41,6 +41,20 @@ def test_only_active_report_links_are_unique() -> None:
     assert index.unique
     assert [column.name for column in index.columns] == ["report_id"]
     assert "WHERE is_active = true" in str(CreateIndex(index).compile(dialect=dialect()))
+
+
+def test_only_active_assignments_are_unique_per_role() -> None:
+    table = cast(Table, Assignment.__table__)
+    index = next(index for index in table.indexes if index.name == "uq_assignment_active_role")
+
+    assert index.unique
+    assert [column.name for column in index.columns] == [
+        "incident_id",
+        "organization_id",
+        "role",
+    ]
+    compiled = str(CreateIndex(index).compile(dialect=dialect()))
+    assert "WHERE status IN ('PROPOSED','ACCEPTED','IN_PROGRESS','BLOCKED','MONITORING')" in compiled
 
 
 def test_internal_comment_visibility_is_database_default() -> None:

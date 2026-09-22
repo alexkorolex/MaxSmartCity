@@ -1,25 +1,28 @@
 # Gold v2
 
-Backend-aligned candidate dataset for category classification and routing experiments.
+Согласованный с backend набор кандидатов для экспериментов по классификации категорий и
+маршрутизации.
 
-- 522 unique Russian report texts;
-- 261 scenario groups (two lexical variants per scenario);
-- 482 `ACCEPT`, 26 `NEEDS_CLARIFICATION`, 14 `NON_INCIDENT` records;
-- deterministic scenario-level train/validation/test split;
-- equal numbers of grounded template and reviewed LLM-assisted texts.
+- 522 уникальных русскоязычных текста обращений;
+- 261 группа сценариев, по два лексических варианта в каждой;
+- 482 записи `ACCEPT`, 26 — `NEEDS_CLARIFICATION`, 14 — `NON_INCIDENT`;
+- детерминированное разбиение на обучение, валидацию и тестирование по сценариям;
+- поровну текстов из привязанных к фактам шаблонов и проверенных вариантов, созданных с помощью LLM.
 
-The committed `sources/llm-candidates.jsonl` is the minimal rebuild snapshot. Raw API responses
-are intentionally ignored. `sources/api-runs.json` contains non-secret generation audit metadata.
+Файл `sources/llm-candidates.jsonl` — минимальный снимок для пересборки. Исходные ответы API
+намеренно исключены из Git. В `sources/api-runs.json` находятся несекретные метаданные аудита
+генерации.
 
-Current status is `REVIEWED_PENDING_TEAM_SIGNOFF`: the data is ready for reproducible local
-experiments, but metrics must not be presented as production quality until the team signs off and
-adds a frozen set of anonymized real reports. Extraction spans are also not annotated yet.
+Текущий статус — `REVIEWED_PENDING_TEAM_SIGNOFF`: данные готовы для воспроизводимых локальных
+экспериментов, но метрики нельзя представлять как качество в эксплуатации, пока команда не
+подтвердит набор и не добавит замороженную выборку реальных обезличенных обращений. Интервалы
+извлекаемых сущностей пока также не размечены.
 
-Train the CPU baseline from the repository root:
+Обучение базовой CPU-модели из корня репозитория:
 
 ```powershell
 .\ml\scripts\train_category_baseline.ps1
 ```
 
-The category loader trains only on `ACCEPT` records with a non-null `primary_category`. Routing
-records stay in the dataset for the future routing model.
+Загрузчик категорий обучается только на записях `ACCEPT` с непустым `primary_category`. Записи
+маршрутизации остаются в наборе для будущей модели маршрутизации.

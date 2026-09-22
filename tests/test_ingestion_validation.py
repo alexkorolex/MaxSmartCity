@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import CreateIndex
 
 from src.domains.ingestion.importer import (
     MAX_FILE_BYTES,
@@ -10,6 +12,7 @@ from src.domains.ingestion.importer import (
     validate_link,
     validate_organization,
 )
+from src.domains.ingestion.models import house_source, organization_source
 
 
 def dataset() -> dict[str, object]:
@@ -163,3 +166,22 @@ def test_gis_zkh_fields_and_deterministic_address_aliases_are_validated() -> Non
                 "period_to": "2026-01-01",
             }
         )
+
+
+def test_gis_zkh_partial_indexes_match_the_migration() -> None:
+    indexes = {
+        index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+        for index in house_source.indexes
+    }
+    indexes.update(
+        {
+            index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+            for index in organization_source.indexes
+        }
+    )
+    assert indexes["ix_house_source_fias_id"] == (
+        "CREATE INDEX ix_house_source_fias_id ON ingestion.house_source (fias_id) WHERE fias_id IS NOT NULL"
+    )
+    assert indexes["ix_organization_source_inn"] == (
+        "CREATE INDEX ix_organization_source_inn ON ingestion.organization_source (inn) WHERE inn IS NOT NULL"
+    )

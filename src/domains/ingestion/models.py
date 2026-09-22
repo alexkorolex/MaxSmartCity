@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -44,6 +45,7 @@ house_source = Table(
     Column("management_method", String(128)),
     Column("provenance", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Index("ix_house_source_house_id", "house_id"),
+    Index("ix_house_source_fias_id", "fias_id", postgresql_where=text("fias_id IS NOT NULL")),
     schema="ingestion",
 )
 organization = Table(
@@ -68,6 +70,7 @@ organization_source = Table(
     Column("ogrn", String(15)),
     Column("provenance", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Index("ix_organization_source_organization_id", "organization_id"),
+    Index("ix_organization_source_inn", "inn", postgresql_where=text("inn IS NOT NULL")),
     schema="ingestion",
 )
 house_organization = Table(

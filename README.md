@@ -30,7 +30,8 @@ uv run litestar up
    перезаписывает и не удаляет);
 2. поднимает весь docker-compose стек (`docker compose up -d`), включая
    одноразовый сервис `migrate`, который применяет alembic-миграции —
-   с нуля БД тоже поднимется наполненной, без ручных действий.
+   с нуля БД тоже поднимется наполненной, без ручных действий;
+3. одноразовый сервис `ingest` загружает пилотный справочник домов и организаций.
 
 Полезные флаги: `litestar up --build` (пересобрать образы), `litestar up --no-detach`
 (держать процесс на переднем плане). Это обычная Litestar CLI-команда
@@ -54,8 +55,101 @@ uv run litestar up
 | `loki` | `LOKI_PORT` (3100) | хранилище логов (datasource уже прописан в Grafana) |
 | `keycloak` | `KEYCLOAK_PORT` (8080) | IdP для сотрудников, realm `maxsmartcity` импортируется автоматически |
 
-`migrate` — одноразовый сервис без порта, применяет миграции и завершается;
-`backend` стартует только после его успешного выполнения.
+`migrate` и `ingest` — одноразовые сервисы без портов; `backend` стартует после их
+успешного выполнения. Повторный запуск `ingest` не создаёт дубли.
+
+## Ingestion: дома и организации
+
+Ingestion загружает подготовленные JSON-файлы непосредственно в общую PostgreSQL.
+Дома сохраняются в `geo.address` и `geo.house`: `geo.house.id` — стабильный
+`house_id`, на который уже ссылаются Reports и Incidents. Координаты и
+административная область необязательны. Справочные организации хранятся в
+`ingestion.organization` отдельно от `identity.organization` (это зарегистрированные
+операторские организации). Подтверждённые источником связи находятся в
+`ingestion.house_organization`; назначений Incidents импорт не создаёт.
+
+При обычном `docker compose up -d --build` сервис `ingest` после миграции загружает
+`ingestion/data/bryansk.json`, `ingestion/data/bryansk_cian.json` и
+`ingestion/data/bakhchysarai.json`. Вручную после
+запуска БД и миграций:
+
+```bash
+uv run --locked python -m src.domains.ingestion ingestion/data/bryansk.json
+uv run --locked python -m src.domains.ingestion ingestion/data/bryansk_cian.json
+uv run --locked python -m src.domains.ingestion ingestion/data/bakhchysarai.json
+```
+
+Команда использует `DATABASE_URL` из окружения или `.env` и печатает ID запуска,
+число созданных/обновлённых записей и ошибок. Повторить импорт внутри Docker:
+
+```bash
+docker compose run --rm ingest
+```
+
+Формат файла — объект JSON версии `1` с `source` (`code`, `data_kind`: `REAL` или
+`DEMO`, `retrieved_at` с часовым поясом, опционально `url`) и массивами `houses`,
+`organizations`, `links`. Дом: `key`, `city`, `street`, `house_number`, опционально
+`formatted`, `external_id`, пара `latitude`/`longitude`. Организация: `key`, `name`,
+`type`, опционально `external_id`. Связь: `house_key`, `organization_key`,
+`relationship`. Пример — файлы выше. Ключи стабильны **в пределах источника**:
+повторный импорт обновляет запись с тем же ключом и сохраняет её UUID. Новый ключ
+дома с тем же точным адресом сопоставляется с уже существующим домом только при
+однозначном совпадении. Неизвестная УК остаётся отсутствующей; автоматического
+назначения по городу нет. Файл ограничен 5 МиБ.
+
+`ingestion.source`, `house_source`, `organization_source` и `house_organization`
+хранят происхождение и дату получения. `ingestion.run` и `ingestion.error`
+позволяют проверить результат и исправить отдельные ошибочные строки. Импорт
+проходит в транзакции с точками сохранения для строк: при сбое всей операции ранее
+опубликованные данные остаются доступны; одна неверная строка не блокирует другие.
+Более старый `retrieved_at` не перезаписывает новую запись того же источника.
+Отсутствие записи в очередном файле не удаляет дом или связь.
+Параллельные импорты выполняются последовательно в БД, чтобы два источника не
+создали два `house_id` для одного точного адреса. При совпадении адреса с несколькими
+домами или попытке перенести уже известный дом на адрес другого запись попадает
+в `ingestion.error` и не связывается с чужим домом. При совпадении дома из разных
+источников атрибуты `REAL` имеют приоритет над `DEMO`; внутри одного класса более
+старая дата получения не перезаписывает более новую.
+
+Интеграционные тесты требуют отдельную пустую PostgreSQL/PostGIS базу. После её
+создания задайте `TEST_DATABASE_URL` и запустите:
+
+```bash
+uv run --locked pytest -q tests/integration/test_ingestion.py tests/test_ingestion_validation.py
+```
+
+Тесты применяют миграции и проверяют повторный и параллельный импорт, UUID дома
+и ссылку Report после обновления адреса, старую выгрузку, неоднозначные адреса,
+ошибки строк (в том числе недопустимые символы), происхождение данных, приоритет
+`REAL` и откат при неожиданном сбое. Используйте только
+одноразовую тестовую БД: тесты записывают в неё данные.
+
+Backend может читать справочник обычным SQL:
+
+```sql
+SELECT h.id AS house_id, a.formatted, a.city, a.street, a.house_number,
+       h.external_id, ST_Y(h.point::geometry) AS latitude,
+       ST_X(h.point::geometry) AS longitude
+FROM geo.house h JOIN geo.address a ON a.id = h.address_id
+WHERE a.city = 'Брянск';
+
+SELECT o.id AS organization_id, o.name, o.type, ho.relationship,
+       s.code AS source, s.data_kind, ho.retrieved_at
+FROM ingestion.house_organization ho
+JOIN ingestion.organization o ON o.id = ho.organization_id
+JOIN ingestion.source s ON s.id = ho.source_id
+WHERE ho.house_id = :house_id;
+```
+
+Пилотный набор содержит четыре реальных адреса и три УК по открытым справочным
+страницам: [Брянск, Евдокимова 8](https://nashdom.info/building/d-288432),
+[Брянск, Евдокимова 10](https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/),
+[Бахчисарай, Мира 9](https://www.cian.ru/dom/krym-bahchisaray-ulica-mira-dom-9-3958404/),
+[Бахчисарай, Мира 3](https://krym.cian.ru/dom/krym-bahchisaray-ulica-mira-dom-3-2733559/).
+Связи с УК указаны на этих же страницах. `REAL` означает полученные из
+опубликованных справочников сведения, не живое подключение к официальной системе.
+Данные просмотрены 22 сентября 2026 года; текущее обслуживание домов следует
+уточнять у первичного источника. Координаты и ФИАС в этом наборе отсутствуют.
 
 ## ML decision layer
 

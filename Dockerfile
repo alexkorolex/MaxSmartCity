@@ -43,6 +43,7 @@ COPY --from=builder --chown=app:app /app/.venv ./.venv
 COPY --chown=app:app src ./src
 COPY --chown=app:app alembic.ini ./alembic.ini
 COPY --chown=app:app migrations ./migrations
+COPY --chown=app:app ingestion/data ./ingestion/data
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \

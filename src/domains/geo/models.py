@@ -46,8 +46,10 @@ class House(Entity):
     __table_args__ = ({"schema": "geo"},)
 
     address_id: Mapped[UUID] = mapped_column(ForeignKey("geo.address.id"), index=True)
-    administrative_area_id: Mapped[UUID] = mapped_column(ForeignKey("geo.administrative_area.id"), index=True)
-    point: Mapped[str] = mapped_column(GeographyText("POINT", srid=4326))
+    administrative_area_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("geo.administrative_area.id"), index=True
+    )
+    point: Mapped[str | None] = mapped_column(GeographyText("POINT", srid=4326))
     external_id: Mapped[str | None] = mapped_column(String(255))
 
 

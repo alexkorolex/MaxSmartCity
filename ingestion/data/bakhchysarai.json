@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "source": {
+    "code": "cian-bakhchysarai-pilot",
+    "url": "https://krym.cian.ru/dom/",
+    "data_kind": "REAL",
+    "retrieved_at": "2026-09-22T00:00:00+03:00"
+  },
+  "houses": [
+    {
+      "key": "3958404",
+      "city": "Бахчисарай",
+      "street": "улица Мира",
+      "house_number": "9",
+      "formatted": "Республика Крым, Бахчисарай, улица Мира, дом 9",
+      "external_id": "3958404"
+    },
+    {
+      "key": "2733559",
+      "city": "Бахчисарай",
+      "street": "улица Мира",
+      "house_number": "3",
+      "formatted": "Республика Крым, Бахчисарай, улица Мира, дом 3",
+      "external_id": "2733559"
+    }
+  ],
+  "organizations": [
+    {
+      "key": "upravdom-bakhchysarai",
+      "name": "ООО УПРАВДОМ БАХЧИСАРАЙ",
+      "type": "MANAGING_COMPANY"
+    }
+  ],
+  "links": [
+    {
+      "house_key": "3958404",
+      "organization_key": "upravdom-bakhchysarai",
+      "relationship": "MANAGES"
+    },
+    {
+      "house_key": "2733559",
+      "organization_key": "upravdom-bakhchysarai",
+      "relationship": "MANAGES"
+    }
+  ]
+}

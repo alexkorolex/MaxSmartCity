@@ -79,6 +79,7 @@ services:
         MAX_WEBHOOK_SECRET: ${MAX_WEBHOOK_SECRET}
         MAX_API_BASE_URL: ${MAX_API_BASE_URL}
         MAX_WEBHOOK_PUBLIC_URL: ${MAX_WEBHOOK_PUBLIC_URL:-}
+        WEB_APP_LOGIN_URL: ${WEB_APP_LOGIN_URL}
       ports:
         - ${APP_PORT}:8000
       depends_on:

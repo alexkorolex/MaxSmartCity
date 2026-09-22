@@ -1,30 +1,33 @@
-# Report-to-incident matching dataset
+# Набор данных для сопоставления обращений с инцидентами
 
-`dev-v1` is a deterministic, leakage-safe synthetic benchmark for two different stages:
+`dev-v1` — детерминированный синтетический бенчмарк без утечки данных для двух этапов:
 
-- candidate retrieval: `corpus.jsonl`, `queries.jsonl`, `qrels.jsonl`;
-- incident reranking: `pairs.jsonl` with `MATCH` and `NO_MATCH` labels.
+- поиск кандидатов: `corpus.jsonl`, `queries.jsonl`, `qrels.jsonl`;
+- переранжирование инцидентов: `pairs.jsonl` с метками `MATCH` и `NO_MATCH`.
 
-The current build contains 200 incidents, 1,100 report queries, 1,000 positive qrels and 3,000
-report/candidate pairs. Splits are assigned by scenario, so reports describing the same synthetic
-event cannot leak between train, validation and test.
+Текущая сборка содержит 200 инцидентов, 1 100 обращений-запросов, 1 000 положительных
+релевантностей и 3 000 пар «обращение — кандидат». Разбиение выполняется по сценариям, поэтому
+обращения об одном синтетическом событии не попадают одновременно в обучающую, валидационную и
+тестовую выборки.
 
-The incident corpus is deliberately shared across query splits, as it would be in an online search
-index. Consequently this is a query-disjoint smoke benchmark, not an incident-disjoint proof of
-generalization. The later frozen benchmark must add a time-based or incident-disjoint holdout.
+Корпус инцидентов намеренно общий для всех частей выборки запросов, как и в рабочем поисковом
+индексе. Поэтому это дымовой бенчмарк с непересекающимися запросами, а не доказательство
+обобщения на новые инциденты. В будущий замороженный бенчмарк нужно добавить отложенную выборку
+по времени или по инцидентам.
 
-Hard negatives include the same category at a different house and, when available, a different
-category at the same house. Reports without a target incident are retained as negative queries for
-the `NEW_INCIDENT`/abstain decision.
+Сложные отрицательные примеры включают ту же категорию в другом доме и, если возможно, другую
+категорию в том же доме. Обращения без целевого инцидента сохранены как отрицательные запросы для
+решения `NEW_INCIDENT`/`ABSTAIN`.
 
-Rebuild locally:
+Локальная пересборка:
 
 ```powershell
 .venv\Scripts\python.exe -m maxsmartcity.ml.data.matching.cli `
   --config ml/configs/matching-dataset.v1.json
 ```
 
-This data is intentionally marked as synthetic. Before production-like evaluation, backend or
-ingestion must export active incident snapshots with canonical `house_id`, timestamps and stable
-category codes. The team must then review at least 50–100 real or manually authored multi-report
-scenarios, especially false-merge cases.
+Набор намеренно помечен как синтетический. Для оценки, близкой к эксплуатации, backend или
+ingestion должен выгружать снимки активных инцидентов с каноническим `house_id`, временными
+метками и стабильными кодами категорий. После этого команда должна проверить не менее 50–100
+реальных или написанных вручную сценариев с несколькими обращениями, особенно случаи ошибочного
+объединения.

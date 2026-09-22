@@ -1,24 +1,28 @@
-# Reviewed MVP report dataset v1
+# Проверенный набор обращений для MVP, версия 1
 
-This directory contains the first reviewed text dataset for category, clarification and OOD
-baselines. It contains 362 texts derived from 181 locked canonical scenarios: one deterministic
-template and one selected or manually corrected LLM-assisted lexicalization per scenario.
+В каталоге находится первый проверенный текстовый набор для базовых моделей категории,
+уточнения и OOD. Он содержит 362 текста на основе 181 зафиксированного канонического сценария:
+по одному детерминированному шаблону и одному выбранному или исправленному вручную варианту,
+лексикализованному с помощью LLM.
 
-The dataset is suitable for MVP pipeline and baseline experiments. It is not marked `FROZEN`
-because a project member must still provide final human sign-off. It does not contain real
-anonymized reports, report-to-Incident reranking pairs or hard negatives.
+Набор подходит для экспериментов с MVP-пайплайном и базовыми моделями. Он не помечен как
+`FROZEN`, потому что участник проекта ещё должен подтвердить финальную приёмку. В нём нет реальных
+обезличенных обращений, пар для переранжирования «обращение — инцидент» и сложных отрицательных
+примеров.
 
-Files:
+Файлы:
 
-- `reports.jsonl` — all 362 reviewed records;
-- `train.jsonl`, `validation.jsonl`, `test.jsonl` — deterministic scenario-level splits
-  (258/56/48 records); explicit overrides preserve electricity and non-incident coverage;
-- `manifest.json` — counts, SHA-256 hashes, source provenance and excluded scope.
+- `reports.jsonl` — все 362 проверенные записи;
+- `train.jsonl`, `validation.jsonl`, `test.jsonl` — детерминированное разбиение по сценариям
+  (258/56/48 записей); явные исключения сохраняют примеры по электроснабжению и сообщения,
+  которые не относятся к инцидентам;
+- `manifest.json` — количество записей, хеши SHA-256, происхождение данных и исключённая область.
 
-All variants of the same `scenario_spec_id` are assigned to the same split. Do not make a new
-row-level random split because that would leak near-paraphrases into evaluation.
+Все варианты одного `scenario_spec_id` попадают в одну часть выборки. Не создавайте новое
+случайное разбиение по строкам: близкие перефразировки попадут в оценочную выборку и вызовут
+утечку данных.
 
-Rebuild locally from the retained AI Tunnel run:
+Локальная пересборка из сохранённого запуска AI Tunnel:
 
 ```powershell
 uv run --locked python -m maxsmartcity.ml.data.gold.cli `
@@ -32,5 +36,5 @@ uv run --locked python -m maxsmartcity.ml.data.gold.cli `
   --output-dir ml/data/gold/v1
 ```
 
-Manual semantic corrections are versioned in `ml/configs/gold-mvp.v1.json`. The raw API run is
-Git-ignored; the reviewed output and its input hashes are committed artifacts.
+Ручные семантические исправления версионируются в `ml/configs/gold-mvp.v1.json`. Исходный запуск
+API исключён из Git; проверенный результат и хеши его входных данных хранятся в репозитории.

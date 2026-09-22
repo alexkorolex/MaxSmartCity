@@ -1,56 +1,66 @@
-# Jev-like report-to-incident model on RTX 3060
+# Jev-подобная модель сопоставления обращения и инцидента на RTX 3060
 
-## Decision
+## Решение
 
-Use Bionic/LM Studio for local serving and smoke tests, not for training. Train a LoRA adapter with
-Unsloth/Transformers, merge it, export to GGUF and then load the resulting model in LM Studio or a
-compatible runtime.
+Bionic/LM Studio используется для локального инференса и дымовых проверок, но не для обучения.
+LoRA-адаптер обучается через Unsloth/Transformers, объединяется с базовой моделью, экспортируется в
+GGUF и затем загружается в LM Studio или совместимую среду выполнения.
 
-The preferred experiment is `Qwen/Qwen3.5-4B`: Apache-2.0, multilingual and small enough for a
-12 GB RTX 3060 when using bf16 LoRA. Published Unsloth guidance estimates about 10 GB VRAM for the
-4B bf16 LoRA configuration. That leaves little headroom, so begin with sequence length 512–1024,
-batch size 1, gradient accumulation and gradient checkpointing. Full fine-tuning is out of scope;
-4-bit QLoRA is not the default because the Qwen3.5-specific guidance warns against it.
+Предпочтительный эксперимент — `Qwen/Qwen3.5-4B`: модель распространяется по Apache-2.0,
+поддерживает несколько языков и достаточно компактна для RTX 3060 с 12 ГБ памяти при обучении
+bf16 LoRA. Согласно опубликованным рекомендациям Unsloth, такая конфигурация 4B требует около
+10 ГБ видеопамяти. Запас небольшой, поэтому начинать нужно с длины последовательности 512–1 024,
+пакета из одного примера, накопления градиента и gradient checkpointing. Полное дообучение не
+входит в задачу; 4-битный QLoRA не выбран по умолчанию, потому что рекомендации для Qwen3.5
+предупреждают о рисках такого режима.
 
-If 4B is unstable or too slow on the actual machine, the fallback is Qwen3.5-2B with the same data
-and evaluation protocol. Windows users should prefer WSL2/Linux for the training environment.
+Если 4B работает нестабильно или слишком медленно на целевой машине, резервный вариант —
+Qwen3.5-2B с теми же данными и протоколом оценки. Для обучения под Windows предпочтительнее
+WSL2/Linux.
 
-## Training curriculum
+## Этапы обучения
 
-1. Optional NLI warm-up: a small, stratified RuWANLI subset. It provides Russian entailment,
-   contradiction and neutral examples, but it is auxiliary language-task data rather than city data.
-2. Domain training: `ml/data/matching/dev-v1/pairs.jsonl`, rendered as report premise + incident
-   hypothesis. `MATCH` maps to entailment; hard negatives become contradiction or neutral according
-   to their reason.
-3. Domain review set: 50–100 manually checked multi-report scenarios with positive, same-house wrong
-   category, same-category wrong house, stale incident and new-incident cases.
-4. Frozen holdout: time-based or incident-disjoint, because the synthetic smoke corpus is shared
-   across query splits and cannot prove generalization to unseen incidents.
-5. Calibration: choose merge/abstain thresholds on validation only. Keep the frozen test untouched.
+1. Необязательный разогрев на NLI: небольшая стратифицированная выборка RuWANLI. Она содержит
+   русскоязычные примеры следования, противоречия и нейтральности, но относится к вспомогательной
+   языковой задаче, а не к городским данным.
+2. Доменное обучение: `ml/data/matching/dev-v1/pairs.jsonl` представляется как посылка-обращение и
+   гипотеза-инцидент. `MATCH` соответствует следованию; сложные отрицательные примеры становятся
+   противоречиями или нейтральными парами в зависимости от причины.
+3. Доменная проверочная выборка: 50–100 вручную проверенных сценариев с несколькими обращениями,
+   включая положительные примеры, неверную категорию в том же доме, тот же класс в другом доме,
+   устаревший инцидент и создание нового инцидента.
+4. Замороженная отложенная выборка по времени или по инцидентам. Общий корпус синтетического
+   дымового бенчмарка не доказывает обобщение на ранее не встречавшиеся инциденты.
+5. Калибровка: пороги объединения и отказа выбираются только на валидационной выборке. Замороженный
+   тест не используется при настройке.
 
-Russian SuperGLUE RCB/TERRa may be used as a second auxiliary benchmark, but neither it nor RuWANLI
-should be mixed into the domain test set.
+Russian SuperGLUE RCB/TERRa можно использовать как второй вспомогательный бенчмарк, но ни его, ни
+RuWANLI нельзя смешивать с доменной тестовой выборкой.
 
-## Metrics and acceptance gates
+## Метрики и критерии приёмки
 
-- Retrieval: Recall@K and MRR; prioritize Recall@10 because a missed candidate cannot be recovered by
-  the reranker.
-- Reranking: pairwise ROC-AUC/PR-AUC and MRR/NDCG on queries with a known incident.
-- Decision: false-merge rate, false-split rate, `NEW_INCIDENT` recall and selective accuracy after
-  abstention.
-- Operational: p50/p95 latency and peak VRAM on the 3060.
+- Поиск кандидатов: Recall@K и MRR; главная метрика — Recall@10, потому что переранжировщик не
+  восстановит пропущенного кандидата.
+- Переранжирование: попарные ROC-AUC/PR-AUC и MRR/NDCG для запросов с известным инцидентом.
+- Решение: доля ошибочных объединений и разделений, полнота `NEW_INCIDENT`, выборочная точность
+  после `ABSTAIN`.
+- Эксплуатация: задержка p50/p95 и пиковая видеопамять на RTX 3060.
 
-The first comparison must include the structured rule baseline and a lightweight encoder
-cross-encoder. A 4B generative NLI model is accepted only if it materially improves false-merge and
-false-split behavior at tolerable latency; architecture size alone is not a quality argument.
+В первое сравнение входят базовая модель на структурированных правилах и лёгкий encoder
+cross-encoder. Генеративная NLI-модель 4B принимается, только если заметно снижает число ошибочных
+объединений и разделений при допустимой задержке. Размер архитектуры сам по себе не доказывает
+качество.
 
-## Responsibilities and TODOs
+## Зоны ответственности и следующие шаги
 
-- ML owns synthetic pairs, NLI rendering, training, evaluation, calibration and artifact manifest.
-- Backend owns the active candidate snapshot/query, stable IDs, persistence and async transport.
-- Ingestion owns canonical addresses and any external-event snapshot.
-- TODO on the RTX 3060 host: verify the exact VRAM size and installed CUDA driver first, then pin a
-  compatible PyTorch/Unsloth environment. Add the GPU training script only after that smoke test;
-  CUDA-specific dependencies are deliberately not mixed into the CPU application lockfile.
-- No model weights belong in Git. Download the selected Qwen checkpoint and optional RuWANLI cache
-  on the GPU host; keep both in the Hugging Face cache or another local data volume.
+- ML отвечает за синтетические пары, представление NLI, обучение, оценку, калибровку и манифест
+  артефакта.
+- Backend отвечает за снимок и запрос активных кандидатов, стабильные идентификаторы, сохранение
+  результата и асинхронный транспорт.
+- Ingestion отвечает за канонические адреса и снимок внешних событий.
+- На машине с RTX 3060 сначала нужно проверить точный объём видеопамяти и установленный драйвер
+  CUDA, затем зафиксировать совместимые версии PyTorch/Unsloth. Скрипт обучения на GPU добавляется
+  только после этой дымовой проверки; зависимости CUDA намеренно не входят в CPU lock-файл
+  приложения.
+- Веса моделей не хранятся в Git. Выбранный checkpoint Qwen и необязательный кеш RuWANLI нужно
+  скачать на GPU-машину и хранить в кеше Hugging Face или другом локальном томе данных.

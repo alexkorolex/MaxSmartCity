@@ -288,7 +288,8 @@ OpenAPI-схема). Реализация в `src/max_bot/`:
 сайте → сайт вызывает `POST /auth/residents/login` → получает JWT.
 
 ```bash
-# Однократно после деплоя (нужен публичный HTTPS URL, см. MAX_WEBHOOK_PUBLIC_URL):
+# После деплоя задайте публичный HTTPS URL в MAX_WEBHOOK_PUBLIC_URL. Backend
+# попробует зарегистрировать его при запуске; эти команды позволяют сделать то же вручную:
 uv run litestar max-subscribe
 uv run litestar max-subscriptions
 ```

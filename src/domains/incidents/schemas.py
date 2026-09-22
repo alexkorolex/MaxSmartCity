@@ -1,12 +1,18 @@
 """Litestar contracts generated from the incident aggregate."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import ClassVar
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
-from src.domains.incidents.enums import GroupingMode, GroupingOutcome, IncidentStatus
+from src.domains.incidents.enums import (
+    GroupingMode,
+    GroupingOutcome,
+    IncidentStatus,
+    ResolutionFeedback,
+)
 from src.domains.incidents.models import Incident
 
 
@@ -80,3 +86,77 @@ class TransitionIncidentResult:
     incident_id: UUID
     status: IncidentStatus
     version: int
+
+
+@dataclass(slots=True)
+class ResolutionFeedbackCommand:
+    report_id: UUID
+    feedback: ResolutionFeedback
+    comment: str | None = None
+
+
+@dataclass(slots=True)
+class ResolutionFeedbackResult:
+    incident_id: UUID
+    report_id: UUID
+    incident_status: IncidentStatus
+    feedback: ResolutionFeedback
+
+
+@dataclass(slots=True)
+class IncidentHouseSummary:
+    house_id: UUID
+    address: str
+
+
+@dataclass(slots=True)
+class IncidentReportSummary:
+    report_id: UUID
+    text: str | None
+    status: str
+    received_at: datetime
+    problem_continues: bool | None
+
+
+@dataclass(slots=True)
+class IncidentAssignmentSummary:
+    assignment_id: UUID
+    organization_id: UUID
+    role: str
+    status: str
+    due_at: datetime | None
+
+
+@dataclass(slots=True)
+class IncidentHistorySummary:
+    from_status: str | None
+    to_status: str
+    reason: str | None
+    created_at: datetime
+
+
+@dataclass(slots=True)
+class IncidentDisputeSummary:
+    dispute_id: UUID
+    report_id: UUID | None
+    status: str
+    comment: str | None
+    created_at: datetime
+
+
+@dataclass(slots=True)
+class IncidentCardResult:
+    incident_id: UUID
+    title: str
+    description: str | None
+    category_id: UUID
+    status: IncidentStatus
+    priority: str
+    version: int
+    first_report_at: datetime | None
+    last_report_at: datetime | None
+    houses: list[IncidentHouseSummary] = field(default_factory=list)
+    reports: list[IncidentReportSummary] = field(default_factory=list)
+    assignments: list[IncidentAssignmentSummary] = field(default_factory=list)
+    disputes: list[IncidentDisputeSummary] = field(default_factory=list)
+    history: list[IncidentHistorySummary] = field(default_factory=list)

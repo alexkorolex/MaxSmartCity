@@ -55,3 +55,8 @@ class GroupingOutcome(StrEnum):
     ATTACHED = "ATTACHED"
     CREATED = "CREATED"
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
+
+
+class ResolutionFeedback(StrEnum):
+    CONFIRMED = "CONFIRMED"
+    PROBLEM_CONTINUES = "PROBLEM_CONTINUES"

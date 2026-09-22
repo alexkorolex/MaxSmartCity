@@ -14,6 +14,8 @@ from src.database.logging import database_action
 from src.domains.collaboration.models import Assignment, WorkItem
 from src.domains.collaboration.schemas import (
     AssignmentReadDTO,
+    CreateAssignmentCommand,
+    CreateAssignmentResult,
     TransitionAssignmentCommand,
     TransitionAssignmentResult,
     WorkItemReadDTO,
@@ -42,6 +44,29 @@ class AssignmentController(Controller):
         super().__init__(owner)
         self.dependencies = {"service": Provide(provide_assignment_service, sync_to_thread=False)}
 
+    @post(
+        "/",
+        status_code=201,
+        return_dto=None,
+        name="collaboration:Assignment:create-command",
+        guards=[require_roles("admin", "housing_worker", "district_admin")],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def create_assignment(
+        self,
+        data: CreateAssignmentCommand,
+        service: NamedDependency[AssignmentService],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> CreateAssignmentResult:
+        try:
+            async with db_session.begin():
+                return await service.create_for_incident(data, changed_by=principal.actor_id)
+        except CollaborationNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (CollaborationConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
+
     @get("/", name="collaboration:Assignment:list")
     async def list_items(
         self,
@@ -62,6 +87,7 @@ class AssignmentController(Controller):
     @post(
         "/{item_id:uuid}/status",
         status_code=200,
+        return_dto=None,
         name="collaboration:Assignment:transition",
         guards=[require_roles("admin", "housing_worker", "district_admin")],
         dependencies={"principal": Provide(provide_principal)},

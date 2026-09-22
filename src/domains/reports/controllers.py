@@ -6,18 +6,39 @@ from advanced_alchemy.filters import LimitOffset
 from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
+from litestar.exceptions import ClientException, NotFoundException
 from litestar.params import FromPath, Parameter
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
+from src.domains.incidents.enums import GroupingMode
+from src.domains.incidents.schemas import GroupReportCommand, GroupReportResult
+from src.domains.incidents.services import (
+    IncidentCoreConflictError,
+    IncidentCoreNotFoundError,
+    IncidentCoreService,
+)
 from src.domains.reports.models import ProblemCategory, Report
 from src.domains.reports.schemas import (
+    CreateReportCommand,
+    CreateReportResult,
     ProblemCategoryCreateDTO,
     ProblemCategoryReadDTO,
     ProblemCategoryUpdateDTO,
     ReportReadDTO,
 )
-from src.domains.reports.services import ProblemCategoryService, ReportService
+from src.domains.reports.services import (
+    ProblemCategoryService,
+    ReportIntakeConflictError,
+    ReportIntakeNotFoundError,
+    ReportIntakeService,
+    ReportService,
+)
+from src.security.dependency import provide_principal
+from src.security.guards import require_resident
+from src.security.principal import Principal
 
 
 def provide_problemcategory_service(
@@ -89,6 +110,84 @@ class ReportController(Controller):
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
         self.dependencies = {"service": Provide(provide_report_service, sync_to_thread=False)}
+
+    @post(
+        "/intake",
+        status_code=201,
+        return_dto=None,
+        name="reports:Report:intake",
+        guards=[require_resident()],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def intake(
+        self,
+        data: CreateReportCommand,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> CreateReportResult:
+        try:
+            async with db_session.begin():
+                return await ReportIntakeService(db_session).create(data, resident_id=principal.actor_id)
+        except ReportIntakeNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except ReportIntakeConflictError as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
+
+    @get(
+        "/mine",
+        name="reports:Report:mine",
+        guards=[require_resident()],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def list_mine(
+        self,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+        limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
+        offset: Annotated[int, Parameter(ge=0)] = 0,
+    ) -> Sequence[Report]:
+        return list(
+            (
+                await db_session.scalars(
+                    select(Report)
+                    .where(Report.resident_id == principal.actor_id)
+                    .order_by(Report.received_at.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
+            ).all()
+        )
+
+    @post(
+        "/{item_id:uuid}/grouping-decision",
+        status_code=200,
+        return_dto=None,
+        name="reports:Report:grouping-decision",
+        guards=[require_resident()],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def grouping_decision(
+        self,
+        item_id: FromPath[UUID],
+        data: GroupReportCommand,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> GroupReportResult:
+        if data.mode is GroupingMode.AUTO:
+            raise ClientException(
+                status_code=409,
+                detail="Choose CONFIRM_INCIDENT or FORCE_NEW for a resident decision",
+            )
+        try:
+            async with db_session.begin():
+                resident_id = await db_session.scalar(select(Report.resident_id).where(Report.id == item_id))
+                if resident_id != principal.actor_id:
+                    raise ReportIntakeNotFoundError(f"Report {item_id} was not found")
+                return await IncidentCoreService(db_session).group_report(item_id, data)
+        except (ReportIntakeNotFoundError, IncidentCoreNotFoundError) as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (IncidentCoreConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
 
     @get("/", name="reports:Report:list")
     async def list_items(

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Text, UniqueConstraint, true
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Text, UniqueConstraint, text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.models import Record, VersionedEntity
@@ -12,6 +12,14 @@ class Assignment(VersionedEntity):
     __tablename__ = "assignment"
     __table_args__ = (
         UniqueConstraint("id", "incident_id", "organization_id", name="uq_assignment_context"),
+        Index(
+            "uq_assignment_active_role",
+            "incident_id",
+            "organization_id",
+            "role",
+            unique=True,
+            postgresql_where=text("status IN ('PROPOSED','ACCEPTED','IN_PROGRESS','BLOCKED','MONITORING')"),
+        ),
         {"schema": "collaboration"},
     )
 

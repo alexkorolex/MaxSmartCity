@@ -1,9 +1,13 @@
 """Litestar contracts generated from the report domain's SQLAlchemy models."""
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import ClassVar
+from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.domains.incidents.schemas import GroupReportResult
 from src.domains.reports.models import ProblemCategory, Report
 
 
@@ -40,3 +44,19 @@ class ReportUpdateDTO(SQLAlchemyDTO[Report]):
         partial=True,
         forbid_unknown_fields=True,
     )
+
+
+@dataclass(slots=True)
+class CreateReportCommand:
+    source_external_id: str
+    house_id: UUID
+    category_code: str
+    text: str
+    occurred_at: datetime | None = None
+    request_id: UUID | None = None
+
+
+@dataclass(slots=True)
+class CreateReportResult:
+    report_id: UUID
+    grouping: GroupReportResult

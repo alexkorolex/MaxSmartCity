@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -11,12 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.common.models import utc_now
+from src.domains.collaboration.enums import AssignmentStatus
+from src.domains.collaboration.models import Assignment
+from src.domains.geo.models import Address, House
 from src.domains.incidents.enums import (
     AffectedHouseSource,
     GroupingMode,
     GroupingOutcome,
     IncidentStatus,
     LinkSource,
+    ResolutionDisputeStatus,
+    ResolutionFeedback,
 )
 from src.domains.incidents.grouping import (
     POLICY_VERSION,
@@ -33,15 +39,25 @@ from src.domains.incidents.models import (
     IncidentGroupingDecision,
     IncidentReportLink,
     IncidentStatusHistory,
+    ResolutionDispute,
 )
 from src.domains.incidents.repositories import IncidentRepository
 from src.domains.incidents.schemas import (
     GroupReportCommand,
     GroupReportResult,
+    IncidentAssignmentSummary,
+    IncidentCardResult,
+    IncidentDisputeSummary,
+    IncidentHistorySummary,
+    IncidentHouseSummary,
+    IncidentReportSummary,
+    ResolutionFeedbackCommand,
+    ResolutionFeedbackResult,
     TransitionIncidentCommand,
     TransitionIncidentResult,
 )
 from src.domains.incidents.state_machine import ensure_incident_transition
+from src.domains.infrastructure.models import OutboxEvent
 from src.domains.reports.enums import ReportStatus
 from src.domains.reports.models import ProblemCategory, Report, ReportStatusHistory
 from src.domains.reports.state_machine import ensure_report_transition
@@ -59,6 +75,9 @@ ACTIVE_INCIDENT_STATUSES = frozenset(
         IncidentStatus.REOPENED,
     }
 )
+
+DISPUTE_ESCALATION_THRESHOLD = 3
+DISPUTE_ESCALATION_WINDOW = timedelta(minutes=30)
 
 
 class IncidentCoreError(RuntimeError):
@@ -173,6 +192,18 @@ class IncidentCoreService:
                 f"Expected version {command.expected_version}, actual version {incident.version}"
             )
         ensure_incident_transition(incident.status, command.target_status)
+        if command.target_status is IncidentStatus.RESOLVED:
+            incomplete_assignment = await self.session.scalar(
+                select(Assignment.id).where(
+                    Assignment.incident_id == incident.id,
+                    Assignment.required.is_(True),
+                    Assignment.status != AssignmentStatus.COMPLETED,
+                )
+            )
+            if incomplete_assignment is not None:
+                raise IncidentCoreConflictError(
+                    "All required assignments must be completed before resolving the incident"
+                )
         previous = incident.status
         incident.status = command.target_status
         now = utc_now()
@@ -193,9 +224,221 @@ class IncidentCoreService:
                 reason=command.reason,
             )
         )
+        self._emit(
+            incident.id,
+            "INCIDENT_STATUS_CHANGED",
+            {
+                "incident_id": str(incident.id),
+                "from_status": previous.value,
+                "to_status": command.target_status.value,
+            },
+        )
         await self.session.flush()
         return TransitionIncidentResult(
             incident_id=incident.id, status=incident.status, version=incident.version
+        )
+
+    async def get_card(self, incident_id: UUID) -> IncidentCardResult:
+        incident = await self.session.get(Incident, incident_id)
+        if incident is None:
+            raise IncidentCoreNotFoundError(f"Incident {incident_id} was not found")
+        house_rows = (
+            await self.session.execute(
+                select(House.id, Address.formatted)
+                .join(IncidentAffectedHouse, IncidentAffectedHouse.house_id == House.id)
+                .join(Address, Address.id == House.address_id)
+                .where(IncidentAffectedHouse.incident_id == incident.id)
+                .order_by(Address.formatted)
+            )
+        ).all()
+        report_rows = (
+            await self.session.scalars(
+                select(Report)
+                .join(IncidentReportLink, IncidentReportLink.report_id == Report.id)
+                .where(
+                    IncidentReportLink.incident_id == incident.id,
+                    IncidentReportLink.is_active.is_(True),
+                )
+                .order_by(Report.received_at)
+            )
+        ).all()
+        assignments = (
+            await self.session.scalars(
+                select(Assignment)
+                .where(Assignment.incident_id == incident.id)
+                .order_by(Assignment.created_at)
+            )
+        ).all()
+        disputes = (
+            await self.session.scalars(
+                select(ResolutionDispute)
+                .where(ResolutionDispute.incident_id == incident.id)
+                .order_by(ResolutionDispute.created_at)
+            )
+        ).all()
+        history = (
+            await self.session.scalars(
+                select(IncidentStatusHistory)
+                .where(IncidentStatusHistory.incident_id == incident.id)
+                .order_by(IncidentStatusHistory.created_at)
+            )
+        ).all()
+        return IncidentCardResult(
+            incident_id=incident.id,
+            title=incident.title,
+            description=incident.description,
+            category_id=incident.category_id,
+            status=incident.status,
+            priority=incident.priority.value,
+            version=incident.version,
+            first_report_at=incident.first_report_at,
+            last_report_at=incident.last_report_at,
+            houses=[IncidentHouseSummary(house_id=row.id, address=row.formatted) for row in house_rows],
+            reports=[
+                IncidentReportSummary(
+                    report_id=report.id,
+                    text=report.text,
+                    status=report.status.value,
+                    received_at=report.received_at,
+                    problem_continues=report.problem_continues,
+                )
+                for report in report_rows
+            ],
+            assignments=[
+                IncidentAssignmentSummary(
+                    assignment_id=item.id,
+                    organization_id=item.organization_id,
+                    role=item.role.value,
+                    status=item.status.value,
+                    due_at=item.due_at,
+                )
+                for item in assignments
+            ],
+            disputes=[
+                IncidentDisputeSummary(
+                    dispute_id=item.id,
+                    report_id=item.report_id,
+                    status=item.status.value,
+                    comment=item.comment,
+                    created_at=item.created_at,
+                )
+                for item in disputes
+            ],
+            history=[
+                IncidentHistorySummary(
+                    from_status=item.from_status.value if item.from_status else None,
+                    to_status=item.to_status.value,
+                    reason=item.reason,
+                    created_at=item.created_at,
+                )
+                for item in history
+            ],
+        )
+
+    async def record_resolution_feedback(
+        self,
+        incident_id: UUID,
+        command: ResolutionFeedbackCommand,
+        *,
+        resident_id: UUID,
+    ) -> ResolutionFeedbackResult:
+        incident = await self.session.scalar(
+            select(Incident).where(Incident.id == incident_id).with_for_update()
+        )
+        if incident is None:
+            raise IncidentCoreNotFoundError(f"Incident {incident_id} was not found")
+        report = await self.session.scalar(
+            select(Report)
+            .join(IncidentReportLink, IncidentReportLink.report_id == Report.id)
+            .where(
+                Report.id == command.report_id,
+                Report.resident_id == resident_id,
+                IncidentReportLink.incident_id == incident.id,
+                IncidentReportLink.is_active.is_(True),
+            )
+            .with_for_update(of=Report)
+        )
+        if report is None:
+            raise IncidentCoreNotFoundError("Report is not linked to this resident and incident")
+        allowed = {
+            IncidentStatus.RESOLVED,
+            IncidentStatus.AWAITING_CONFIRMATION,
+            IncidentStatus.RESOLUTION_DISPUTED,
+        }
+        if incident.status not in allowed:
+            raise IncidentCoreConflictError(
+                f"Resolution feedback is not allowed in status {incident.status.value}"
+            )
+
+        continues = command.feedback is ResolutionFeedback.PROBLEM_CONTINUES
+        report.problem_continues = continues
+        if continues:
+            open_dispute = await self.session.scalar(
+                select(ResolutionDispute).where(
+                    ResolutionDispute.incident_id == incident.id,
+                    ResolutionDispute.resident_id == resident_id,
+                    ResolutionDispute.report_id == report.id,
+                    ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+                )
+            )
+            if open_dispute is None:
+                self.session.add(
+                    ResolutionDispute(
+                        incident_id=incident.id,
+                        resident_id=resident_id,
+                        report_id=report.id,
+                        status=ResolutionDisputeStatus.OPEN,
+                        comment=command.comment,
+                    )
+                )
+            dispute_count = await self.session.scalar(
+                select(func.count(func.distinct(ResolutionDispute.resident_id))).where(
+                    ResolutionDispute.incident_id == incident.id,
+                    ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+                    ResolutionDispute.created_at >= utc_now() - DISPUTE_ESCALATION_WINDOW,
+                )
+            )
+            if (
+                incident.status is not IncidentStatus.RESOLUTION_DISPUTED
+                and (dispute_count or 0) >= DISPUTE_ESCALATION_THRESHOLD
+            ):
+                self._transition_incident_for_actor(
+                    incident,
+                    IncidentStatus.RESOLUTION_DISPUTED,
+                    ActorType.RESIDENT,
+                    resident_id,
+                    command.comment or "Resident reports that the problem continues",
+                )
+        elif incident.status in {
+            IncidentStatus.RESOLVED,
+            IncidentStatus.AWAITING_CONFIRMATION,
+        }:
+            self._transition_incident_for_actor(
+                incident,
+                IncidentStatus.CLOSED,
+                ActorType.RESIDENT,
+                resident_id,
+                command.comment or "Resident confirmed resolution",
+            )
+            incident.closed_at = utc_now()
+        else:
+            raise IncidentCoreConflictError("An open resolution dispute must be handled by an operator")
+        self._emit(
+            incident.id,
+            "RESOLUTION_FEEDBACK_RECORDED",
+            {
+                "incident_id": str(incident.id),
+                "report_id": str(report.id),
+                "resident_id": str(resident_id),
+                "feedback": command.feedback.value,
+            },
+        )
+        await self.session.flush()
+        return ResolutionFeedbackResult(
+            incident_id=incident.id,
+            report_id=report.id,
+            incident_status=incident.status,
+            feedback=command.feedback,
         )
 
     async def _load_candidates(self, report: Report) -> list[Incident]:
@@ -376,6 +619,17 @@ class IncidentCoreService:
                 request_id=command.request_id,
             )
         )
+        self._emit(
+            report.id,
+            "REPORT_GROUPING_DECIDED",
+            {
+                "report_id": str(report.id),
+                "incident_id": str(incident_id) if incident_id else None,
+                "outcome": outcome.value,
+                "reason_codes": reasons,
+            },
+            aggregate_type="REPORT",
+        )
         await self.session.flush()
         return GroupReportResult(
             report_id=report.id,
@@ -407,6 +661,45 @@ class IncidentCoreService:
                 to_status=target,
                 changed_by_type=ActorType.SYSTEM,
                 reason=reason,
+            )
+        )
+
+    def _transition_incident_for_actor(
+        self,
+        incident: Incident,
+        target: IncidentStatus,
+        actor_type: ActorType,
+        actor_id: UUID,
+        reason: str,
+    ) -> None:
+        previous = incident.status
+        ensure_incident_transition(previous, target)
+        incident.status = target
+        self.session.add(
+            IncidentStatusHistory(
+                incident_id=incident.id,
+                from_status=previous,
+                to_status=target,
+                changed_by_type=actor_type,
+                changed_by_id=actor_id,
+                reason=reason,
+            )
+        )
+
+    def _emit(
+        self,
+        aggregate_id: UUID,
+        event_type: str,
+        payload: dict[str, object],
+        *,
+        aggregate_type: str = "INCIDENT",
+    ) -> None:
+        self.session.add(
+            OutboxEvent(
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                event_type=event_type,
+                payload=payload,
             )
         )
 

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -44,9 +45,11 @@ def test_valid_state_transitions_are_accepted() -> None:
         (ensure_assignment_transition, AssignmentStatus.COMPLETED, AssignmentStatus.IN_PROGRESS),
     ],
 )
-def test_terminal_states_reject_transitions(validator: object, current: object, target: object) -> None:
+def test_terminal_states_reject_transitions(
+    validator: Callable[[object, object], None], current: object, target: object
+) -> None:
     with pytest.raises(InvalidStateTransition):
-        validator(current, target)  # type: ignore[operator]
+        validator(current, target)
 
 
 def test_character_similarity_handles_russian_inflection_and_typo() -> None:

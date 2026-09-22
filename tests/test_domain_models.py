@@ -43,6 +43,20 @@ def test_only_active_report_links_are_unique() -> None:
     assert "WHERE is_active = true" in str(CreateIndex(index).compile(dialect=dialect()))
 
 
+def test_only_active_assignments_are_unique_per_role() -> None:
+    table = cast(Table, Assignment.__table__)
+    index = next(index for index in table.indexes if index.name == "uq_assignment_active_role")
+
+    assert index.unique
+    assert [column.name for column in index.columns] == [
+        "incident_id",
+        "organization_id",
+        "role",
+    ]
+    compiled = str(CreateIndex(index).compile(dialect=dialect()))
+    assert "WHERE status IN ('PROPOSED','ACCEPTED','IN_PROGRESS','BLOCKED','MONITORING')" in compiled
+
+
 def test_internal_comment_visibility_is_database_default() -> None:
     default = IncidentComment.__table__.c.visibility.server_default
 

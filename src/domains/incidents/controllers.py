@@ -15,7 +15,10 @@ from src.domains.incidents.models import Incident
 from src.domains.incidents.schemas import (
     GroupReportCommand,
     GroupReportResult,
+    IncidentCardResult,
     IncidentReadDTO,
+    ResolutionFeedbackCommand,
+    ResolutionFeedbackResult,
     TransitionIncidentCommand,
     TransitionIncidentResult,
 )
@@ -26,7 +29,7 @@ from src.domains.incidents.services import (
     IncidentService,
 )
 from src.security.dependency import provide_principal
-from src.security.guards import require_bot_secret, require_roles
+from src.security.guards import require_bot_secret, require_resident, require_roles
 from src.security.principal import Principal
 
 
@@ -58,9 +61,26 @@ class IncidentController(Controller):
         with database_action("get", "incidents.Incident"):
             return await service.get(item_id)
 
+    @get(
+        "/{item_id:uuid}/card",
+        name="incidents:Incident:card",
+        return_dto=None,
+        guards=[require_roles("admin", "housing_worker", "district_admin")],
+    )
+    async def get_card(
+        self,
+        item_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+    ) -> IncidentCardResult:
+        try:
+            return await IncidentCoreService(db_session).get_card(item_id)
+        except IncidentCoreNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+
     @post(
         "/group-reports/{report_id:uuid}",
         status_code=200,
+        return_dto=None,
         name="incidents:group-report",
         guards=[require_bot_secret()],
     )
@@ -81,6 +101,7 @@ class IncidentController(Controller):
     @post(
         "/{item_id:uuid}/status",
         status_code=200,
+        return_dto=None,
         name="incidents:transition-status",
         guards=[require_roles("admin", "housing_worker", "district_admin")],
         dependencies={"principal": Provide(provide_principal)},
@@ -96,6 +117,31 @@ class IncidentController(Controller):
             async with db_session.begin():
                 return await IncidentCoreService(db_session).transition_incident(
                     item_id, data, changed_by_id=principal.actor_id
+                )
+        except IncidentCoreNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (IncidentCoreConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
+
+    @post(
+        "/{item_id:uuid}/resolution-feedback",
+        status_code=200,
+        return_dto=None,
+        name="incidents:resolution-feedback",
+        guards=[require_resident()],
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def resolution_feedback(
+        self,
+        item_id: FromPath[UUID],
+        data: ResolutionFeedbackCommand,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> ResolutionFeedbackResult:
+        try:
+            async with db_session.begin():
+                return await IncidentCoreService(db_session).record_resolution_feedback(
+                    item_id, data, resident_id=principal.actor_id
                 )
         except IncidentCoreNotFoundError as exc:
             raise NotFoundException(str(exc)) from exc

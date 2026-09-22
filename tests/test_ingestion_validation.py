@@ -121,3 +121,45 @@ def test_required_row_fields_and_link_keys_are_validated() -> None:
         validate_organization({"key": "one", "type": "MANAGING_COMPANY"})
     with pytest.raises(ValueError, match="organization_key"):
         validate_link({"house_key": "one", "relationship": "MANAGES"})
+
+
+def test_gis_zkh_fields_and_deterministic_address_aliases_are_validated() -> None:
+    house = validate_house(
+        {
+            "key": "official-1",
+            "city": "Брянск",
+            "street": "ул. Евдокимова",
+            "house_number": "8 корпус 2",
+            "fias_id": "fias-1",
+            "official_status": "Исправен",
+            "management_method": "Управляющая организация",
+            "provenance": {"archive_member": "houses.csv"},
+        }
+    )
+    assert house["street"] == "улица Евдокимова"
+    assert house["house_number"] == "8 КОРП. 2"
+    assert house["fias_id"] == "fias-1"
+    assert (
+        validate_organization(
+            {
+                "key": "org",
+                "name": "УК",
+                "type": "MANAGING_COMPANY",
+                "inn": "3201000001",
+                "ogrn": "1023200000001",
+            }
+        )["inn"]
+        == "3201000001"
+    )
+    with pytest.raises(ValueError, match="inn"):
+        validate_organization({"key": "org", "name": "УК", "type": "MANAGING_COMPANY", "inn": "by-name"})
+    with pytest.raises(ValueError, match="period_to"):
+        validate_link(
+            {
+                "house_key": "house",
+                "organization_key": "org",
+                "relationship": "MANAGES",
+                "period_from": "2026-02-01",
+                "period_to": "2026-01-01",
+            }
+        )

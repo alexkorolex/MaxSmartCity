@@ -1,9 +1,8 @@
-"""Table metadata for ingestion-owned reference and provenance records."""
-
 from sqlalchemy import (
     CHAR,
     JSON,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -39,6 +38,11 @@ house_source = Table(
     Column("house_id", Uuid, ForeignKey("geo.house.id"), nullable=False),
     Column("retrieved_at", DateTime(timezone=True), nullable=False),
     Column("external_id", String(255)),
+    Column("fias_id", String(255)),
+    Column("canonical_address", Text),
+    Column("official_status", String(128)),
+    Column("management_method", String(128)),
+    Column("provenance", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Index("ix_house_source_house_id", "house_id"),
     schema="ingestion",
 )
@@ -60,6 +64,9 @@ organization_source = Table(
     Column("organization_id", Uuid, ForeignKey("ingestion.organization.id"), nullable=False),
     Column("retrieved_at", DateTime(timezone=True), nullable=False),
     Column("external_id", String(255)),
+    Column("inn", String(12)),
+    Column("ogrn", String(15)),
+    Column("provenance", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Index("ix_organization_source_organization_id", "organization_id"),
     schema="ingestion",
 )
@@ -71,6 +78,10 @@ house_organization = Table(
     Column("organization_id", Uuid, ForeignKey("ingestion.organization.id"), primary_key=True),
     Column("relationship", String(64), primary_key=True),
     Column("retrieved_at", DateTime(timezone=True), nullable=False),
+    Column("basis", Text),
+    Column("period_from", Date),
+    Column("period_to", Date),
+    Column("provenance", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Index("ix_house_organization_house_id", "house_id"),
     schema="ingestion",
 )

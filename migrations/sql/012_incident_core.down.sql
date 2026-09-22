@@ -1,3 +1,4 @@
+-- Roll back Incident Core while preserving the GIS ЖКХ pilot schema.
 DROP TABLE incidents.incident_grouping_decision;
 
 -- statement-breakpoint

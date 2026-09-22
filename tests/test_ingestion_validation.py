@@ -169,13 +169,13 @@ def test_gis_zkh_fields_and_deterministic_address_aliases_are_validated() -> Non
 
 
 def test_gis_zkh_partial_indexes_match_the_migration() -> None:
-    indexes = {
-        index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+    indexes: dict[str, str] = {
+        str(index.name): str(CreateIndex(index).compile(dialect=postgresql.dialect()))
         for index in house_source.indexes
     }
     indexes.update(
         {
-            index.name: str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+            str(index.name): str(CreateIndex(index).compile(dialect=postgresql.dialect()))
             for index in organization_source.indexes
         }
     )

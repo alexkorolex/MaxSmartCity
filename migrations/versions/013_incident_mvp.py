@@ -2,8 +2,8 @@
 
 from migrations.sql import execute_snapshot
 
-revision: str = "012_incident_mvp"
-down_revision: str | None = "011_incident_core"
+revision: str = "013_incident_mvp"
+down_revision: str | None = "012_incident_core"
 branch_labels: str | None = None
 depends_on: str | None = None
 

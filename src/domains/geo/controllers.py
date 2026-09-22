@@ -7,12 +7,14 @@ from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
 from litestar.params import FromPath, Parameter
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
-from src.domains.geo.models import Address
-from src.domains.geo.schemas import AddressCreateDTO, AddressReadDTO, AddressUpdateDTO
+from src.domains.geo.models import Address, House
+from src.domains.geo.schemas import AddressCreateDTO, AddressReadDTO, AddressUpdateDTO, HouseOption
 from src.domains.geo.services import AddressService
+from src.security.guards import require_resident
 
 
 def provide_address_service(db_session: NamedDependency[AsyncSession]) -> AddressService:
@@ -62,3 +64,48 @@ class AddressController(Controller):
     async def delete_item(self, item_id: FromPath[UUID], service: NamedDependency[AddressService]) -> None:
         with database_action("delete", "geo.Address"):
             await service.delete(item_id)
+
+
+class HouseLookupController(Controller):
+    path = "/geo/houses"
+    tags = ("geo",)
+
+    @get(
+        "/",
+        return_dto=None,
+        name="geo:House:options",
+        guards=[require_resident()],
+    )
+    async def list_options(
+        self,
+        db_session: NamedDependency[AsyncSession],
+        q: Annotated[str | None, Parameter(min_length=2, max_length=200)] = None,
+        limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
+        offset: Annotated[int, Parameter(ge=0)] = 0,
+    ) -> list[HouseOption]:
+        statement = select(House.id, Address.formatted, Address.city, Address.district).join(
+            Address, Address.id == House.address_id
+        )
+        if q:
+            pattern = f"%{q.strip()}%"
+            statement = statement.where(
+                or_(
+                    Address.formatted.ilike(pattern),
+                    Address.city.ilike(pattern),
+                    Address.district.ilike(pattern),
+                )
+            )
+        rows = (
+            await db_session.execute(
+                statement.order_by(Address.formatted, House.id).limit(limit).offset(offset)
+            )
+        ).all()
+        return [
+            HouseOption(
+                house_id=row.id,
+                address=row.formatted,
+                city=row.city,
+                district=row.district,
+            )
+            for row in rows
+        ]

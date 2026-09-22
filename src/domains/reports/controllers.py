@@ -11,6 +11,7 @@ from litestar.params import FromPath, Parameter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.common.enums import ActorType
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
 from src.domains.incidents.enums import GroupingMode
@@ -37,7 +38,7 @@ from src.domains.reports.services import (
     ReportService,
 )
 from src.security.dependency import provide_principal
-from src.security.guards import require_resident
+from src.security.guards import require_resident, require_roles
 from src.security.principal import Principal
 
 
@@ -189,7 +190,11 @@ class ReportController(Controller):
         except (IncidentCoreConflictError, InvalidStateTransition) as exc:
             raise ClientException(status_code=409, detail=str(exc)) from exc
 
-    @get("/", name="reports:Report:list")
+    @get(
+        "/",
+        name="reports:Report:list",
+        guards=[require_roles("admin", "housing_worker", "district_admin")],
+    )
     async def list_items(
         self,
         service: NamedDependency[ReportService],
@@ -199,7 +204,19 @@ class ReportController(Controller):
         with database_action("list", "reports.Report"):
             return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
 
-    @get("/{item_id:uuid}", name="reports:Report:get")
-    async def get_item(self, item_id: FromPath[UUID], service: NamedDependency[ReportService]) -> Report:
+    @get(
+        "/{item_id:uuid}",
+        name="reports:Report:get",
+        dependencies={"principal": Provide(provide_principal)},
+    )
+    async def get_item(
+        self,
+        item_id: FromPath[UUID],
+        service: NamedDependency[ReportService],
+        principal: NamedDependency[Principal],
+    ) -> Report:
         with database_action("get", "reports.Report"):
-            return await service.get(item_id)
+            report = await service.get(item_id)
+        if principal.actor_type is ActorType.RESIDENT and report.resident_id != principal.actor_id:
+            raise NotFoundException(f"Report {item_id} was not found")
+        return report

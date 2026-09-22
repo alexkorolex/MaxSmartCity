@@ -1,3 +1,4 @@
+-- Incident MVP additions follow the Incident Core schema.
 CREATE UNIQUE INDEX uq_assignment_active_role
 ON collaboration.assignment (incident_id, organization_id, role)
 WHERE status IN ('PROPOSED','ACCEPTED','IN_PROGRESS','BLOCKED','MONITORING');

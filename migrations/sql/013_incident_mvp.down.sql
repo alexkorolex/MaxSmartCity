@@ -1,3 +1,4 @@
+-- Remove only unreferenced categories seeded by this migration.
 DELETE FROM reports.problem_category AS category
 WHERE category.id IN (
     'd1000000-0000-4000-8000-000000000001',

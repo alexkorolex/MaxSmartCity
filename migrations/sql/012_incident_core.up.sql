@@ -1,3 +1,4 @@
+-- Incident Core follows the GIS ЖКХ pilot migration.
 CREATE UNIQUE INDEX uq_report_source_external_id
 ON reports.report (source_type, source_external_id)
 WHERE source_external_id IS NOT NULL;

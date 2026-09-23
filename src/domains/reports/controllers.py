@@ -15,6 +15,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
+from src.domains.collaboration.models import Assignment
+from src.domains.geo.models import Address, House
+from src.domains.identity.admin_scope import resolve_organization_scope
+from src.domains.incidents.models import Incident, IncidentReportLink
 from src.domains.reports.enums import AttachmentType, ReportSourceType
 from src.domains.reports.models import ProblemCategory, Report, ReportAttachment
 from src.domains.reports.schemas import (
@@ -28,7 +32,7 @@ from src.domains.reports.schemas import (
 from src.domains.reports.services import ProblemCategoryService, ReportService
 from src.domains.reports.storage import S3Settings
 from src.security.dependency import provide_principal
-from src.security.guards import require_resident
+from src.security.guards import require_resident, require_roles
 from src.security.principal import Principal
 
 ALLOWED_ATTACHMENT_CONTENT_TYPES = {
@@ -117,15 +121,46 @@ class ReportController(Controller):
             "s3_settings": Provide(provide_s3_settings, sync_to_thread=False),
         }
 
-    @get("/", name="reports:Report:list")
+    @get(
+        "/",
+        name="reports:Report:list",
+        guards=[require_roles("admin", "district_admin", "housing_worker")],
+    )
     async def list_items(
         self,
         service: NamedDependency[ReportService],
+        principal: NamedDependency[Principal],
+        resident_id: Annotated[UUID | None, Parameter()] = None,
+        city: Annotated[str | None, Parameter()] = None,
         limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[Report]:
+        scope = resolve_organization_scope(principal)
+        if scope.sees_nothing:
+            return []
         with database_action("list", "reports.Report"):
-            return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
+            criteria = []
+            if resident_id is not None:
+                criteria.append(Report.resident_id == resident_id)
+            if city and scope.is_admin:
+                house_ids = (
+                    select(House.id).join(Address, Address.id == House.address_id).where(Address.city == city)
+                )
+                criteria.append(Report.house_id.in_(house_ids))
+            if not scope.is_admin:
+                in_scope_report_ids = (
+                    select(IncidentReportLink.report_id)
+                    .join(Incident, Incident.id == IncidentReportLink.incident_id)
+                    .join(Assignment, Assignment.incident_id == Incident.id)
+                    .where(
+                        IncidentReportLink.is_active.is_(True),
+                        Assignment.organization_id == scope.organization_id,
+                    )
+                )
+                criteria.append(Report.id.in_(in_scope_report_ids))
+            return await service.get_many(
+                LimitOffset(limit=limit, offset=offset), *criteria, order_by=("received_at", True)
+            )
 
     @get("/mine", name="reports:Report:mine", guards=[require_resident()])
     async def list_mine(

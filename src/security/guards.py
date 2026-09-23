@@ -52,6 +52,35 @@ def require_roles(*roles: str) -> Guard:
     return guard
 
 
+def require_admin_or_bootstrap_secret() -> Guard:
+    """Guard factory: an authenticated ``admin`` staff member, OR - only when
+    ``STAFF_BOOTSTRAP_SECRET`` is configured - a caller presenting that value via the
+    ``X-Bootstrap-Secret`` header instead.
+
+    Lets a fresh deployment create its first admin account without already holding an
+    admin token. Leave the env var unset (the default) to disable this path entirely and
+    require an admin token unconditionally, same as before.
+    """
+
+    def guard(connection: ASGIConnection, _route_handler: BaseRouteHandler) -> None:
+        settings = SecuritySettings.from_environment()
+        if settings.staff_bootstrap_secret:
+            provided = connection.headers.get("X-Bootstrap-Secret", "")
+            if provided and hmac.compare_digest(provided, settings.staff_bootstrap_secret):
+                return
+        token = extract_bearer_token(connection)
+        if not is_keycloak_token(token, settings):
+            raise PermissionDeniedException("Staff authentication required")
+        try:
+            claims = decode_keycloak_token(token, settings)
+        except jwt.PyJWTError as exc:
+            raise NotAuthorizedException("Invalid or expired token") from exc
+        if "admin" not in claims.roles:
+            raise PermissionDeniedException("Requires role: admin")
+
+    return guard
+
+
 def require_staff() -> Guard:
     """Guard factory: any Keycloak-authenticated staff member, regardless of role.
 

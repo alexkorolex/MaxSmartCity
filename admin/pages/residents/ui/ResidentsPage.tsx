@@ -1,0 +1,75 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { useOrganizations } from '@/entities/organization';
+import { useResidents } from '@/entities/resident';
+import { formatCalendarDate } from '@/shared/lib';
+import { ROUTES } from '@/shared/routes';
+import { AsyncState, CitySelect, EmptyState, PersonIcon } from '@/shared/ui';
+
+export function ResidentsPage() {
+  const [city, setCity] = useState('');
+  const navigate = useNavigate();
+
+  const { data: organizations } = useOrganizations();
+  const { data, isLoading, error, refetch } = useResidents(city || undefined);
+
+  const cities = useMemo(() => {
+    const set = new Set<string>();
+    for (const org of organizations ?? []) if (org.city) set.add(org.city);
+    return [...set].sort();
+  }, [organizations]);
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div>
+          <div className="card__title">Жители</div>
+          <div className="card__meta">Жители и количество оставленных ими заявок</div>
+        </div>
+      </div>
+      <div className="filter-bar">
+        <CitySelect cities={cities} value={city} onChange={setCity} />
+      </div>
+      <div className="card__body" style={{ padding: 0 }}>
+        <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
+          {!data || data.length === 0 ? (
+            <EmptyState icon={<PersonIcon />} title="Жителей не найдено" />
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Житель</th>
+                    <th>Дом</th>
+                    <th>Город</th>
+                    <th>Заявок</th>
+                    <th>В системе с</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map((resident) => (
+                    <tr
+                      key={resident.id}
+                      className="is-clickable"
+                      onClick={() => navigate(ROUTES.resident(resident.id))}
+                    >
+                      <td>
+                        <div className="cell-primary">{resident.display_name ?? 'Без имени'}</div>
+                        {resident.username && <div className="cell-muted">@{resident.username}</div>}
+                      </td>
+                      <td className="cell-secondary">{resident.house_formatted ?? '—'}</td>
+                      <td className="cell-secondary">{resident.house_city ?? '—'}</td>
+                      <td className="cell-primary">{resident.reports_count}</td>
+                      <td className="cell-muted">{formatCalendarDate(resident.created_at, { year: true })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AsyncState>
+      </div>
+    </div>
+  );
+}

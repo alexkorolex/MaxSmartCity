@@ -21,7 +21,12 @@ from src.domains.identity.models import OperatorUser
 from src.domains.identity.services import OperatorUserService, ResidentService
 from src.max_bot.dedup import consume_login_code
 from src.security.dependency import provide_principal
-from src.security.guards import RESIDENT_TOKEN_ISSUER, require_bot_secret, require_roles, require_staff
+from src.security.guards import (
+    RESIDENT_TOKEN_ISSUER,
+    require_admin_or_bootstrap_secret,
+    require_bot_secret,
+    require_staff,
+)
 from src.security.keycloak import KeycloakLoginError, login_staff_with_password
 from src.security.keycloak_admin import KeycloakAdminError, create_staff_user
 from src.security.principal import Principal
@@ -135,7 +140,7 @@ class StaffAuthController(Controller):
             expires_in=tokens.get("expires_in"),
         )
 
-    @post("/register", name="auth:Staff:register", guards=[require_roles("admin")])
+    @post("/register", name="auth:Staff:register", guards=[require_admin_or_bootstrap_secret()])
     async def register(
         self, data: StaffRegisterRequest, operator_service: NamedDependency[OperatorUserService]
     ) -> StaffRegisterResponse:

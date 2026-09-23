@@ -107,7 +107,7 @@ def run_sql(database_url: str, sql: str, **params: object) -> None:
 
 
 def _insert_report(
-    database_url: str, *, resident_id: str, house_id: str | None = None, source_type: str = "MAX"
+    database_url: str, *, resident_id: str | None, house_id: str | None = None, source_type: str = "MAX"
 ) -> str:
     report_id = str(uuid4())
     run_sql(

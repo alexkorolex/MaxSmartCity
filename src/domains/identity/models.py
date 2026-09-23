@@ -66,6 +66,9 @@ class Organization(Entity):
         )
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    city: Mapped[str | None] = mapped_column(String(255))
+    """Free-text city name (same convention as ``Address.city``, not a relational
+    ``AdministrativeArea`` FK) - what city this organization operates in/from."""
 
 
 class Department(Entity):

@@ -153,6 +153,7 @@ services:
         KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
         RESIDENT_JWT_SECRET: ${RESIDENT_JWT_SECRET}
         BOT_SHARED_SECRET: ${BOT_SHARED_SECRET}
+        STAFF_BOOTSTRAP_SECRET: ${STAFF_BOOTSTRAP_SECRET:-}
         ML_SERVICE_URL: ${ML_SERVICE_URL}
         ML_REQUEST_TIMEOUT_SECONDS: ${ML_REQUEST_TIMEOUT_SECONDS:-5}
         MAX_BOT_TOKEN: ${MAX_BOT_TOKEN}
@@ -198,6 +199,27 @@ services:
         dockerfile: Dockerfile.frontend
       ports:
         - ${FRONTEND_PORT}:8080
+      depends_on:
+        backend:
+          condition: service_healthy
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 50
+      mem_limit: 128m
+      mem_reservation: 64m
+      cpus: "0.5"
+
+    admin:
+      build:
+        context: .
+        dockerfile: Dockerfile.admin
+      ports:
+        - ${ADMIN_PORT}:8080
       depends_on:
         backend:
           condition: service_healthy

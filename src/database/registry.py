@@ -17,6 +17,8 @@ class ModelRegistry:
             "audit",
             "infrastructure",
             "ingestion",
+            "notifications",
+            "news",
         )
 
     @classmethod

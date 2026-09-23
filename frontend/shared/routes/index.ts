@@ -1,0 +1,15 @@
+export const ROUTES = {
+  home: '/',
+  authMax: '/auth/max',
+  reportNew: '/report/new',
+  myReports: '/reports',
+  incident: (incidentId: string) => `/incidents/${incidentId}`,
+  incidentResolution: (incidentId: string) => `/incidents/${incidentId}/resolution`,
+  myHouse: '/house',
+  news: '/news',
+  newsItem: (newsId: string) => `/news/${newsId}`,
+  notifications: '/notifications',
+  profile: '/profile',
+  settings: '/settings',
+  help: '/help',
+} as const;

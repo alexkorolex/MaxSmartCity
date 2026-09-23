@@ -233,3 +233,4 @@ tmp/
 .idea/
 
 etc/max_api/certs
+node_modules

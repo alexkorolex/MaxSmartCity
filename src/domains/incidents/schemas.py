@@ -13,7 +13,7 @@ from src.domains.incidents.enums import (
     IncidentStatus,
     ResolutionFeedback,
 )
-from src.domains.incidents.models import Incident
+from src.domains.incidents.models import Incident, ResolutionDispute
 
 
 class IncidentCreateDTO(SQLAlchemyDTO[Incident]):
@@ -160,3 +160,12 @@ class IncidentCardResult:
     assignments: list[IncidentAssignmentSummary] = field(default_factory=list)
     disputes: list[IncidentDisputeSummary] = field(default_factory=list)
     history: list[IncidentHistorySummary] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class IncidentDisputeRequest:
+    comment: str
+
+
+class ResolutionDisputeReadDTO(SQLAlchemyDTO[ResolutionDispute]):
+    config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()

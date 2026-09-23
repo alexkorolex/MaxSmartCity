@@ -41,7 +41,7 @@ from src.domains.incidents.models import (
     IncidentStatusHistory,
     ResolutionDispute,
 )
-from src.domains.incidents.repositories import IncidentRepository
+from src.domains.incidents.repositories import IncidentRepository, ResolutionDisputeRepository
 from src.domains.incidents.schemas import (
     GroupReportCommand,
     GroupReportResult,
@@ -716,3 +716,7 @@ def _decimal(value: float | None) -> Decimal | None:
 def _best_score(proposal: GroupingProposal | None) -> float | None:
     ranked = proposal.ranked if proposal is not None else ()
     return ranked[0].score if ranked else None
+
+
+class ResolutionDisputeService(SQLAlchemyAsyncRepositoryService[ResolutionDispute]):
+    repository_type = ResolutionDisputeRepository

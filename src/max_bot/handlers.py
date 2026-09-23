@@ -5,6 +5,7 @@ from src.database.logging import database_action
 from src.domains.identity.services import ResidentService
 from src.max_bot.client import MaxClient
 from src.max_bot.dedup import create_login_code
+from src.max_bot.identity import get_bot_username
 from src.max_bot.settings import MaxBotSettings
 
 logger = logging.getLogger(__name__)
@@ -33,20 +34,29 @@ def _display_name(first_name: str | None, last_name: str | None) -> str | None:
     return " ".join(part for part in (first_name, last_name) if part) or None
 
 
-def _login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
-    """Inline-keyboard attachment with a single ``link`` button to the (separate) web app.
+async def _login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
+    """Inline-keyboard attachment that lets the resident finish login in the web app.
 
-    The web app reads ``code`` from the query string and calls
-    ``POST /auth/residents/login`` itself to finish the login - this backend never
-    redirects or serves that page.
+    Prefers MAX's native ``open_app`` button, which opens the app embedded inside MAX
+    itself via the MAX Bridge (``https://st.max.ru/js/max-web-app.js``) instead of the
+    system browser - the one-time ``code`` travels as the button's ``payload``, and the
+    frontend reads it back via ``window.WebApp.initDataUnsafe.start_param``. This only
+    works once the mini app is registered against the bot in MAX's own dashboard
+    (Чат-боты -> bot -> Настройки, "Введите ссылку") - independent of anything this
+    backend can configure - so a ``link`` button to the same page (read via the ``code``
+    query param instead) is always included too, as a fallback that works regardless of
+    that registration.
     """
     login_url = f"{settings.web_app_login_url}?code={code}"
-    return [
-        {
-            "type": "inline_keyboard",
-            "payload": {"buttons": [[{"type": "link", "text": "Войти в приложение", "url": login_url}]]},
-        }
-    ]
+    row: list[dict[str, Any]] = []
+
+    bot_username = await get_bot_username(settings)
+    if bot_username:
+        row.append({"type": "open_app", "text": "Открыть в MAX", "web_app": bot_username, "payload": code})
+
+    row.append({"type": "link", "text": "Открыть в браузере", "url": login_url})
+
+    return [{"type": "inline_keyboard", "payload": {"buttons": [row]}}]
 
 
 async def _issue_login_button(
@@ -68,7 +78,7 @@ async def _issue_login_button(
     await client.send_message(
         user_id=max_user_id,
         text=text,
-        attachments=_login_button(code, settings),
+        attachments=await _login_button(code, settings),
     )
 
 

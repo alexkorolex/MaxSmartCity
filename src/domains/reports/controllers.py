@@ -11,16 +11,17 @@ from litestar.params import FromPath, Parameter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.common.enums import ActorType
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
-from src.domains.incidents.enums import GroupingMode
-from src.domains.incidents.schemas import GroupReportCommand, GroupReportResult
 from src.domains.incidents.services import (
+    GroupingMode,
+    GroupReportCommand,
+    GroupReportResult,
     IncidentCoreConflictError,
     IncidentCoreNotFoundError,
     IncidentCoreService,
 )
+from src.domains.reports.enums import ReportSourceType
 from src.domains.reports.models import ProblemCategory, Report
 from src.domains.reports.schemas import (
     CreateReportCommand,
@@ -28,6 +29,7 @@ from src.domains.reports.schemas import (
     ProblemCategoryCreateDTO,
     ProblemCategoryReadDTO,
     ProblemCategoryUpdateDTO,
+    ReportCreateDTO,
     ReportReadDTO,
 )
 from src.domains.reports.services import (
@@ -110,7 +112,10 @@ class ReportController(Controller):
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
-        self.dependencies = {"service": Provide(provide_report_service, sync_to_thread=False)}
+        self.dependencies = {
+            "service": Provide(provide_report_service, sync_to_thread=False),
+            "principal": Provide(provide_principal),
+        }
 
     @post(
         "/intake",
@@ -118,7 +123,6 @@ class ReportController(Controller):
         return_dto=None,
         name="reports:Report:intake",
         guards=[require_resident()],
-        dependencies={"principal": Provide(provide_principal)},
     )
     async def intake(
         self,
@@ -138,7 +142,6 @@ class ReportController(Controller):
         "/mine",
         name="reports:Report:mine",
         guards=[require_resident()],
-        dependencies={"principal": Provide(provide_principal)},
     )
     async def list_mine(
         self,
@@ -165,7 +168,6 @@ class ReportController(Controller):
         return_dto=None,
         name="reports:Report:grouping-decision",
         guards=[require_resident()],
-        dependencies={"principal": Provide(provide_principal)},
     )
     async def grouping_decision(
         self,
@@ -204,19 +206,25 @@ class ReportController(Controller):
         with database_action("list", "reports.Report"):
             return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
 
-    @get(
-        "/{item_id:uuid}",
-        name="reports:Report:get",
-        dependencies={"principal": Provide(provide_principal)},
+    @get("/{item_id:uuid}", name="reports:Report:get")
+    async def get_item(self, item_id: FromPath[UUID], service: NamedDependency[ReportService]) -> Report:
+        with database_action("get", "reports.Report"):
+            return await service.get(item_id)
+
+    @post(
+        "/",
+        dto=ReportCreateDTO,
+        name="reports:Report:create",
+        guards=[require_resident()],
     )
-    async def get_item(
+    async def create_item(
         self,
-        item_id: FromPath[UUID],
+        data: DTOData[Report],
         service: NamedDependency[ReportService],
         principal: NamedDependency[Principal],
     ) -> Report:
-        with database_action("get", "reports.Report"):
-            report = await service.get(item_id)
-        if principal.actor_type is ActorType.RESIDENT and report.resident_id != principal.actor_id:
-            raise NotFoundException(f"Report {item_id} was not found")
-        return report
+        with database_action("create", "reports.Report"):
+            report = data.create_instance()
+            report.resident_id = principal.actor_id
+            report.source_type = ReportSourceType.MAX
+            return await service.create(report)

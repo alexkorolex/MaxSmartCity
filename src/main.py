@@ -31,7 +31,8 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
     settings = DatabaseSettings(database_url) if database_url else DatabaseSettings.from_environment()
     cache_settings = CacheSettings(redis_url) if redis_url else CacheSettings.from_environment()
     cors_settings = CorsSettings.from_environment()
-    tracing_config = configure_tracing(TracingSettings.from_environment())
+    db_config = settings.plugin_config()
+    tracing_config = configure_tracing(TracingSettings.from_environment(), db_config)
     middleware = [prometheus_config.middleware]
     if tracing_config is not None:
         middleware.append(tracing_config.middleware)
@@ -45,7 +46,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         ),
         plugins=[
             GranianPlugin(),
-            SQLAlchemyInitPlugin(config=settings.plugin_config()),
+            SQLAlchemyInitPlugin(config=db_config),
             AutowirePlugin(AutowireConfig(domain_packages=["src.domains"])),
             structlog_plugin,
             OrchestrationCLIPlugin(),

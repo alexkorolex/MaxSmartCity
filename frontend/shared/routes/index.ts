@@ -3,6 +3,7 @@ export const ROUTES = {
   authMax: '/auth/max',
   reportNew: '/report/new',
   myReports: '/reports',
+  report: (reportId: string) => `/reports/${reportId}`,
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   incidentResolution: (incidentId: string) => `/incidents/${incidentId}/resolution`,
   myHouse: '/house',

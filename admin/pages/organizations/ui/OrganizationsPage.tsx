@@ -1,17 +1,13 @@
 import { useMemo, useState } from 'react';
 
+import { useCities } from '@/entities/geo';
 import { ORGANIZATION_TYPE_LABELS, useOrganizations } from '@/entities/organization';
 import { AsyncState, CitySelect, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 
 export function OrganizationsPage() {
   const { data, isLoading, error, refetch } = useOrganizations();
+  const { data: cities } = useCities();
   const [city, setCity] = useState('');
-
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    for (const org of data ?? []) if (org.city) set.add(org.city);
-    return [...set].sort();
-  }, [data]);
 
   const filtered = useMemo(() => (data ?? []).filter((org) => !city || org.city === city), [data, city]);
 
@@ -24,7 +20,7 @@ export function OrganizationsPage() {
         </div>
       </div>
       <div className="filter-bar">
-        <CitySelect cities={cities} value={city} onChange={setCity} />
+        <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
       <div className="card__body" style={{ padding: 0 }}>
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>

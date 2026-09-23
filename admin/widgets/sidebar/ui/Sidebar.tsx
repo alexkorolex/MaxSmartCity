@@ -19,7 +19,7 @@ export function Sidebar() {
         <span className="admin-brand__mark">
           <CityIcon width={18} height={18} />
         </span>
-        <span>Max Smart City</span>
+        <span>Smart City</span>
       </div>
       <nav className="admin-nav">
         {NAV_ITEMS.map(({ to, label, icon: ItemIcon, end }) => (

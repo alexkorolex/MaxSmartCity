@@ -9,11 +9,12 @@ from litestar.datastructures import UploadFile
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
 from litestar.enums import RequestEncodingType
-from litestar.exceptions import HTTPException, PermissionDeniedException
+from litestar.exceptions import HTTPException, NotFoundException, PermissionDeniedException
 from litestar.params import Body, FromPath, Parameter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.common.enums import ActorType
 from src.database.logging import database_action
 from src.domains.collaboration.models import Assignment
 from src.domains.geo.models import Address, House
@@ -108,6 +109,42 @@ def provide_s3_settings() -> S3Settings:
     return S3Settings.from_environment()
 
 
+_STAFF_ADMIN_ROLES = ("admin", "district_admin", "housing_worker")
+
+
+async def _authorize_report_access(db_session: AsyncSession, *, report: Report, principal: Principal) -> None:
+    """Raise ``NotFoundException`` unless the caller may view this report: the resident
+    who submitted it, an admin (unrestricted), or a district_admin/housing_worker whose
+    organization is assigned to an incident this report is linked to. 404, not 403 - a
+    report's existence is never revealed to a caller who isn't allowed to see it."""
+    if principal.actor_type is ActorType.RESIDENT:
+        if report.resident_id == principal.actor_id:
+            return
+        raise NotFoundException(f"Report {report.id} was not found")
+
+    if not principal.has_role(*_STAFF_ADMIN_ROLES):
+        raise NotFoundException(f"Report {report.id} was not found")
+
+    scope = resolve_organization_scope(principal)
+    if scope.is_admin:
+        return
+    if scope.organization_id is not None:
+        in_scope = await db_session.scalar(
+            select(IncidentReportLink.report_id)
+            .join(Incident, Incident.id == IncidentReportLink.incident_id)
+            .join(Assignment, Assignment.incident_id == Incident.id)
+            .where(
+                IncidentReportLink.is_active.is_(True),
+                IncidentReportLink.report_id == report.id,
+                Assignment.organization_id == scope.organization_id,
+            )
+            .limit(1)
+        )
+        if in_scope is not None:
+            return
+    raise NotFoundException(f"Report {report.id} was not found")
+
+
 class ReportController(Controller):
     path = "/reports"
     tags = ("reports",)
@@ -178,9 +215,17 @@ class ReportController(Controller):
             )
 
     @get("/{item_id:uuid}", name="reports:Report:get")
-    async def get_item(self, item_id: FromPath[UUID], service: NamedDependency[ReportService]) -> Report:
+    async def get_item(
+        self,
+        item_id: FromPath[UUID],
+        service: NamedDependency[ReportService],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> Report:
         with database_action("get", "reports.Report"):
-            return await service.get(item_id)
+            report = await service.get(item_id)
+        await _authorize_report_access(db_session, report=report, principal=principal)
+        return report
 
     @post(
         "/",
@@ -262,7 +307,6 @@ class ReportController(Controller):
     @get(
         "/{item_id:uuid}/attachments",
         name="reports:Report:list-attachments",
-        guards=[require_resident()],
         return_dto=None,
     )
     async def list_attachments(
@@ -275,8 +319,7 @@ class ReportController(Controller):
     ) -> Sequence[ReportAttachmentRead]:
         with database_action("get", "reports.Report"):
             report = await service.get(item_id)
-        if report.resident_id != principal.actor_id:
-            raise PermissionDeniedException("Residents may only view attachments on their own reports")
+        await _authorize_report_access(db_session, report=report, principal=principal)
 
         with database_action("list", "reports.ReportAttachment"):
             result = await db_session.execute(

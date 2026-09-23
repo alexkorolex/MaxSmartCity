@@ -18,7 +18,7 @@ const FAQ = [
   },
   {
     question: 'Как войти в приложение?',
-    answer: 'Через бота Max Smart City в MAX. Отдельный логин или пароль не нужен.',
+    answer: 'Через бота Smart City в MAX. Отдельный логин или пароль не нужен.',
   },
 ];
 
@@ -43,7 +43,7 @@ export function HelpPage() {
         <span className="empty-state__icon support-card__icon"><HelpIcon width={24} /></span>
         <Typography.Text variant="body-strong" color="primary">Нужна помощь человека?</Typography.Text>
         <Typography.Text variant="description" color="secondary">
-          Напишите боту Max Smart City в MAX — сообщение увидит служба поддержки.
+          Напишите боту Smart City в MAX — сообщение увидит служба поддержки.
         </Typography.Text>
       </Flex>
     </PageLayout>

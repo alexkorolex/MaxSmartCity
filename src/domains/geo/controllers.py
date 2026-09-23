@@ -40,6 +40,17 @@ class AddressController(Controller):
         with database_action("list", "geo.Address"):
             return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
 
+    @get("/cities", name="geo:Address:cities", return_dto=None, cache=True)
+    async def list_cities(self, db_session: NamedDependency[AsyncSession]) -> Sequence[str]:
+        """Every distinct city that has at least one address on record - the complete set
+        a filter dropdown should offer, not just whatever happens to already be loaded on
+        the page (e.g. the small, unrelated set of organization headquarters cities)."""
+        with database_action("list", "geo.Address"):
+            result = await db_session.execute(
+                select(Address.city).where(Address.city.is_not(None)).distinct().order_by(Address.city)
+            )
+            return [row[0] for row in result.all()]
+
     @get("/{item_id:uuid}", name="geo:Address:get")
     async def get_item(self, item_id: FromPath[UUID], service: NamedDependency[AddressService]) -> Address:
         with database_action("get", "geo.Address"):

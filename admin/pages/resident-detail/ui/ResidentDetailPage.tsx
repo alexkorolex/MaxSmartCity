@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
   PRIORITY_LABELS,
@@ -14,6 +14,7 @@ import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared
 
 export function ResidentDetailPage() {
   const { residentId = '' } = useParams();
+  const navigate = useNavigate();
   const resident = useResident(residentId);
   const reports = useReports({ residentId });
 
@@ -82,7 +83,11 @@ export function ResidentDetailPage() {
                   </thead>
                   <tbody>
                     {reports.data.map((report) => (
-                      <tr key={report.id}>
+                      <tr
+                        key={report.id}
+                        className="is-clickable"
+                        onClick={() => navigate(ROUTES.report(report.id))}
+                      >
                         <td className="cell-primary">{report.text ?? '—'}</td>
                         <td>
                           <Pill tone={REPORT_STATUS_TONES[report.status]} label={REPORT_STATUS_LABELS[report.status]} />

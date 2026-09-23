@@ -119,10 +119,12 @@ def test_list_attachments_is_scoped_to_the_owning_resident(api_client: TestClien
     names = [item["original_name"] for item in listed.json()]
     assert names == ["a.jpg", "b.png"]
 
+    # 404, not 403: viewing (unlike uploading) never reveals that another resident's
+    # report exists at all.
     forbidden = api_client.get(
         f"/reports/{report_id}/attachments", headers={"Authorization": f"Bearer {other_token}"}
     )
-    assert forbidden.status_code == 403
+    assert forbidden.status_code == 404
 
 
 def test_upload_to_missing_report_is_not_found(api_client: TestClient) -> None:

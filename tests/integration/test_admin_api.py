@@ -441,6 +441,56 @@ def test_city_filters_reports(
     assert report_crimea not in filtered_ids
 
 
+# --- Single report: owning resident / org-scoped staff / everyone else ---------------
+
+
+def test_report_detail_and_attachments_scoped_by_owner_or_organization(
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+) -> None:
+    private_pem, _ = rsa_keypair
+    admin_token = _staff_token(private_pem, subject=str(uuid4()), roles=["admin"])
+
+    org_a, _operator_a, token_a = _org_a_staff_setup(database_url, private_pem)
+    _org_b, _operator_b, token_b = _org_a_staff_setup(database_url, private_pem)
+
+    owner_id, owner_token = _resident_token(api_client, display_name="Owner")
+    _other_id, other_token = _resident_token(api_client, display_name="Other")
+
+    _incident_id, report_id, _assignment_id = _full_incident_chain(
+        database_url, organization_id=org_a, resident_id=owner_id
+    )
+
+    # No token at all: the detail endpoint requires authentication now, full stop.
+    assert api_client.get(f"/reports/{report_id}").status_code == 401
+
+    # Owning resident: sees both the report and its (empty) attachment list.
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    assert api_client.get(f"/reports/{report_id}", headers=owner_headers).status_code == 200
+    assert api_client.get(f"/reports/{report_id}/attachments", headers=owner_headers).status_code == 200
+
+    # A different resident gets 404, not 403 - the report's existence isn't revealed.
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    assert api_client.get(f"/reports/{report_id}", headers=other_headers).status_code == 404
+    assert api_client.get(f"/reports/{report_id}/attachments", headers=other_headers).status_code == 404
+
+    # Staff at the assigned organization (org_a) can see it; staff at an unrelated
+    # organization (org_b) cannot, even though both are legitimate district_admins.
+    scoped_headers = {"Authorization": f"Bearer {token_a}"}
+    assert api_client.get(f"/reports/{report_id}", headers=scoped_headers).status_code == 200
+    assert api_client.get(f"/reports/{report_id}/attachments", headers=scoped_headers).status_code == 200
+
+    unrelated_headers = {"Authorization": f"Bearer {token_b}"}
+    assert api_client.get(f"/reports/{report_id}", headers=unrelated_headers).status_code == 404
+    assert api_client.get(f"/reports/{report_id}/attachments", headers=unrelated_headers).status_code == 404
+
+    # Admin sees any report regardless of organization.
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    assert api_client.get(f"/reports/{report_id}", headers=admin_headers).status_code == 200
+    assert api_client.get(f"/reports/{report_id}/attachments", headers=admin_headers).status_code == 200
+
+
 # --- News: resident / admin / non-admin staff visibility ------------------------------
 
 

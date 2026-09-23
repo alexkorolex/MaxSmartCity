@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { useCities } from '@/entities/geo';
 import { useOrganizations } from '@/entities/organization';
 import { roleLabel } from '@/entities/session';
 import { useStaffList } from '@/entities/staff';
@@ -10,13 +11,8 @@ export function StaffPage() {
   const [organizationId, setOrganizationId] = useState('');
 
   const { data: organizations } = useOrganizations();
+  const { data: cities } = useCities();
   const { data, isLoading, error, refetch } = useStaffList(city || undefined, organizationId || undefined);
-
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    for (const org of organizations ?? []) if (org.city) set.add(org.city);
-    return [...set].sort();
-  }, [organizations]);
 
   const orgOptions = useMemo(
     () => (organizations ?? []).filter((org) => !city || org.city === city),
@@ -33,7 +29,7 @@ export function StaffPage() {
       </div>
       <div className="filter-bar">
         <CitySelect
-          cities={cities}
+          cities={cities ?? []}
           value={city}
           onChange={(next) => {
             setCity(next);

@@ -5,6 +5,7 @@ export const ROUTES = {
   staff: '/staff',
   residents: '/residents',
   resident: (residentId: string) => `/residents/${residentId}`,
+  report: (reportId: string) => `/reports/${reportId}`,
   incidents: '/incidents',
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   news: '/news',

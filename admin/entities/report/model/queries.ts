@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchProblemCategories, fetchReport, fetchReports } from '../api/reports';
+import { fetchProblemCategories, fetchReport, fetchReportAttachments, fetchReports } from '../api/reports';
 
 export const reportsQueryKey = (residentId?: string, city?: string) =>
   ['reports', residentId ?? '', city ?? ''] as const;
 export const reportQueryKey = (reportId: string) => ['reports', 'member', reportId] as const;
+export const reportAttachmentsQueryKey = (reportId: string) => ['reports', 'member', reportId, 'attachments'] as const;
 export const problemCategoriesQueryKey = ['problem-categories'] as const;
 
 export function useReports(params: { residentId?: string; city?: string } = {}) {
@@ -18,6 +19,14 @@ export function useReport(reportId: string) {
   return useQuery({
     queryKey: reportQueryKey(reportId),
     queryFn: () => fetchReport(reportId),
+    enabled: Boolean(reportId),
+  });
+}
+
+export function useReportAttachments(reportId: string) {
+  return useQuery({
+    queryKey: reportAttachmentsQueryKey(reportId),
+    queryFn: () => fetchReportAttachments(reportId),
     enabled: Boolean(reportId),
   });
 }

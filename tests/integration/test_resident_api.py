@@ -268,7 +268,7 @@ def test_reports_mine_route_does_not_collide_with_item_route(api_client: TestCli
     assert created.status_code == 201, created.text
     report_id = created.json()["id"]
 
-    by_id = api_client.get(f"/reports/{report_id}")
+    by_id = api_client.get(f"/reports/{report_id}", headers={"Authorization": f"Bearer {token}"})
     assert by_id.status_code == 200
     assert by_id.json()["id"] == report_id
 

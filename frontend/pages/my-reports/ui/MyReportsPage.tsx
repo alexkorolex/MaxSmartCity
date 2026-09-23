@@ -43,12 +43,16 @@ export function MyReportsPage() {
               {reports.data?.map((report) => (
                 <CellSimple
                   key={report.id}
+                  asChild
                   title={report.text ?? 'Без описания'}
                   subtitle={formatCalendarDate(report.received_at, { year: true })}
                   subtitleMode="tertiary"
                   overline={<StatusBadge label={REPORT_STATUS_LABELS[report.status]} tone={REPORT_STATUS_TONES[report.status]} />}
+                  showChevron
                   separator
-                />
+                >
+                  <Link to={ROUTES.report(report.id)} />
+                </CellSimple>
               ))}
             </CellList>
           </ListCard>

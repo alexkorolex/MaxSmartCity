@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useOrganizations } from '@/entities/organization';
+import { useCities } from '@/entities/geo';
 import { useResidents } from '@/entities/resident';
 import { formatCalendarDate } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
@@ -11,14 +11,8 @@ export function ResidentsPage() {
   const [city, setCity] = useState('');
   const navigate = useNavigate();
 
-  const { data: organizations } = useOrganizations();
+  const { data: cities } = useCities();
   const { data, isLoading, error, refetch } = useResidents(city || undefined);
-
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    for (const org of organizations ?? []) if (org.city) set.add(org.city);
-    return [...set].sort();
-  }, [organizations]);
 
   return (
     <div className="card">
@@ -29,7 +23,7 @@ export function ResidentsPage() {
         </div>
       </div>
       <div className="filter-bar">
-        <CitySelect cities={cities} value={city} onChange={setCity} />
+        <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
       <div className="card__body" style={{ padding: 0 }}>
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>

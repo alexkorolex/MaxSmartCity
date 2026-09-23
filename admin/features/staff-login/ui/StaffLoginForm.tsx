@@ -30,7 +30,7 @@ export function StaffLoginForm() {
         <span className="auth-card__mark">
           <CityIcon width={28} height={28} />
         </span>
-        <h1>Max Smart City</h1>
+        <h1>Smart City</h1>
         <p>Админ-панель для управ, жилищников и администраторов платформы</p>
         <form className="auth-form" onSubmit={handleSubmit}>
           <div>

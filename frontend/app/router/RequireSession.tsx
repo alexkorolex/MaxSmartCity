@@ -17,7 +17,7 @@ function OpenBotPrompt() {
       >
         <Flex className="surface-card auth-card" direction="column" align="center" gap="var(--space-3)">
           <span className="brand-mark"><CityIcon width={28} height={28} /></span>
-          <Typography.Text asChild variant="title" color="primary"><h1>Max Smart City</h1></Typography.Text>
+          <Typography.Text asChild variant="title" color="primary"><h1>Smart City</h1></Typography.Text>
           <Typography.Text variant="description" color="secondary" style={{ maxWidth: 320 }}>
             {
             MAX_BOT_URL

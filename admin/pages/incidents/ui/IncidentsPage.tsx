@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useCities } from '@/entities/geo';
 import { INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES, useIncidents } from '@/entities/incident';
-import { useOrganizations } from '@/entities/organization';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CitySelect, EmptyState, Pill, WarningIcon } from '@/shared/ui';
@@ -11,14 +11,8 @@ export function IncidentsPage() {
   const [city, setCity] = useState('');
   const navigate = useNavigate();
 
-  const { data: organizations } = useOrganizations();
+  const { data: cities } = useCities();
   const { data, isLoading, error, refetch } = useIncidents(city || undefined);
-
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    for (const org of organizations ?? []) if (org.city) set.add(org.city);
-    return [...set].sort();
-  }, [organizations]);
 
   return (
     <div className="card">
@@ -29,7 +23,7 @@ export function IncidentsPage() {
         </div>
       </div>
       <div className="filter-bar">
-        <CitySelect cities={cities} value={city} onChange={setCity} />
+        <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
       <div className="card__body" style={{ padding: 0 }}>
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>

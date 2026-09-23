@@ -14,6 +14,9 @@ from src.common.enums import ActorType
 from src.common.models import utc_now
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
+from src.domains.collaboration.models import Assignment
+from src.domains.geo.models import Address, House
+from src.domains.identity.admin_scope import resolve_organization_scope
 from src.domains.incidents.enums import IncidentStatus, ResolutionDisputeStatus
 from src.domains.incidents.models import (
     Incident,
@@ -86,16 +89,37 @@ class IncidentController(Controller):
     @get(
         "/",
         name="incidents:Incident:list",
-        guards=[require_roles("admin", "housing_worker", "district_admin")],
+        guards=[require_roles(*_STAFF_ROLES)],
     )
     async def list_items(
         self,
         service: NamedDependency[IncidentService],
+        principal: NamedDependency[Principal],
+        city: Annotated[str | None, Parameter()] = None,
         limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[Incident]:
+        scope = resolve_organization_scope(principal)
+        if scope.sees_nothing:
+            return []
         with database_action("list", "incidents.Incident"):
-            return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
+            criteria = []
+            if city and scope.is_admin:
+                house_ids = (
+                    select(House.id).join(Address, Address.id == House.address_id).where(Address.city == city)
+                )
+                incident_ids = select(IncidentAffectedHouse.incident_id).where(
+                    IncidentAffectedHouse.house_id.in_(house_ids)
+                )
+                criteria.append(Incident.id.in_(incident_ids))
+            if not scope.is_admin:
+                assigned_incident_ids = select(Assignment.incident_id).where(
+                    Assignment.organization_id == scope.organization_id
+                )
+                criteria.append(Incident.id.in_(assigned_incident_ids))
+            return await service.get_many(
+                LimitOffset(limit=limit, offset=offset), *criteria, order_by=("id", False)
+            )
 
     @get("/my-house", name="incidents:Incident:my-house", guards=[require_resident()])
     async def list_my_house(

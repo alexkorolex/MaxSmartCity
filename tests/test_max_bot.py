@@ -62,7 +62,7 @@ def fake_bot_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(identity, "_cached_username", None)
 
     async def fake_get_me(_self: MaxClient) -> dict[str, Any]:
-        return {"user_id": 1, "first_name": "Max Smart City", "is_bot": True, "username": FAKE_BOT_USERNAME}
+        return {"user_id": 1, "first_name": "Smart City", "is_bot": True, "username": FAKE_BOT_USERNAME}
 
     monkeypatch.setattr(MaxClient, "get_me", fake_get_me)
 

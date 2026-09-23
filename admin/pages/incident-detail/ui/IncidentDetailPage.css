@@ -1,0 +1,12 @@
+.comment-form { display: flex; align-items: flex-end; gap: var(--space-3); margin-bottom: var(--space-5); }
+.comment-form .field { flex: 1; }
+.comment-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.comment-item { padding: 14px 16px; background: var(--background-secondary); border: 1px solid var(--border-soft); border-radius: var(--radius-md); }
+.comment-item__header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.comment-item__text { margin-top: 6px; line-height: 1.5; white-space: pre-wrap; }
+
+@media (max-width: 540px) {
+    .comment-form { flex-direction: column; align-items: stretch; }
+    .comment-form .btn { width: 100%; }
+    .comment-item__header { flex-direction: column; gap: 2px; }
+}

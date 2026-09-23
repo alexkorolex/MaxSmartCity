@@ -11,7 +11,9 @@ import { NewsPage } from '@/pages/news';
 import { NewsItemPage } from '@/pages/news-item';
 import { NotificationsPage } from '@/pages/notifications';
 import { ProfilePage } from '@/pages/profile';
+import { ReportCardPage } from '@/pages/report-card';
 import { ReportNewPage } from '@/pages/report-new';
+import { SelectHousePage } from '@/pages/select-house';
 import { SettingsPage } from '@/pages/settings';
 import { ROUTES } from '@/shared/routes';
 
@@ -28,6 +30,7 @@ export function AppRouter() {
           <Route path={ROUTES.home} element={<HomePage />} />
           <Route path={ROUTES.reportNew} element={<ReportNewPage />} />
           <Route path={ROUTES.myReports} element={<MyReportsPage />} />
+          <Route path="/reports/:reportId" element={<ReportCardPage />} />
           <Route path="/incidents/:incidentId" element={<IncidentCardPage />} />
           <Route path="/incidents/:incidentId/resolution" element={<IncidentResolutionPage />} />
           <Route path={ROUTES.myHouse} element={<MyHousePage />} />
@@ -35,6 +38,7 @@ export function AppRouter() {
           <Route path="/news/:newsId" element={<NewsItemPage />} />
           <Route path={ROUTES.notifications} element={<NotificationsPage />} />
           <Route path={ROUTES.profile} element={<ProfilePage />} />
+          <Route path={ROUTES.selectHouse} element={<SelectHousePage />} />
           <Route path={ROUTES.settings} element={<SettingsPage />} />
           <Route path={ROUTES.help} element={<HelpPage />} />
         </Route>

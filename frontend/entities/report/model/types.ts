@@ -38,4 +38,14 @@ export interface ReportCreatePayload {
   category_id?: string | null;
   urgency?: Priority;
   problem_continues?: boolean | null;
+  house_id?: string | null;
+}
+
+export interface ReportAttachment {
+  id: string;
+  original_name: string | null;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+  download_url: string;
 }

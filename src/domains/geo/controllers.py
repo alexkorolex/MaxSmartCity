@@ -6,15 +6,15 @@ from advanced_alchemy.filters import LimitOffset
 from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
+from litestar.exceptions import NotFoundException
 from litestar.params import FromPath, Parameter
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House
-from src.domains.geo.schemas import AddressCreateDTO, AddressReadDTO, AddressUpdateDTO, HouseOption
+from src.domains.geo.schemas import AddressCreateDTO, AddressReadDTO, AddressUpdateDTO, HouseSummary
 from src.domains.geo.services import AddressService
-from src.security.guards import require_resident
 
 
 def provide_address_service(db_session: NamedDependency[AsyncSession]) -> AddressService:
@@ -39,6 +39,17 @@ class AddressController(Controller):
     ) -> Sequence[Address]:
         with database_action("list", "geo.Address"):
             return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
+
+    @get("/cities", name="geo:Address:cities", return_dto=None, cache=True)
+    async def list_cities(self, db_session: NamedDependency[AsyncSession]) -> Sequence[str]:
+        """Every distinct city that has at least one address on record - the complete set
+        a filter dropdown should offer, not just whatever happens to already be loaded on
+        the page (e.g. the small, unrelated set of organization headquarters cities)."""
+        with database_action("list", "geo.Address"):
+            result = await db_session.execute(
+                select(Address.city).where(Address.city.is_not(None)).distinct().order_by(Address.city)
+            )
+            return [row[0] for row in result.all()]
 
     @get("/{item_id:uuid}", name="geo:Address:get")
     async def get_item(self, item_id: FromPath[UUID], service: NamedDependency[AddressService]) -> Address:
@@ -66,46 +77,62 @@ class AddressController(Controller):
             await service.delete(item_id)
 
 
-class HouseLookupController(Controller):
+class HouseController(Controller):
+    """Read-only: what a resident (or the "Сообщить о проблеме" flow) picks a home from.
+    Houses are seeded by the ingestion pipeline, not created through this API."""
+
     path = "/geo/houses"
     tags = ("geo",)
+    return_dto = None
 
-    @get(
-        "/",
-        return_dto=None,
-        name="geo:House:options",
-        guards=[require_resident()],
-    )
-    async def list_options(
+    @get("/", name="geo:House:list")
+    async def list_items(
         self,
         db_session: NamedDependency[AsyncSession],
-        q: Annotated[str | None, Parameter(min_length=2, max_length=200)] = None,
-        limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
+        city: Annotated[str | None, Parameter()] = None,
+        limit: Annotated[int, Parameter(ge=1, le=200)] = 200,
         offset: Annotated[int, Parameter(ge=0)] = 0,
-    ) -> list[HouseOption]:
-        statement = select(House.id, Address.formatted, Address.city, Address.district).join(
-            Address, Address.id == House.address_id
-        )
-        if q:
-            pattern = f"%{q.strip()}%"
-            statement = statement.where(
-                or_(
-                    Address.formatted.ilike(pattern),
-                    Address.city.ilike(pattern),
-                    Address.district.ilike(pattern),
+    ) -> Sequence[HouseSummary]:
+        with database_action("list", "geo.House"):
+            statement = (
+                select(House.id, Address.city, Address.street, Address.house_number, Address.formatted)
+                .join(Address, Address.id == House.address_id)
+                .order_by(Address.city, Address.street, Address.house_number)
+                .limit(limit)
+                .offset(offset)
+            )
+            if city:
+                statement = statement.where(Address.city == city)
+            rows = (await db_session.execute(statement)).all()
+            return [
+                HouseSummary(
+                    house_id=row.id,
+                    city=row.city,
+                    street=row.street,
+                    house_number=row.house_number,
+                    formatted=row.formatted,
                 )
-            )
-        rows = (
-            await db_session.execute(
-                statement.order_by(Address.formatted, House.id).limit(limit).offset(offset)
-            )
-        ).all()
-        return [
-            HouseOption(
+                for row in rows
+            ]
+
+    @get("/{item_id:uuid}", name="geo:House:get")
+    async def get_item(
+        self, item_id: FromPath[UUID], db_session: NamedDependency[AsyncSession]
+    ) -> HouseSummary:
+        with database_action("get", "geo.House"):
+            row = (
+                await db_session.execute(
+                    select(House.id, Address.city, Address.street, Address.house_number, Address.formatted)
+                    .join(Address, Address.id == House.address_id)
+                    .where(House.id == item_id)
+                )
+            ).first()
+            if row is None:
+                raise NotFoundException(f"House {item_id} was not found")
+            return HouseSummary(
                 house_id=row.id,
-                address=row.formatted,
                 city=row.city,
-                district=row.district,
+                street=row.street,
+                house_number=row.house_number,
+                formatted=row.formatted,
             )
-            for row in rows
-        ]

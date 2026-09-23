@@ -30,3 +30,31 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      - id: eslint
+        name: ESLint (frontend)
+        entry: npm --prefix frontend run lint
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-typecheck
+        name: TypeScript check (frontend)
+        entry: npm --prefix frontend run typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: eslint-admin
+        name: ESLint (admin)
+        entry: npm --prefix admin run lint
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: admin-typecheck
+        name: TypeScript check (admin)
+        entry: npm --prefix admin run typecheck
+        language: system
+        pass_filenames: false
+        always_run: true

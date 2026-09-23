@@ -1,0 +1,55 @@
+.table-wrap { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.data-table th {
+    padding: 13px var(--space-5);
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--background-secondary) 36%, transparent);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 10px;
+    font-weight: 760;
+    letter-spacing: 0.07em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.data-table td { padding: 15px var(--space-5); border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+.data-table tbody tr { transition: background-color var(--transition-fast); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: var(--surface-hover); }
+.data-table tbody tr.is-clickable { cursor: pointer; }
+.data-table tbody tr.is-clickable:focus-visible { outline-offset: -3px; }
+.cell-primary { color: var(--text-primary); font-weight: 680; }
+.cell-secondary { color: var(--text-secondary); }
+.cell-muted { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+
+@media (max-width: 720px) {
+    .table-wrap { overflow: visible; }
+    .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+    .data-table thead { display: none; }
+    .data-table tbody { display: grid; gap: var(--space-3); padding: var(--space-3); }
+    .data-table tbody tr { overflow: hidden; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-md); }
+    .data-table tbody tr:hover { background: var(--surface); }
+    .data-table td {
+        display: grid;
+        grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
+        gap: var(--space-3);
+        min-height: 46px;
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--border-soft);
+        overflow-wrap: anywhere;
+    }
+    .data-table td::before {
+        align-self: start;
+        color: var(--text-muted);
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 760;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .data-table td:last-child { border-bottom: none; }
+    .data-table td[data-label="Действия"] { grid-template-columns: 1fr; }
+    .data-table td[data-label="Действия"]::before { display: none; }
+}

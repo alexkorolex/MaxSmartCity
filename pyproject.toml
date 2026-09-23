@@ -21,6 +21,7 @@ dependencies = [
     "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy,structlog]>=2.24.0",
     "sqlalchemy>=2.0.54",
     "aiohttp>=3.14.3",
+    "aioboto3>=15.5.0",
 ]
 
 [dependency-groups]

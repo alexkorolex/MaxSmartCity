@@ -10,6 +10,7 @@ export {
   InboxIcon,
   NewsIcon,
   PlusIcon,
+  SearchIcon,
   ProfileIcon,
   ReportsIcon,
   SettingsIcon,

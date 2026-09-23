@@ -2,10 +2,11 @@ import { Avatar, Button, CellHeader, CellList, CellSimple, Flex, Input, Typograp
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { useHouses } from '@/entities/geo';
 import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
 import { LogoutButton } from '@/features/logout';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, HelpIcon, ListCard, PageLayout, SettingsIcon } from '@/shared/ui';
+import { AsyncState, HelpIcon, HouseIcon, ListCard, PageLayout, SettingsIcon } from '@/shared/ui';
 
 function initialsOf(name: string | null): string {
   if (!name) return '?';
@@ -20,6 +21,7 @@ function initialsOf(name: string | null): string {
 export function ProfilePage() {
   const profile = useMyProfile();
   const updateProfile = useUpdateMyProfile();
+  const houses = useHouses();
   const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export function ProfilePage() {
   }, [profile.data]);
 
   const hasChanges = profile.data && displayName.trim() !== (profile.data.display_name ?? '');
+  const myHouse = houses.data?.find((house) => house.house_id === profile.data?.house_id);
 
   return (
     <PageLayout title="Профиль">
@@ -64,6 +67,21 @@ export function ProfilePage() {
                     hint="Видно только вам в интерфейсе приложения"
                   />
                 </div>
+              </CellList>
+            </ListCard>
+
+            <ListCard>
+              <CellList mode="full-width" header={<CellHeader>Мой дом</CellHeader>}>
+                <CellSimple
+                  asChild
+                  title={myHouse ? [myHouse.street, myHouse.house_number].filter(Boolean).join(', ') : 'Не указан'}
+                  subtitle={myHouse ? myHouse.city ?? undefined : 'Укажите город и дом, чтобы видеть его проблемы'}
+                  subtitleMode="tertiary"
+                  before={<HouseIcon width={20} height={20} />}
+                  showChevron
+                >
+                  <Link to={ROUTES.selectHouse} />
+                </CellSimple>
               </CellList>
             </ListCard>
 

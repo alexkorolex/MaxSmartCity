@@ -1,92 +1,164 @@
 import { Button, CellHeader, CellList, CellSimple, Flex, Radio, Switch, Textarea, Typography } from '@maxhub/max-ui';
 import { useNavigate } from 'react-router-dom';
 
+import { HouseSelector } from '@/features/select-house';
+import { useHouses } from '@/entities/geo';
 import { PRIORITY_LABELS, PRIORITY_TONES, useProblemCategories, type Priority } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, ListCard, ToneDot, WarningIcon } from '@/shared/ui';
+import { AsyncState, HouseIcon, ListCard, ToneDot, WarningIcon } from '@/shared/ui';
 
 import { useReportForm } from '../model/useReportForm';
+import { PhotoPicker } from './PhotoPicker';
 
 const URGENCY_OPTIONS: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 
 export function ReportForm() {
   const navigate = useNavigate();
   const categories = useProblemCategories();
+  const houses = useHouses();
   const form = useReportForm((reportId) => navigate(ROUTES.myReports, { state: { createdReportId: reportId } }));
+
+  const selectedHouse = houses.data?.find((house) => house.house_id === form.houseId);
+
+  if (form.attachmentWarning) {
+    return (
+      <Flex direction="column" gap="var(--space-4)" align="center" style={{ padding: '32px 0', textAlign: 'center' }}>
+        <Typography.Text variant="body-strong" color="primary">
+          Обращение отправлено
+        </Typography.Text>
+        <Typography.Text variant="description" color="secondary">
+          {form.attachmentWarning}
+        </Typography.Text>
+        <Button variant="primary" size="large" stretched onClick={form.dismissAttachmentWarning}>
+          Понятно, к моим обращениям
+        </Button>
+      </Flex>
+    );
+  }
 
   return (
     <div className="form-stack">
       <ListCard>
-      <CellList mode="full-width" header={<CellHeader>Описание проблемы</CellHeader>}>
-        <div className="field-card__body">
-          <Textarea
-            mode="primary"
-            placeholder="Что случилось? Укажите как можно больше деталей — это поможет быстрее найти решение."
-            value={form.text}
-            onChange={(event) => form.setText(event.target.value)}
-            rows={4}
-          />
-        </div>
-      </CellList>
+        <CellList mode="full-width" header={<CellHeader>Тип обращения</CellHeader>}>
+          <AsyncState isLoading={categories.isLoading} error={categories.error}>
+            {categories.data?.map((category) => (
+              <CellSimple
+                key={category.id}
+                title={category.name}
+                before={
+                  category.is_critical ? (
+                    <WarningIcon width={18} height={18} style={{ color: 'var(--error)' }} />
+                  ) : undefined
+                }
+                after={
+                  <Radio
+                    name="category"
+                    checked={form.categoryId === category.id}
+                    onChange={() => form.setCategoryId(category.id)}
+                    aria-label={category.name}
+                  />
+                }
+              />
+            ))}
+          </AsyncState>
+        </CellList>
       </ListCard>
 
       <ListCard>
-      <CellList mode="full-width" header={<CellHeader>Категория (необязательно)</CellHeader>}>
-        <AsyncState isLoading={categories.isLoading} error={categories.error}>
-          {categories.data?.map((category) => (
+        <CellList mode="full-width" header={<CellHeader>Описание проблемы</CellHeader>}>
+          <div className="field-card__body">
+            <Textarea
+              mode="primary"
+              placeholder="Что случилось? Укажите как можно больше деталей — это поможет быстрее найти решение."
+              value={form.text}
+              onChange={(event) => form.setText(event.target.value)}
+              rows={4}
+            />
+          </div>
+        </CellList>
+      </ListCard>
+
+      <ListCard>
+        <CellList mode="full-width" header={<CellHeader>Фото (необязательно)</CellHeader>}>
+          <div className="field-card__body">
+            <PhotoPicker
+              photos={form.photoPicker.photos}
+              canAddMore={form.photoPicker.canAddMore}
+              error={form.photoPicker.error}
+              onAdd={form.photoPicker.addFiles}
+              onRemove={form.photoPicker.removePhoto}
+            />
+          </div>
+        </CellList>
+      </ListCard>
+
+      {form.isEditingHouse ? (
+        <>
+          <HouseSelector
+            value={form.houseId}
+            onChange={(houseId) => {
+              form.setHouseId(houseId);
+              form.setIsEditingHouse(false);
+            }}
+          />
+          <Button variant="ghost" size="medium" stretched onClick={() => form.setIsEditingHouse(false)}>
+            Отмена
+          </Button>
+        </>
+      ) : (
+        <ListCard>
+          <CellList mode="full-width" header={<CellHeader>Адрес</CellHeader>}>
             <CellSimple
-              key={category.id}
-              title={category.name}
-              before={category.is_critical ? <WarningIcon width={18} height={18} style={{ color: 'var(--error)' }} /> : undefined}
+              title={
+                selectedHouse
+                  ? [selectedHouse.street, selectedHouse.house_number].filter(Boolean).join(', ')
+                  : 'Адрес не указан'
+              }
+              subtitle={selectedHouse ? selectedHouse.formatted : 'Укажите, где произошла проблема'}
+              subtitleMode="tertiary"
+              before={<HouseIcon width={20} height={20} />}
+              showChevron
+              onClick={() => form.setIsEditingHouse(true)}
+            />
+          </CellList>
+        </ListCard>
+      )}
+
+      <ListCard>
+        <CellList mode="full-width" header={<CellHeader>Срочность</CellHeader>}>
+          {URGENCY_OPTIONS.map((option) => (
+            <CellSimple
+              key={option}
+              title={PRIORITY_LABELS[option]}
+              before={<ToneDot tone={PRIORITY_TONES[option]} />}
               after={
                 <Radio
-                  name="category"
-                  checked={form.categoryId === category.id}
-                  onChange={() => form.setCategoryId(category.id)}
-                  aria-label={category.name}
+                  name="urgency"
+                  checked={form.urgency === option}
+                  onChange={() => form.setUrgency(option)}
+                  aria-label={PRIORITY_LABELS[option]}
                 />
               }
             />
           ))}
-        </AsyncState>
-      </CellList>
+        </CellList>
       </ListCard>
 
       <ListCard>
-      <CellList mode="full-width" header={<CellHeader>Срочность</CellHeader>}>
-        {URGENCY_OPTIONS.map((option) => (
+        <CellList mode="full-width">
           <CellSimple
-            key={option}
-            title={PRIORITY_LABELS[option]}
-            before={<ToneDot tone={PRIORITY_TONES[option]} />}
+            title="Проблема ещё продолжается"
+            subtitle="Отключите, если проблема уже устранена сама собой"
+            subtitleMode="tertiary"
             after={
-              <Radio
-                name="urgency"
-                checked={form.urgency === option}
-                onChange={() => form.setUrgency(option)}
-                aria-label={PRIORITY_LABELS[option]}
+              <Switch
+                checked={form.problemContinues}
+                onChange={(event) => form.setProblemContinues(event.target.checked)}
+                aria-label="Проблема ещё продолжается"
               />
             }
           />
-        ))}
-      </CellList>
-      </ListCard>
-
-      <ListCard>
-      <CellList mode="full-width">
-        <CellSimple
-          title="Проблема ещё продолжается"
-          subtitle="Отключите, если проблема уже устранена сама собой"
-          subtitleMode="tertiary"
-          after={
-            <Switch
-              checked={form.problemContinues}
-              onChange={(event) => form.setProblemContinues(event.target.checked)}
-              aria-label="Проблема ещё продолжается"
-            />
-          }
-        />
-      </CellList>
+        </CellList>
       </ListCard>
 
       {(form.validationError || form.submitError) && (

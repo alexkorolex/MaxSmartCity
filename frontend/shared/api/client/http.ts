@@ -38,12 +38,16 @@ async function request<T>(method: string, path: string, body?: unknown, options?
   const headers: Record<string, string> = { Accept: 'application/json' };
   const token = getAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  const isFormData = body instanceof FormData;
+  // Never set Content-Type ourselves for FormData - the browser needs to add the
+  // multipart boundary itself, which it only does when the header is left unset.
+  if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
 
   const response = await fetch(buildUrl(path, options?.query), {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     signal: options?.signal,
   });
 

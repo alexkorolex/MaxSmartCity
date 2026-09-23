@@ -6,6 +6,7 @@ export interface ResidentProfile {
   notifications_enabled: boolean;
   bot_status: string;
   last_seen_at: string | null;
+  house_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -13,4 +14,5 @@ export interface ResidentProfile {
 export interface ResidentSelfUpdate {
   display_name?: string;
   notifications_enabled?: boolean;
+  house_id?: string;
 }

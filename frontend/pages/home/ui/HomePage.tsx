@@ -48,7 +48,7 @@ function HomeHero({ name, initials }: { name: string; initials: string }) {
     <section className="home-hero">
       <Flex className="home-hero__top" align="center" justify="space-between" gap="var(--space-3)">
         <div className="home-hero__copy">
-          <span className="home-hero__eyebrow">Max Smart City</span>
+          <span className="home-hero__eyebrow">Smart City</span>
           <h1 className="home-hero__title">Здравствуйте, {name}</h1>
           <span className="home-hero__subtitle">Городские вопросы — в одном понятном приложении</span>
         </div>

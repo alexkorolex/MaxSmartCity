@@ -50,7 +50,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),
         on_startup=[auto_subscribe_max_webhook],
         openapi_config=OpenAPIConfig(
-            title="Max Smart City Project",
+            title="Smart City Project",
             version="0.0.1",
             render_plugins=[
                 SwaggerRenderPlugin(path="/schema"),

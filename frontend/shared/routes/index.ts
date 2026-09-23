@@ -3,6 +3,7 @@ export const ROUTES = {
   authMax: '/auth/max',
   reportNew: '/report/new',
   myReports: '/reports',
+  report: (reportId: string) => `/reports/${reportId}`,
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   incidentResolution: (incidentId: string) => `/incidents/${incidentId}/resolution`,
   myHouse: '/house',
@@ -10,6 +11,7 @@ export const ROUTES = {
   newsItem: (newsId: string) => `/news/${newsId}`,
   notifications: '/notifications',
   profile: '/profile',
+  selectHouse: '/profile/house',
   settings: '/settings',
   help: '/help',
 } as const;

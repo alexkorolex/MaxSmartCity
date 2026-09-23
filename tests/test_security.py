@@ -11,7 +11,13 @@ from litestar.exceptions import NotAuthorizedException, PermissionDeniedExceptio
 from litestar.handlers.base import BaseRouteHandler
 from litestar.types import Guard
 
-from src.security.guards import is_keycloak_token, require_bot_secret, require_resident, require_roles
+from src.security.guards import (
+    is_keycloak_token,
+    require_admin_or_bootstrap_secret,
+    require_bot_secret,
+    require_resident,
+    require_roles,
+)
 from src.security.resident import decode_resident_token, resident_jwt_auth
 from src.security.settings import SecuritySettings
 
@@ -161,3 +167,52 @@ def test_require_bot_secret_accepts_correct_secret(settings: SecuritySettings) -
 def test_require_bot_secret_rejects_wrong_secret(settings: SecuritySettings) -> None:
     with pytest.raises(NotAuthorizedException):
         _run_guard(require_bot_secret(), {"X-Bot-Secret": "wrong"})
+
+
+def test_require_admin_or_bootstrap_secret_accepts_admin_token(
+    settings: SecuritySettings, rsa_keypair: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    private_pem, public_pem = rsa_keypair
+    _patch_jwks(monkeypatch, public_pem)
+    token = _keycloak_token(private_pem, roles=["admin"])
+
+    _run_guard(require_admin_or_bootstrap_secret(), {"Authorization": f"Bearer {token}"})
+
+
+def test_require_admin_or_bootstrap_secret_rejects_non_admin_token(
+    settings: SecuritySettings, rsa_keypair: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    private_pem, public_pem = rsa_keypair
+    _patch_jwks(monkeypatch, public_pem)
+    token = _keycloak_token(private_pem, roles=["housing_worker"])
+
+    with pytest.raises(PermissionDeniedException):
+        _run_guard(require_admin_or_bootstrap_secret(), {"Authorization": f"Bearer {token}"})
+
+
+def test_require_admin_or_bootstrap_secret_rejects_missing_header_when_unconfigured(
+    settings: SecuritySettings,
+) -> None:
+    # STAFF_BOOTSTRAP_SECRET is unset in the `settings` fixture - the bootstrap path must
+    # be fully disabled, falling straight through to requiring an admin token.
+    with pytest.raises(NotAuthorizedException):
+        _run_guard(require_admin_or_bootstrap_secret(), {})
+
+
+def test_require_admin_or_bootstrap_secret_accepts_correct_bootstrap_secret(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("STAFF_BOOTSTRAP_SECRET", "test-bootstrap-secret")
+
+    _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "test-bootstrap-secret"})
+
+
+def test_require_admin_or_bootstrap_secret_rejects_wrong_bootstrap_secret(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("STAFF_BOOTSTRAP_SECRET", "test-bootstrap-secret")
+
+    # A wrong (or missing) bootstrap secret falls through to the admin-token check, which
+    # then fails on the missing Authorization header - never a silent bypass.
+    with pytest.raises(NotAuthorizedException):
+        _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "wrong"})

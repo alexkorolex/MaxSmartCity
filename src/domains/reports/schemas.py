@@ -60,3 +60,16 @@ class CreateReportCommand:
 class CreateReportResult:
     report_id: UUID
     grouping: GroupReportResult
+
+
+@dataclass
+class ReportAttachmentRead:
+    """Response shape for an uploaded attachment - ``download_url`` is a freshly generated
+    presigned GET URL, never the bare ``storage_key`` (the bucket is private)."""
+
+    id: str
+    original_name: str | None
+    mime_type: str
+    size_bytes: int
+    created_at: datetime
+    download_url: str

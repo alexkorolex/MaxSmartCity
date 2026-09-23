@@ -33,6 +33,10 @@ class Resident(Entity):
     )
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    house_id: Mapped[UUID | None] = mapped_column(ForeignKey("geo.house.id"))
+    """The resident's own selected home - set during onboarding or any time afterwards
+    from their profile; independent of any ``Report.house_id`` (which just records where
+    a given report happened, not who lives there)."""
 
 
 class OperatorUser(Entity):
@@ -62,6 +66,9 @@ class Organization(Entity):
         )
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    city: Mapped[str | None] = mapped_column(String(255))
+    """Free-text city name (same convention as ``Address.city``, not a relational
+    ``AdministrativeArea`` FK) - what city this organization operates in/from."""
 
 
 class Department(Entity):

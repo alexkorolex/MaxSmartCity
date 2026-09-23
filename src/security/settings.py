@@ -25,6 +25,11 @@ class SecuritySettings:
     the Admin REST API when registering new staff accounts."""
     resident_jwt_secret: str
     bot_shared_secret: str
+    staff_bootstrap_secret: str | None
+    """Optional. When set, ``POST /auth/staff/register`` also accepts this value via the
+    ``X-Bootstrap-Secret`` header instead of an admin token - lets a fresh deployment
+    create its first admin account without already having one. Leave unset (the default)
+    to disable that path entirely and require an admin token as before."""
 
     @classmethod
     def from_environment(cls) -> "SecuritySettings":
@@ -61,6 +66,7 @@ class SecuritySettings:
         bot_shared_secret = os.environ.get("BOT_SHARED_SECRET")
         if not bot_shared_secret:
             raise ValueError("BOT_SHARED_SECRET is required; see .env.example")
+        staff_bootstrap_secret = os.environ.get("STAFF_BOOTSTRAP_SECRET") or None
         return cls(
             keycloak_issuer=keycloak_issuer,
             keycloak_jwks_uri=keycloak_jwks_uri,
@@ -73,6 +79,7 @@ class SecuritySettings:
             keycloak_admin_password=keycloak_admin_password,
             resident_jwt_secret=resident_jwt_secret,
             bot_shared_secret=bot_shared_secret,
+            staff_bootstrap_secret=staff_bootstrap_secret,
         )
 
     @property

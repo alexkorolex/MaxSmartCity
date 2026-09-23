@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import ClassVar
+from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
@@ -72,3 +73,6 @@ class ResidentSelfUpdateRequest:
 
     notifications_enabled: bool | None = None
     display_name: str | None = None
+    house_id: UUID | None = None
+    """Set or change the resident's own home. Validated against ``geo.house`` server-side
+    (not just an FK constraint) so an unknown id comes back as a clean 404, not a 500."""

@@ -161,14 +161,25 @@ def _insert_report_link(
     )
 
 
-def _insert_house(database_url: str) -> str:
+def _insert_house(
+    database_url: str,
+    *,
+    city: str | None = None,
+    street: str | None = None,
+    house_number: str | None = None,
+    formatted: str = "Test address",
+) -> str:
     address_id = str(uuid4())
     house_id = str(uuid4())
     run_sql(
         database_url,
-        "INSERT INTO geo.address(id, formatted, created_at, updated_at) "
-        "VALUES (:id, 'Test address', now(), now())",
+        "INSERT INTO geo.address(id, formatted, city, street, house_number, created_at, updated_at) "
+        "VALUES (:id, :formatted, :city, :street, :house_number, now(), now())",
         id=address_id,
+        formatted=formatted,
+        city=city,
+        street=street,
+        house_number=house_number,
     )
     run_sql(
         database_url,
@@ -479,3 +490,68 @@ def test_resident_self_profile_get_and_patch(api_client: TestClient, rsa_keypair
     refetched = api_client.get("/identity/me/resident", headers={"Authorization": f"Bearer {token}"})
     assert refetched.json()["display_name"] == "New Name"
     assert refetched.json()["notifications_enabled"] is False
+
+
+# --- Geo: houses, and setting a resident's own home ------------------------------------
+
+
+def test_geo_houses_lists_and_filters_by_city(api_client: TestClient, database_url: str) -> None:
+    bryansk_house = _insert_house(database_url, city="Брянск", street="улица Евдокимова", house_number="8")
+    crimea_house = _insert_house(database_url, city="Бахчисарай", street="улица Мира", house_number="9")
+
+    everything = api_client.get("/geo/houses")
+    assert everything.status_code == 200
+    house_ids = {item["house_id"] for item in everything.json()}
+    assert {bryansk_house, crimea_house}.issubset(house_ids)
+
+    filtered = api_client.get("/geo/houses", params={"city": "Брянск"})
+    assert filtered.status_code == 200
+    filtered_ids = {item["house_id"] for item in filtered.json()}
+    assert bryansk_house in filtered_ids
+    assert crimea_house not in filtered_ids
+
+    fetched = api_client.get(f"/geo/houses/{bryansk_house}")
+    assert fetched.status_code == 200
+    assert fetched.json() == {
+        "house_id": bryansk_house,
+        "city": "Брянск",
+        "street": "улица Евдокимова",
+        "house_number": "8",
+        "formatted": "Test address",
+    }
+
+    missing = api_client.get(f"/geo/houses/{uuid4()}")
+    assert missing.status_code == 404
+
+
+def test_resident_can_set_and_change_their_house(api_client: TestClient, database_url: str) -> None:
+    resident_id, token = _resident_token(api_client)
+    house_a = _insert_house(database_url, city="Брянск")
+    house_b = _insert_house(database_url, city="Бахчисарай")
+
+    initial = api_client.get("/identity/me/resident", headers={"Authorization": f"Bearer {token}"})
+    assert initial.json()["house_id"] is None
+
+    unknown_house = api_client.patch(
+        "/identity/me/resident",
+        json={"house_id": str(uuid4())},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert unknown_house.status_code == 404
+
+    set_house = api_client.patch(
+        "/identity/me/resident",
+        json={"house_id": house_a},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert set_house.status_code == 200, set_house.text
+    assert set_house.json()["house_id"] == house_a
+    assert set_house.json()["id"] == resident_id
+
+    changed = api_client.patch(
+        "/identity/me/resident",
+        json={"house_id": house_b},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert changed.status_code == 200
+    assert changed.json()["house_id"] == house_b

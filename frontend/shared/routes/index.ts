@@ -10,6 +10,7 @@ export const ROUTES = {
   newsItem: (newsId: string) => `/news/${newsId}`,
   notifications: '/notifications',
   profile: '/profile',
+  selectHouse: '/profile/house',
   settings: '/settings',
   help: '/help',
 } as const;

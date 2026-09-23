@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { loginByCode, setSession } from '@/entities/session';
+import { fetchMyProfile } from '@/entities/user';
 import { getMaxBridgeStartParam } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 
@@ -17,8 +18,20 @@ export function useAuthByCode() {
 
   const mutation = useMutation({
     mutationFn: (loginCode: string) => loginByCode(loginCode),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       setSession(response.token);
+      // First-time (or still-unset) residents get prompted for their home right after
+      // login; everyone else goes straight in. Best-effort - a failed profile fetch
+      // here shouldn't block login, so just fall through to home.
+      try {
+        const profile = await fetchMyProfile();
+        if (!profile.house_id) {
+          navigate(ROUTES.selectHouse, { replace: true, state: { mode: 'onboarding' } });
+          return;
+        }
+      } catch {
+        /* fall through to home */
+      }
       navigate(ROUTES.home, { replace: true });
     },
   });

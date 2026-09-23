@@ -6,10 +6,13 @@ from advanced_alchemy.filters import LimitOffset
 from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
+from litestar.exceptions import NotFoundException
 from litestar.params import FromPath, Parameter
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
+from src.domains.geo.models import House
 from src.domains.identity.models import Department, Organization, Resident
 from src.domains.identity.schemas import (
     DepartmentCreateDTO,
@@ -207,6 +210,7 @@ class MeController(Controller):
         self,
         data: ResidentSelfUpdateRequest,
         resident_service: NamedDependency[ResidentService],
+        db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
     ) -> Resident:
         with database_action("update", "identity.Resident"):
@@ -215,6 +219,11 @@ class MeController(Controller):
                 updates["notifications_enabled"] = data.notifications_enabled
             if data.display_name is not None:
                 updates["display_name"] = data.display_name
+            if data.house_id is not None:
+                exists = await db_session.scalar(select(House.id).where(House.id == data.house_id))
+                if exists is None:
+                    raise NotFoundException(f"House {data.house_id} was not found")
+                updates["house_id"] = data.house_id
             if not updates:
                 return await resident_service.get(principal.actor_id)
             return await resident_service.update(updates, item_id=principal.actor_id)

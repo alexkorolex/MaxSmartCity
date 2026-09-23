@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from typing import ClassVar
+from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
@@ -67,3 +69,15 @@ class AffectedObjectUpdateDTO(SQLAlchemyDTO[AffectedObject]):
 
 class AffectedObjectReadDTO(SQLAlchemyDTO[AffectedObject]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()
+
+
+@dataclass(slots=True)
+class HouseSummary:
+    """A house with its address flattened in - what a resident picks their home from,
+    without a second round trip to resolve ``House.address_id``."""
+
+    house_id: UUID
+    city: str | None
+    street: str | None
+    house_number: str | None
+    formatted: str

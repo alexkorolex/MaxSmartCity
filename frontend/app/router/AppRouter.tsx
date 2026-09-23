@@ -12,6 +12,7 @@ import { NewsItemPage } from '@/pages/news-item';
 import { NotificationsPage } from '@/pages/notifications';
 import { ProfilePage } from '@/pages/profile';
 import { ReportNewPage } from '@/pages/report-new';
+import { SelectHousePage } from '@/pages/select-house';
 import { SettingsPage } from '@/pages/settings';
 import { ROUTES } from '@/shared/routes';
 
@@ -35,6 +36,7 @@ export function AppRouter() {
           <Route path="/news/:newsId" element={<NewsItemPage />} />
           <Route path={ROUTES.notifications} element={<NotificationsPage />} />
           <Route path={ROUTES.profile} element={<ProfilePage />} />
+          <Route path={ROUTES.selectHouse} element={<SelectHousePage />} />
           <Route path={ROUTES.settings} element={<SettingsPage />} />
           <Route path={ROUTES.help} element={<HelpPage />} />
         </Route>

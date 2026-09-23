@@ -25,7 +25,7 @@ export function IncidentsPage() {
       <div className="filter-bar">
         <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
-      <div className="card__body" style={{ padding: 0 }}>
+      <div className="card__body card__body--flush">
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
           {!data || data.length === 0 ? (
             <EmptyState icon={<WarningIcon />} title="Инцидентов не найдено" />
@@ -45,17 +45,22 @@ export function IncidentsPage() {
                     <tr
                       key={incident.id}
                       className="is-clickable"
+                      role="link"
+                      tabIndex={0}
                       onClick={() => navigate(ROUTES.incident(incident.id))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') navigate(ROUTES.incident(incident.id));
+                      }}
                     >
-                      <td className="cell-primary">{incident.title}</td>
-                      <td>
+                      <td className="cell-primary" data-label="Название">{incident.title}</td>
+                      <td data-label="Статус">
                         <Pill
                           tone={INCIDENT_STATUS_TONES[incident.status]}
                           label={INCIDENT_STATUS_LABELS[incident.status]}
                         />
                       </td>
-                      <td className="cell-muted">{formatDateTime(incident.first_report_at)}</td>
-                      <td className="cell-muted">{formatDateTime(incident.last_report_at)}</td>
+                      <td className="cell-muted" data-label="Первое обращение">{formatDateTime(incident.first_report_at)}</td>
+                      <td className="cell-muted" data-label="Последнее обращение">{formatDateTime(incident.last_report_at)}</td>
                     </tr>
                   ))}
                 </tbody>

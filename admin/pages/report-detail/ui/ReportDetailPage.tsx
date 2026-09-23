@@ -14,6 +14,8 @@ import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 
+import './ReportDetailPage.css';
+
 export function ReportDetailPage() {
   const { reportId = '' } = useParams();
   const navigate = useNavigate();
@@ -28,7 +30,7 @@ export function ReportDetailPage() {
 
   return (
     <>
-      <div>
+      <div className="page-back">
         <button type="button" className="btn btn--ghost btn--small" onClick={() => navigate(-1)}>
           <ArrowLeftIcon width={16} height={16} />
           Назад
@@ -55,7 +57,7 @@ export function ReportDetailPage() {
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <div className="detail-badges">
                 <Pill tone={REPORT_STATUS_TONES[report.data.status]} label={REPORT_STATUS_LABELS[report.data.status]} />
                 <Pill tone={PRIORITY_TONES[report.data.urgency]} label={PRIORITY_LABELS[report.data.urgency]} />
               </div>
@@ -65,21 +67,21 @@ export function ReportDetailPage() {
                 {categoryName && (
                   <div className="stat-card">
                     <div className="stat-card__label">Категория</div>
-                    <div className="stat-card__value" style={{ fontSize: 16 }}>
+                    <div className="stat-card__value stat-card__value--compact">
                       {categoryName}
                     </div>
                   </div>
                 )}
                 <div className="stat-card">
                   <div className="stat-card__label">Принято</div>
-                  <div className="stat-card__value" style={{ fontSize: 16 }}>
+                  <div className="stat-card__value stat-card__value--compact">
                     {formatDateTime(report.data.received_at)}
                   </div>
                 </div>
                 {report.data.occurred_at && (
                   <div className="stat-card">
                     <div className="stat-card__label">Когда произошло</div>
-                    <div className="stat-card__value" style={{ fontSize: 16 }}>
+                    <div className="stat-card__value stat-card__value--compact">
                       {formatDateTime(report.data.occurred_at)}
                     </div>
                   </div>
@@ -87,7 +89,7 @@ export function ReportDetailPage() {
                 {report.data.problem_continues !== null && (
                   <div className="stat-card">
                     <div className="stat-card__label">Проблема продолжается</div>
-                    <div className="stat-card__value" style={{ fontSize: 16 }}>
+                    <div className="stat-card__value stat-card__value--compact">
                       {report.data.problem_continues ? 'Да' : 'Нет'}
                     </div>
                   </div>

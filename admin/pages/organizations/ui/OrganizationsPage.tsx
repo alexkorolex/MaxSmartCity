@@ -22,7 +22,7 @@ export function OrganizationsPage() {
       <div className="filter-bar">
         <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
-      <div className="card__body" style={{ padding: 0 }}>
+      <div className="card__body card__body--flush">
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
           {filtered.length === 0 ? (
             <EmptyState icon={<InboxIcon />} title="Организаций не найдено" />
@@ -41,11 +41,11 @@ export function OrganizationsPage() {
                 <tbody>
                   {filtered.map((org) => (
                     <tr key={org.id}>
-                      <td className="cell-primary">{org.name}</td>
-                      <td className="cell-secondary">{ORGANIZATION_TYPE_LABELS[org.type]}</td>
-                      <td className="cell-secondary">{org.city ?? '—'}</td>
-                      <td className="cell-muted">{org.code}</td>
-                      <td>
+                      <td className="cell-primary" data-label="Название">{org.name}</td>
+                      <td className="cell-secondary" data-label="Тип">{ORGANIZATION_TYPE_LABELS[org.type]}</td>
+                      <td className="cell-secondary" data-label="Город">{org.city ?? '—'}</td>
+                      <td className="cell-muted" data-label="Код">{org.code}</td>
+                      <td data-label="Статус">
                         <Pill
                           tone={org.enabled ? 'success' : 'neutral'}
                           label={org.enabled ? 'Активна' : 'Отключена'}

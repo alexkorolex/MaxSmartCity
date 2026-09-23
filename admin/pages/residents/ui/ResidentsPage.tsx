@@ -25,7 +25,7 @@ export function ResidentsPage() {
       <div className="filter-bar">
         <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
       </div>
-      <div className="card__body" style={{ padding: 0 }}>
+      <div className="card__body card__body--flush">
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
           {!data || data.length === 0 ? (
             <EmptyState icon={<PersonIcon />} title="Жителей не найдено" />
@@ -46,16 +46,21 @@ export function ResidentsPage() {
                     <tr
                       key={resident.id}
                       className="is-clickable"
+                      role="link"
+                      tabIndex={0}
                       onClick={() => navigate(ROUTES.resident(resident.id))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') navigate(ROUTES.resident(resident.id));
+                      }}
                     >
-                      <td>
+                      <td data-label="Житель">
                         <div className="cell-primary">{resident.display_name ?? 'Без имени'}</div>
                         {resident.username && <div className="cell-muted">@{resident.username}</div>}
                       </td>
-                      <td className="cell-secondary">{resident.house_formatted ?? '—'}</td>
-                      <td className="cell-secondary">{resident.house_city ?? '—'}</td>
-                      <td className="cell-primary">{resident.reports_count}</td>
-                      <td className="cell-muted">{formatCalendarDate(resident.created_at, { year: true })}</td>
+                      <td className="cell-secondary" data-label="Дом">{resident.house_formatted ?? '—'}</td>
+                      <td className="cell-secondary" data-label="Город">{resident.house_city ?? '—'}</td>
+                      <td className="cell-primary" data-label="Заявок">{resident.reports_count}</td>
+                      <td className="cell-muted" data-label="В системе с">{formatCalendarDate(resident.created_at, { year: true })}</td>
                     </tr>
                   ))}
                 </tbody>

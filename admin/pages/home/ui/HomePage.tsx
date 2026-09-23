@@ -3,11 +3,22 @@ import { useOrganizations } from '@/entities/organization';
 import { useResidents } from '@/entities/resident';
 import { isAdmin, roleLabel, useMe } from '@/entities/session';
 import { useStaffList } from '@/entities/staff';
+import { BuildingIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
 
-function StatCard({ label, value, isLoading }: { label: string; value: number | undefined; isLoading: boolean }) {
+import './HomePage.css';
+
+interface StatCardProps {
+  label: string;
+  value: number | undefined;
+  isLoading: boolean;
+  icon: ReactNode;
+}
+
+function StatCard({ label, value, isLoading, icon }: StatCardProps) {
   return (
-    <div className="card stat-card">
-      <div className="stat-card__label">{label}</div>
+    <div className="card stat-card dashboard-stat">
+      <div className="dashboard-stat__icon">{icon}</div>
+      <div className="stat-card__label dashboard-stat__label">{label}</div>
       <div className="stat-card__value">{isLoading ? '—' : (value ?? 0)}</div>
     </div>
   );
@@ -22,29 +33,30 @@ export function HomePage() {
 
   return (
     <>
-      <div className="card">
-        <div className="card__header">
-          <div>
-            <div className="card__title">
+      <section className="dashboard-hero">
+        <div className="dashboard-hero__content">
+          <div className="dashboard-hero__eyebrow">Операционный центр</div>
+          <h1>
               {principal && isAdmin(principal)
                 ? 'Обзор платформы'
                 : `Обзор — ${principal ? roleLabel(principal.roles[0] ?? '') : ''}`}
-            </div>
-            <div className="card__meta">
+          </h1>
+          <p>
               {principal && isAdmin(principal)
                 ? 'Данные по всем городам и организациям'
                 : 'Данные в рамках вашей организации'}
-            </div>
-          </div>
+          </p>
         </div>
-      </div>
+        <div className="dashboard-hero__pulse" aria-hidden="true"><span /></div>
+      </section>
 
       <div className="stat-grid">
-        <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} />
-        <StatCard label="Сотрудники" value={staff.data?.length} isLoading={staff.isLoading} />
-        <StatCard label="Жители" value={residents.data?.length} isLoading={residents.isLoading} />
-        <StatCard label="Инциденты" value={incidents.data?.length} isLoading={incidents.isLoading} />
+        <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} icon={<BuildingIcon />} />
+        <StatCard label="Сотрудники" value={staff.data?.length} isLoading={staff.isLoading} icon={<StaffIcon />} />
+        <StatCard label="Жители" value={residents.data?.length} isLoading={residents.isLoading} icon={<PersonIcon />} />
+        <StatCard label="Инциденты" value={incidents.data?.length} isLoading={incidents.isLoading} icon={<WarningIcon />} />
       </div>
     </>
   );
 }
+import type { ReactNode } from 'react';

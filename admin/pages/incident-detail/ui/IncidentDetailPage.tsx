@@ -7,6 +7,8 @@ import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, CommentIcon, EmptyState, Pill } from '@/shared/ui';
 
+import './IncidentDetailPage.css';
+
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
@@ -25,7 +27,7 @@ export function IncidentDetailPage() {
 
   return (
     <>
-      <div>
+      <div className="page-back">
         <Link to={ROUTES.incidents} className="btn btn--ghost btn--small">
           <ArrowLeftIcon width={16} height={16} />
           К списку инцидентов
@@ -55,13 +57,9 @@ export function IncidentDetailPage() {
           <div className="card__meta">Внутренние заметки и публичные комментарии по инциденту</div>
         </div>
         <div className="card__body">
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}
-          >
+          <form onSubmit={handleSubmit} className="comment-form">
             <input
               className="field"
-              style={{ flex: 1 }}
               placeholder="Добавить комментарий…"
               value={text}
               onChange={(event) => setText(event.target.value)}
@@ -75,17 +73,17 @@ export function IncidentDetailPage() {
             {!comments.data || comments.data.length === 0 ? (
               <EmptyState icon={<CommentIcon />} title="Комментариев пока нет" />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="comment-list">
                 {comments.data.map((comment) => (
-                  <div key={comment.id} style={{ borderBottom: '1px solid var(--border-soft)', paddingBottom: 'var(--space-3)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+                  <article key={comment.id} className="comment-item">
+                    <div className="comment-item__header">
                       <span className="cell-primary">{comment.author_display_name}</span>
                       <span className="cell-muted">{formatDateTime(comment.created_at)}</span>
                     </div>
-                    <div className="cell-secondary" style={{ marginTop: 4 }}>
+                    <div className="cell-secondary comment-item__text">
                       {comment.text}
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}

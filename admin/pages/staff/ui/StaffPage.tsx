@@ -37,8 +37,9 @@ export function StaffPage() {
           }}
         />
         <div className="filter-bar__field">
-          <span className="filter-bar__label">Организация</span>
+          <label className="filter-bar__label" htmlFor="staff-organization">Организация</label>
           <select
+            id="staff-organization"
             className="field"
             value={organizationId}
             onChange={(event) => setOrganizationId(event.target.value)}
@@ -52,7 +53,7 @@ export function StaffPage() {
           </select>
         </div>
       </div>
-      <div className="card__body" style={{ padding: 0 }}>
+      <div className="card__body card__body--flush">
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
           {!data || data.length === 0 ? (
             <EmptyState icon={<StaffIcon />} title="Сотрудников не найдено" />
@@ -71,16 +72,16 @@ export function StaffPage() {
                 <tbody>
                   {data.map((member) => (
                     <tr key={member.id}>
-                      <td>
+                      <td data-label="Сотрудник">
                         <div className="cell-primary">{member.display_name}</div>
                         <div className="cell-muted">{member.login}</div>
                       </td>
-                      <td className="cell-secondary">
+                      <td className="cell-secondary" data-label="Роль">
                         {member.role_code ? roleLabel(member.role_code) : '—'}
                       </td>
-                      <td className="cell-secondary">{member.organization_name ?? '—'}</td>
-                      <td className="cell-secondary">{member.organization_city ?? '—'}</td>
-                      <td>
+                      <td className="cell-secondary" data-label="Организация">{member.organization_name ?? '—'}</td>
+                      <td className="cell-secondary" data-label="Город">{member.organization_city ?? '—'}</td>
+                      <td data-label="Статус">
                         <Pill
                           tone={member.is_active ? 'success' : 'neutral'}
                           label={member.is_active ? 'Активен' : 'Отключён'}

@@ -153,3 +153,19 @@ export function MoonIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function MenuIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+    </Icon>
+  );
+}

@@ -3,7 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { isAdmin, roleLabel, useMe, clearSession } from '@/entities/session';
 import { ThemeToggle } from '@/features/toggle-theme';
 import { ROUTES } from '@/shared/routes';
-import { LogOutIcon } from '@/shared/ui';
+import { LogOutIcon, MenuIcon } from '@/shared/ui';
+
+import './Topbar.css';
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: ROUTES.organizations, title: 'Управы и жилищники', subtitle: 'Организации по городам' },
@@ -19,7 +21,12 @@ function resolveTitle(pathname: string): { title: string; subtitle: string } {
   return { title: 'Обзор', subtitle: 'Общая сводка по платформе' };
 }
 
-export function Topbar() {
+interface TopbarProps {
+  isMenuOpen: boolean;
+  onMenuOpen: () => void;
+}
+
+export function Topbar({ isMenuOpen, onMenuOpen }: TopbarProps) {
   const { pathname } = useLocation();
   const { title, subtitle } = resolveTitle(pathname);
   const { data: principal } = useMe();
@@ -28,7 +35,12 @@ export function Topbar() {
 
   return (
     <header className="admin-topbar">
-      <div>
+      <button type="button" className="admin-topbar__menu btn btn--ghost btn--icon"
+        onClick={onMenuOpen} aria-label="Открыть меню" aria-controls="admin-navigation"
+        aria-expanded={isMenuOpen}>
+        <MenuIcon />
+      </button>
+      <div className="admin-topbar__heading">
         <div className="admin-topbar__title">{title}</div>
         <div className="admin-topbar__subtitle">{subtitle}</div>
       </div>
@@ -37,7 +49,7 @@ export function Topbar() {
         {primaryRole && <span className="admin-topbar__role">{roleLabel(primaryRole)}</span>}
         <button
           type="button"
-          className="btn btn--ghost btn--small"
+          className="btn btn--ghost btn--small btn--icon"
           onClick={() => clearSession()}
           aria-label="Выйти"
           title="Выйти"

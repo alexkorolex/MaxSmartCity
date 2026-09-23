@@ -4,6 +4,8 @@ import { useStaffLogin } from '@/entities/session';
 import { isApiError } from '@/shared/api';
 import { CityIcon } from '@/shared/ui';
 
+import './StaffLoginForm.css';
+
 function errorMessage(error: unknown): string {
   if (isApiError(error)) {
     if (error.status === 401) return 'Неверный логин или пароль';
@@ -30,8 +32,9 @@ export function StaffLoginForm() {
         <span className="auth-card__mark">
           <CityIcon width={28} height={28} />
         </span>
+        <div className="auth-card__eyebrow">Панель управления</div>
         <h1>Smart City</h1>
-        <p>Админ-панель для управ, жилищников и администраторов платформы</p>
+        <p>Единое рабочее пространство для городских служб и администраторов</p>
         <form className="auth-form" onSubmit={handleSubmit}>
           <div>
             <label className="field-label" htmlFor="username">
@@ -45,6 +48,7 @@ export function StaffLoginForm() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoFocus
+              placeholder="Введите логин"
             />
           </div>
           <div>
@@ -58,6 +62,7 @@ export function StaffLoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              placeholder="Введите пароль"
             />
           </div>
           {login.isError && <div className="auth-error">{errorMessage(login.error)}</div>}

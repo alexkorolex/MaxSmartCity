@@ -11,6 +11,8 @@ import { isAdmin, useMe } from '@/entities/session';
 import { formatDateTime } from '@/shared/lib';
 import { AsyncState, EmptyState, NewsIcon, Pill } from '@/shared/ui';
 
+import './NewsPage.css';
+
 function NewsRowActions({ post, canManage }: { post: NewsPost; canManage: boolean }) {
   const updateNews = useUpdateNews(post.id);
   const deleteNews = useDeleteNews();
@@ -25,7 +27,7 @@ function NewsRowActions({ post, canManage }: { post: NewsPost; canManage: boolea
   }
 
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+    <div className="news-actions">
       <button type="button" className="btn btn--ghost btn--small" onClick={togglePublish} disabled={updateNews.isPending}>
         {post.is_published ? 'Снять с публикации' : 'Опубликовать'}
       </button>
@@ -79,7 +81,7 @@ export function NewsPage() {
           <div className="card__title">Новая публикация</div>
         </div>
         <div className="card__body">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <form onSubmit={handleSubmit} className="news-form">
             <div>
               <label className="field-label" htmlFor="news-title">
                 Заголовок
@@ -87,7 +89,7 @@ export function NewsPage() {
               <input
                 id="news-title"
                 className="field"
-                style={{ width: '100%' }}
+                placeholder="Короткий и понятный заголовок"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
               />
@@ -99,12 +101,12 @@ export function NewsPage() {
               <textarea
                 id="news-body"
                 className="field"
-                style={{ width: '100%' }}
+                placeholder="Расскажите жителям о событии или изменении"
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
               />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 13 }}>
+            <label className="checkbox-field">
               <input
                 type="checkbox"
                 checked={publishNow}
@@ -112,7 +114,7 @@ export function NewsPage() {
               />
               Опубликовать сразу
             </label>
-            <div>
+            <div className="news-form__actions">
               <button type="submit" className="btn" disabled={createNews.isPending || !title.trim() || !body.trim()}>
                 {createNews.isPending ? 'Публикуем…' : 'Сохранить'}
               </button>
@@ -125,7 +127,7 @@ export function NewsPage() {
         <div className="card__header">
           <div className="card__title">Публикации</div>
         </div>
-        <div className="card__body" style={{ padding: 0 }}>
+        <div className="card__body card__body--flush">
           <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
             {!data || data.length === 0 ? (
               <EmptyState icon={<NewsIcon />} title="Публикаций пока нет" />
@@ -147,20 +149,20 @@ export function NewsPage() {
                         (isAdmin(principal) || post.author_operator_id === principal?.actor_id);
                       return (
                         <tr key={post.id}>
-                          <td>
+                          <td data-label="Заголовок">
                             <div className="cell-primary">{post.title}</div>
                             <div className="cell-muted">{post.body.slice(0, 120)}</div>
                           </td>
-                          <td>
+                          <td data-label="Статус">
                             <Pill
                               tone={post.is_published ? 'success' : 'neutral'}
                               label={post.is_published ? 'Опубликовано' : 'Черновик'}
                             />
                           </td>
-                          <td className="cell-muted">
+                          <td className="cell-muted" data-label="Опубликовано">
                             {post.published_at ? formatDateTime(post.published_at) : '—'}
                           </td>
-                          <td>
+                          <td data-label="Действия">
                             <NewsRowActions post={post} canManage={canManage} />
                           </td>
                         </tr>

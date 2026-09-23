@@ -9,7 +9,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="btn btn--ghost btn--small"
+      className="btn btn--ghost btn--small btn--icon"
       onClick={() => setPreference(next)}
       aria-label={resolvedTheme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
       title={resolvedTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}

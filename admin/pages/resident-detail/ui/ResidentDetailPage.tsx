@@ -20,7 +20,7 @@ export function ResidentDetailPage() {
 
   return (
     <>
-      <div>
+      <div className="page-back">
         <Link to={ROUTES.residents} className="btn btn--ghost btn--small">
           <ArrowLeftIcon width={16} height={16} />
           К списку жителей
@@ -42,13 +42,13 @@ export function ResidentDetailPage() {
               <div className="stat-grid">
                 <div className="stat-card">
                   <div className="stat-card__label">Дом</div>
-                  <div className="stat-card__value" style={{ fontSize: 16 }}>
+                  <div className="stat-card__value stat-card__value--compact">
                     {resident.data.house_formatted ?? '—'}
                   </div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-card__label">Город</div>
-                  <div className="stat-card__value" style={{ fontSize: 16 }}>
+                  <div className="stat-card__value stat-card__value--compact">
                     {resident.data.house_city ?? '—'}
                   </div>
                 </div>
@@ -66,7 +66,7 @@ export function ResidentDetailPage() {
         <div className="card__header">
           <div className="card__title">Заявки жителя</div>
         </div>
-        <div className="card__body" style={{ padding: 0 }}>
+        <div className="card__body card__body--flush">
           <AsyncState isLoading={reports.isLoading} error={reports.error} onRetry={() => void reports.refetch()}>
             {!reports.data || reports.data.length === 0 ? (
               <EmptyState icon={<InboxIcon />} title="Заявок пока нет" />
@@ -86,16 +86,21 @@ export function ResidentDetailPage() {
                       <tr
                         key={report.id}
                         className="is-clickable"
+                        role="link"
+                        tabIndex={0}
                         onClick={() => navigate(ROUTES.report(report.id))}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') navigate(ROUTES.report(report.id));
+                        }}
                       >
-                        <td className="cell-primary">{report.text ?? '—'}</td>
-                        <td>
+                        <td className="cell-primary" data-label="Текст">{report.text ?? '—'}</td>
+                        <td data-label="Статус">
                           <Pill tone={REPORT_STATUS_TONES[report.status]} label={REPORT_STATUS_LABELS[report.status]} />
                         </td>
-                        <td>
+                        <td data-label="Приоритет">
                           <Pill tone={PRIORITY_TONES[report.urgency]} label={PRIORITY_LABELS[report.urgency]} />
                         </td>
-                        <td className="cell-muted">{formatDateTime(report.received_at)}</td>
+                        <td className="cell-muted" data-label="Получена">{formatDateTime(report.received_at)}</td>
                       </tr>
                     ))}
                   </tbody>

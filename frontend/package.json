@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "TZ=UTC node --experimental-strip-types --test tests/date.test.ts",
+    "test": "TZ=UTC node --experimental-strip-types --test tests/*.test.ts",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint ."
   },

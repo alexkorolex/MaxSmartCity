@@ -12,7 +12,6 @@ export function useHouseSelection(initialHouseId?: string | null) {
   );
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [selectedHouseId, setSelectedHouseId] = useState<string | null>(initialHouseId ?? null);
 
   useEffect(() => {
     if (initialCity && selectedCity === null) setSelectedCity(initialCity);
@@ -28,9 +27,8 @@ export function useHouseSelection(initialHouseId?: string | null) {
     [houses, selectedCity],
   );
 
-  const selectCity = (city: string) => {
+  const selectCity = (city: string | null) => {
     setSelectedCity(city);
-    setSelectedHouseId(null);
   };
 
   return {
@@ -39,7 +37,5 @@ export function useHouseSelection(initialHouseId?: string | null) {
     selectedCity,
     selectCity,
     housesInCity,
-    selectedHouseId,
-    setSelectedHouseId,
   };
 }

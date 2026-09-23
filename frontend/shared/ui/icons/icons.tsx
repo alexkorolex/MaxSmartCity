@@ -25,6 +25,15 @@ export function PlusIcon(props: IconProps) {
   return <Icon {...props}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></Icon>;
 }
 
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 4 4" strokeLinecap="round" />
+    </Icon>
+  );
+}
+
 export function ActivityIcon(props: IconProps) {
   return (
     <Icon {...props}>

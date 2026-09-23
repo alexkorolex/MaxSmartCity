@@ -1,0 +1,259 @@
+{
+  "uid": "maxsmartcity-app-overview",
+  "title": "Max Smart City — App Overview",
+  "description": "One-page health view of the backend: request rate/errors/latency (Prometheus), recent logs (Loki), and recent traces (Tempo).",
+  "tags": ["maxsmartcity"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "app",
+        "type": "constant",
+        "label": "App",
+        "query": "maxsmartcity-backend",
+        "current": { "text": "maxsmartcity-backend", "value": "maxsmartcity-backend" },
+        "hide": 2
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Errors in logs",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "red",
+        "expr": "{compose_service=\"backend\", level=\"error\"}"
+      }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 100, "collapsed": false },
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Request rate",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(litestar_requests_total{app_name=\"$app\"}[5m]))",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area", "colorMode": "value" }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Error rate (5xx)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(100 * sum(rate(litestar_requests_total{app_name=\"$app\", status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(litestar_requests_total{app_name=\"$app\"}[5m])), 1e-9)) or vector(0)",
+          "legendFormat": "5xx %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area", "colorMode": "value" }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "p95 latency",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(litestar_request_duration_seconds_bucket{app_name=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area", "colorMode": "value" }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Requests in progress",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(litestar_requests_in_progress{app_name=\"$app\"})",
+          "legendFormat": "in-flight",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "none", "colorMode": "value" }
+    },
+
+    { "type": "row", "title": "Traffic & latency", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "id": 101, "collapsed": false },
+
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Request rate by status code",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(litestar_requests_total{app_name=\"$app\"}[5m])) by (status_code)",
+          "legendFormat": "{{status_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Latency percentiles",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(litestar_request_duration_seconds_bucket{app_name=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(litestar_request_duration_seconds_bucket{app_name=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(litestar_request_duration_seconds_bucket{app_name=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Request rate by endpoint (top 10)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "topk(10, sum(rate(litestar_requests_total{app_name=\"$app\"}[5m])) by (path))",
+          "legendFormat": "{{path}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } }
+    },
+
+    { "type": "row", "title": "Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }, "id": 102, "collapsed": false },
+
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Log volume by level",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({compose_service=\"backend\"}[1m])) by (level)",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 21,
+      "type": "logs",
+      "title": "Recent error logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "expr": "{compose_service=\"backend\", level=\"error\"}", "refId": "A" }
+      ],
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+    },
+    {
+      "id": 22,
+      "type": "logs",
+      "title": "Live backend logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 37 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "expr": "{compose_service=\"backend\"}", "refId": "A" }
+      ],
+      "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true }
+    },
+
+    { "type": "row", "title": "Traces", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 }, "id": 103, "collapsed": false },
+
+    {
+      "id": 30,
+      "type": "table",
+      "title": "Recent traces",
+      "description": "Click a trace ID to open the full trace view.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 46 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"maxsmartcity-backend\" }",
+          "limit": 50,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

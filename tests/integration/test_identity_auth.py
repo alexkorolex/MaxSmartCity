@@ -162,7 +162,9 @@ def test_resident_auth_and_token_flow(api_client: TestClient) -> None:
     )
     assert admin_only.status_code == 403
 
-    assert api_client.get("/geo/houses").status_code == 401
+    # /geo/houses is intentionally public (unlike /reports and /incidents below): the
+    # resident house-picker (and admin-panel city filters) need it before login.
+    assert api_client.get("/geo/houses").status_code == 200
     assert api_client.get("/reports").status_code == 401
     assert api_client.get("/incidents").status_code == 401
 

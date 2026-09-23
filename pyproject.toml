@@ -22,6 +22,7 @@ dependencies = [
     "sqlalchemy>=2.0.54",
     "aiohttp>=3.14.3",
     "aioboto3>=15.5.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.44.0",
 ]
 
 [dependency-groups]

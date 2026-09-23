@@ -19,6 +19,7 @@ from src.max_bot.controllers import MaxWebhookController
 from src.max_bot.startup import auto_subscribe_max_webhook
 from src.observability.logs import structlog_plugin
 from src.observability.prometheus import prometheus_config
+from src.observability.tracing import TracingSettings, configure_tracing
 from src.settings import CorsSettings
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +31,10 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
     settings = DatabaseSettings(database_url) if database_url else DatabaseSettings.from_environment()
     cache_settings = CacheSettings(redis_url) if redis_url else CacheSettings.from_environment()
     cors_settings = CorsSettings.from_environment()
+    tracing_config = configure_tracing(TracingSettings.from_environment())
+    middleware = [prometheus_config.middleware]
+    if tracing_config is not None:
+        middleware.append(tracing_config.middleware)
     return Litestar(
         route_handlers=[PrometheusController, MaxWebhookController],
         cors_config=CORSConfig(
@@ -56,5 +61,5 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
                 SwaggerRenderPlugin(path="/schema"),
             ],
         ),
-        middleware=[prometheus_config.middleware],
+        middleware=middleware,
     )

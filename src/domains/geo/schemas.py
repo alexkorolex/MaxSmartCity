@@ -55,16 +55,6 @@ class HouseReadDTO(SQLAlchemyDTO[House]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig()
 
 
-@dataclass(slots=True)
-class HouseOption:
-    """Compact house contract used by resident report forms."""
-
-    house_id: UUID
-    address: str
-    city: str | None
-    district: str | None
-
-
 class AffectedObjectCreateDTO(SQLAlchemyDTO[AffectedObject]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig(
         exclude={"created_at", "id", "updated_at"}, forbid_unknown_fields=True

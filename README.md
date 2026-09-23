@@ -91,7 +91,9 @@ docker compose run --rm ingest
 `DEMO`, `retrieved_at` с часовым поясом, опционально `url`) и массивами `houses`,
 `organizations`, `links`. Дом: `key`, `city`, `street`, `house_number`, опционально
 `formatted`, `external_id`, пара `latitude`/`longitude`. Организация: `key`, `name`,
-`type`, опционально `external_id`. Связь: `house_key`, `organization_key`,
+`type`, опционально `external_id`, `inn`, `ogrn`, массив `phones`, `email`,
+`website` и объект `provenance`. Телефоны приводятся к международному формату,
+email — к нижнему регистру. Связь: `house_key`, `organization_key`,
 `relationship`. Пример — файлы выше. Ключи стабильны **в пределах источника**:
 повторный импорт обновляет запись с тем же ключом и сохраняет её UUID. Новый ключ
 дома с тем же точным адресом сопоставляется с уже существующим домом только при
@@ -179,10 +181,13 @@ FROM geo.house h JOIN geo.address a ON a.id = h.address_id
 WHERE a.city = 'Брянск';
 
 SELECT o.id AS organization_id, o.name, o.type, ho.relationship,
+       os.phones, os.email, os.website,
        s.code AS source, s.data_kind, ho.retrieved_at
 FROM ingestion.house_organization ho
 JOIN ingestion.organization o ON o.id = ho.organization_id
 JOIN ingestion.source s ON s.id = ho.source_id
+JOIN ingestion.organization_source os
+  ON os.source_id = ho.source_id AND os.organization_id = ho.organization_id
 WHERE ho.house_id = :house_id;
 ```
 

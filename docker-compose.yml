@@ -33,6 +33,62 @@ services:
         timeout: 5s
         retries: 5
 
+    minio:
+      image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+      command: server /data --console-address ":9001"
+      environment:
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      volumes:
+        - minio_data:/data
+      ports:
+        - ${MINIO_PORT}:9000
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 512m
+      mem_reservation: 256m
+
+      healthcheck:
+        test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
+
+    minio-init:
+      image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
+      depends_on:
+        minio:
+          condition: service_healthy
+      entrypoint: sh
+      command:
+        - -c
+        - |
+          mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+          mc mb --ignore-existing local/${S3_BUCKET}
+      environment:
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        # `mc` writes its alias config to $HOME/.mc, which needs to be writable even
+        # though the rest of the (otherwise read-only) filesystem doesn't.
+        - /tmp
+        - /root/.mc
+      pids_limit: 50
+      mem_limit: 128m
+      restart: "no"
+
     migrate:
       build:
         context: .
@@ -104,6 +160,11 @@ services:
         MAX_API_BASE_URL: ${MAX_API_BASE_URL}
         MAX_WEBHOOK_PUBLIC_URL: ${MAX_WEBHOOK_PUBLIC_URL:-}
         WEB_APP_LOGIN_URL: ${WEB_APP_LOGIN_URL}
+        S3_BUCKET: ${S3_BUCKET}
+        S3_INTERNAL_ENDPOINT_URL: ${S3_INTERNAL_ENDPOINT_URL}
+        S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL}
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       ports:
         - ${APP_PORT}:8000
       depends_on:
@@ -117,6 +178,8 @@ services:
           condition: service_completed_successfully
         keycloak:
           condition: service_healthy
+        minio-init:
+          condition: service_completed_successfully
       security_opt:
         - no-new-privileges:true
       cap_drop:
@@ -263,3 +326,4 @@ volumes:
   keycloak_data:
   loki_data:
   grafana_data:
+  minio_data:

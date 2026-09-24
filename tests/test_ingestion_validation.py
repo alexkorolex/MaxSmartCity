@@ -168,6 +168,62 @@ def test_gis_zkh_fields_and_deterministic_address_aliases_are_validated() -> Non
         )
 
 
+def test_organization_contacts_are_normalized_and_deduplicated() -> None:
+    organization = validate_organization(
+        {
+            "key": "dom-plus",
+            "name": "ООО ДОМ-ПЛЮС",
+            "type": "MANAGING_COMPANY",
+            "phones": ["+7 (962) 140-30-18", "8 962 140 30 18", "+7 (961) 107-07-77"],
+            "email": " Plus.Dom@YANDEX.RU ",
+            "website": " https://domplus.bsr-profi.ru ",
+        }
+    )
+    assert organization["phones"] == ["+79621403018", "+79611070777"]
+    assert organization["email"] == "plus.dom@yandex.ru"
+    assert organization["website"] == "https://domplus.bsr-profi.ru"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("phones", "+79621403018"),
+        ("phones", ["123"]),
+        ("phones", [123]),
+        ("phones", [f"+7{number:010d}" for number in range(11)]),
+        ("email", "invalid-address"),
+        ("website", "ftp://example.test"),
+        ("website", "https://user:password@example.test"),
+        ("website", "https://example test"),
+    ],
+)
+def test_invalid_organization_contacts_are_rejected(field: str, value: object) -> None:
+    with pytest.raises(ValueError):
+        validate_organization(
+            {
+                "key": "org",
+                "name": "УК",
+                "type": "MANAGING_COMPANY",
+                field: value,
+            }
+        )
+
+
+def test_bryansk_contact_snapshot_is_valid() -> None:
+    path = Path("ingestion/data/bryansk_cian.json")
+    content, _ = read_dataset(path)
+    organization = validate_organization(content["organizations"][0])
+    assert organization["phones"] == ["+79621403018", "+79611070777", "+79532847826"]
+    assert organization["email"] == "plus.dom@yandex.ru"
+    assert organization["website"] == "https://domplus.bsr-profi.ru"
+
+
+def test_organization_contact_columns_match_the_migration() -> None:
+    assert organization_source.c.phones.nullable is False
+    assert str(organization_source.c.email.type) == "VARCHAR(320)"
+    assert organization_source.c.website.nullable is True
+
+
 def test_gis_zkh_partial_indexes_match_the_migration() -> None:
     indexes: dict[str, str] = {
         str(index.name): str(CreateIndex(index).compile(dialect=postgresql.dialect()))

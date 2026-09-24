@@ -456,14 +456,22 @@ async def test_provenance_external_ids_and_coordinates_are_readable_by_backend(
             "longitude": 34.37,
         }
     )
-    dataset["organizations"][0]["external_id"] = "external-org-1"
+    dataset["organizations"][0].update(
+        {
+            "external_id": "external-org-1",
+            "phones": ["+7 (962) 140-30-18", "+7 (961) 107-07-77"],
+            "email": "CONTACT@EXAMPLE.TEST",
+            "website": "https://example.test/organization",
+        }
+    )
     result = await import_file(save(tmp_path / "pilot.json", dataset), database_url)
     assert result["error_count"] == 0
     house = await house_row(database_url, code)
     assert house[5:] == ("external-house-1", 53.21, 34.37)
     assert await rows(
         database_url,
-        "SELECT s.data_kind,s.url,hs.external_id,os.external_id,ho.relationship,"
+        "SELECT s.data_kind,s.url,hs.external_id,os.external_id,os.phones,os.email,os.website,"
+        "ho.relationship,"
         "hs.retrieved_at=ho.retrieved_at "
         "FROM ingestion.house_organization ho "
         "JOIN ingestion.source s ON s.id=ho.source_id "
@@ -477,10 +485,39 @@ async def test_provenance_external_ids_and_coordinates_are_readable_by_backend(
             "https://example.test/catalog/house-1",
             "external-house-1",
             "external-org-1",
+            ["+79621403018", "+79611070777"],
+            "contact@example.test",
+            "https://example.test/organization",
             "MANAGES",
             True,
         )
     ]
+
+
+@pytest.mark.anyio
+async def test_contact_data_survives_partial_repeat_import(database_url: str, tmp_path: Path) -> None:
+    code = f"contacts-{uuid4()}"
+    dataset = make_dataset(code, f"Город-{uuid4().hex}")
+    dataset["organizations"][0].update(
+        {
+            "phones": ["+7 (962) 140-30-18"],
+            "email": "contact@example.test",
+            "website": "https://example.test/organization",
+        }
+    )
+    path = save(tmp_path / "contacts.json", dataset)
+    await import_file(path, database_url)
+    dataset["source"]["retrieved_at"] = "2026-09-23T12:00:00+03:00"
+    dataset["organizations"][0].pop("phones")
+    dataset["organizations"][0].pop("email")
+    dataset["organizations"][0].pop("website")
+    await import_file(save(path, dataset), database_url)
+    assert await rows(
+        database_url,
+        "SELECT os.phones,os.email,os.website FROM ingestion.organization_source os "
+        "JOIN ingestion.source s ON s.id=os.source_id WHERE s.code=:code",
+        code=code,
+    ) == [(["+79621403018"], "contact@example.test", "https://example.test/organization")]
 
 
 @pytest.mark.anyio

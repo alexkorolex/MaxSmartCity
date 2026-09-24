@@ -4,7 +4,7 @@
     "code": "cian-bryansk-pilot",
     "url": "https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/",
     "data_kind": "REAL",
-    "retrieved_at": "2026-09-22T00:00:00+03:00"
+    "retrieved_at": "2026-09-23T22:33:52+03:00"
   },
   "houses": [
     {
@@ -20,7 +20,23 @@
     {
       "key": "dom-plus",
       "name": "ООО ДОМ-ПЛЮС",
-      "type": "MANAGING_COMPANY"
+      "type": "MANAGING_COMPANY",
+      "external_id": "1043244013625",
+      "inn": "3250056308",
+      "ogrn": "1043244013625",
+      "phones": [
+        "+7 (962) 140-30-18",
+        "+7 (961) 107-07-77",
+        "+7 (953) 284-78-26"
+      ],
+      "email": "plus.dom@yandex.ru",
+      "website": "https://domplus.bsr-profi.ru",
+      "provenance": {
+        "contact_source": "https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/",
+        "organization_source": "https://jkhdom.com/org/bryanskaya-oblast/bryansk/3928592?CHouse_sort=year",
+        "suggested_source": "https://mingkh.ru/bryanskaya-oblast/bryansk/1043244013625/",
+        "retrieved_at": "2026-09-23T22:33:52+03:00"
+      }
     }
   ],
   "links": [

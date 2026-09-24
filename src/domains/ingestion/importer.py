@@ -6,6 +6,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -77,6 +78,57 @@ def optional_string(row: dict[str, Any], field: str, maximum: int) -> str | None
     if value is None:
         return None
     return required_string(row, field, maximum)
+
+
+def _normalize_phone(value: str) -> str:
+    normalized = re.sub(r"[\s()\-.]", "", value)
+    if normalized.startswith("8") and len(normalized) == 11:
+        normalized = "+7" + normalized[1:]
+    if not re.fullmatch(r"\+[1-9]\d{9,14}", normalized):
+        raise ValueError("phone must be an international phone number")
+    return normalized
+
+
+def optional_phones(row: dict[str, Any]) -> list[str]:
+    value = row.get("phones")
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > 10:
+        raise ValueError("phones must be an array of at most 10 phone numbers")
+    normalized: list[str] = []
+    for phone in value:
+        if not isinstance(phone, str):
+            raise ValueError("phone must be a string")
+        item = _normalize_phone(phone)
+        if item not in normalized:
+            normalized.append(item)
+    return normalized
+
+
+def optional_email(row: dict[str, Any]) -> str | None:
+    value = optional_string(row, "email", 320)
+    if value is None:
+        return None
+    value = value.casefold()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+        raise ValueError("email must be a valid address")
+    return value
+
+
+def optional_website(row: dict[str, Any]) -> str | None:
+    value = optional_string(row, "website", 2048)
+    if value is None:
+        return None
+    parsed = urlsplit(value)
+    if (
+        any(character.isspace() for character in value)
+        or parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+    ):
+        raise ValueError("website must be an HTTP(S) URL without credentials")
+    return value
 
 
 def read_dataset(path: Path) -> tuple[dict[str, Any], str]:
@@ -158,6 +210,9 @@ def validate_organization(row: object) -> dict[str, Any]:
         "external_id": optional_string(row, "external_id", 255),
         "inn": optional_string(row, "inn", 12),
         "ogrn": optional_string(row, "ogrn", 15),
+        "phones": optional_phones(row),
+        "email": optional_email(row),
+        "website": optional_website(row),
         "provenance": optional_object(row, "provenance"),
     }
     if result["inn"] is not None and (not result["inn"].isdigit() or len(result["inn"]) not in (10, 12)):
@@ -449,13 +504,18 @@ async def _organization(
     await connection.execute(
         text(
             "INSERT INTO ingestion.organization_source"
-            "(source_id,source_key,organization_id,retrieved_at,external_id,inn,ogrn,provenance) "
+            "(source_id,source_key,organization_id,retrieved_at,external_id,inn,ogrn,phones,email,"
+            "website,provenance) "
             "VALUES (:source_id,:key,:organization_id,:retrieved_at,:external_id,:inn,:ogrn,"
-            "CAST(:provenance AS jsonb)) "
+            "CAST(:phones AS jsonb),:email,:website,CAST(:provenance AS jsonb)) "
             "ON CONFLICT(source_id,source_key) DO UPDATE SET retrieved_at=excluded.retrieved_at, "
             "external_id=COALESCE(excluded.external_id,ingestion.organization_source.external_id),"
             "inn=COALESCE(excluded.inn,ingestion.organization_source.inn),"
             "ogrn=COALESCE(excluded.ogrn,ingestion.organization_source.ogrn),"
+            "phones=CASE WHEN excluded.phones='[]'::jsonb THEN ingestion.organization_source.phones "
+            "ELSE excluded.phones END,"
+            "email=COALESCE(excluded.email,ingestion.organization_source.email),"
+            "website=COALESCE(excluded.website,ingestion.organization_source.website),"
             "provenance=ingestion.organization_source.provenance || excluded.provenance"
         ),
         {
@@ -466,6 +526,9 @@ async def _organization(
             "external_id": row["external_id"],
             "inn": row["inn"],
             "ogrn": row["ogrn"],
+            "phones": json.dumps(row["phones"], ensure_ascii=False),
+            "email": row["email"],
+            "website": row["website"],
             "provenance": json.dumps(row["provenance"], ensure_ascii=False),
         },
     )

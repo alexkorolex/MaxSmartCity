@@ -18,6 +18,7 @@ from src.domains.geo.schemas import (
     AddressReadDTO,
     AddressUpdateDTO,
     AssignHouseManagementCommand,
+    HouseInfo,
     HouseManagementSummary,
     HouseSummary,
     TerminateHouseManagementCommand,
@@ -28,6 +29,9 @@ from src.domains.geo.services import (
     HouseManagementNotFoundError,
     HouseManagementService,
     house_management_summary_statement,
+    load_house_reference,
+    load_managing_organizations,
+    load_platform_manager,
     to_house_management_summary,
 )
 from src.domains.identity.admin_scope import resolve_organization_scope
@@ -179,6 +183,28 @@ class HouseController(Controller):
             if row is None:
                 raise NotFoundException(f"House {item_id} was not found")
             return _to_house_summary(row)
+
+    @get("/{item_id:uuid}/info", name="geo:House:info")
+    async def get_info(self, item_id: FromPath[UUID], db_session: NamedDependency[AsyncSession]) -> HouseInfo:
+        """Everything a resident wants to know about the house they picked: who manages
+        it and how to reach them - from open sources (with provenance) and, when the
+        УК/ТСЖ is connected to Smart City, that it receives requests directly."""
+        with database_action("get", "geo.House"):
+            row = (await db_session.execute(_house_summary_statement().where(House.id == item_id))).first()
+            if row is None:
+                raise NotFoundException(f"House {item_id} was not found")
+            platform_manager = await load_platform_manager(db_session, item_id)
+            management_method, official_status = await load_house_reference(db_session, item_id)
+            managing_organizations = await load_managing_organizations(
+                db_session, item_id, platform_inn=platform_manager.inn if platform_manager else None
+            )
+            return HouseInfo(
+                house=_to_house_summary(row),
+                management_method=management_method,
+                official_status=official_status,
+                platform_manager=platform_manager,
+                managing_organizations=managing_organizations,
+            )
 
     @get("/{item_id:uuid}/management", name="geo:House:management")
     async def get_management(

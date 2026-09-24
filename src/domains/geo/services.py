@@ -2,7 +2,7 @@ from typing import Any
 from uuid import UUID
 
 from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
-from sqlalchemy import Row, Select, select
+from sqlalchemy import Row, Select, and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.models import utc_now
@@ -16,13 +16,17 @@ from src.domains.geo.repositories import (
 )
 from src.domains.geo.schemas import (
     AssignHouseManagementCommand,
+    HouseDataSource,
     HouseManagementSummary,
+    HouseManagingOrganization,
+    HousePlatformManager,
     TerminateHouseManagementCommand,
 )
 from src.domains.identity.enums import OrganizationRegistrationStatus, OrganizationType
 from src.domains.identity.models import Organization
 from src.domains.identity.validation import HOUSING_ORGANIZATION_TYPES
 from src.domains.infrastructure.models import OutboxEvent
+from src.domains.ingestion import models as ingestion
 from src.domains.notifications.dispatcher import OrganizationMessage, enqueue_organization_notification
 
 
@@ -233,3 +237,136 @@ class HouseManagementService(SQLAlchemyAsyncRepositoryService[HouseManagement]):
         )
         await session.flush()
         return management
+
+
+MANAGES_RELATIONSHIP = "MANAGES"
+
+
+async def load_platform_manager(session: AsyncSession, house_id: UUID) -> HousePlatformManager | None:
+    row = (
+        await session.execute(
+            select(
+                Organization.id,
+                Organization.name,
+                Organization.type,
+                Organization.inn,
+                HouseManagement.effective_from,
+            )
+            .join(HouseManagement, HouseManagement.organization_id == Organization.id)
+            .where(HouseManagement.house_id == house_id, HouseManagement.is_active.is_(True))
+        )
+    ).first()
+    if row is None:
+        return None
+    return HousePlatformManager(
+        organization_id=row.id,
+        name=row.name,
+        type=row.type.value,
+        inn=row.inn,
+        effective_from=row.effective_from,
+    )
+
+
+async def load_house_reference(session: AsyncSession, house_id: UUID) -> tuple[str | None, str | None]:
+    """``(management_method, official_status)`` from the freshest ingested source."""
+    rows = (
+        await session.execute(
+            select(ingestion.house_source.c.management_method, ingestion.house_source.c.official_status)
+            .where(ingestion.house_source.c.house_id == house_id)
+            .order_by(ingestion.house_source.c.retrieved_at.desc())
+        )
+    ).all()
+    method = next((row.management_method for row in rows if row.management_method), None)
+    status = next((row.official_status for row in rows if row.official_status), None)
+    return method, status
+
+
+async def load_managing_organizations(
+    session: AsyncSession, house_id: UUID, *, platform_inn: str | None
+) -> list[HouseManagingOrganization]:
+    """Management companies of the house from open sources, one entry per organization
+    with contacts merged across sources (freshest source first)."""
+    today = utc_now().date()
+    rows = (
+        await session.execute(
+            select(
+                ingestion.organization.c.id.label("organization_id"),
+                ingestion.organization.c.name,
+                ingestion.organization.c.type,
+                ingestion.organization_source.c.inn,
+                ingestion.organization_source.c.ogrn,
+                ingestion.organization_source.c.phones,
+                ingestion.organization_source.c.email,
+                ingestion.organization_source.c.website,
+                ingestion.organization_source.c.provenance,
+                ingestion.house_organization.c.basis,
+                ingestion.house_organization.c.period_from,
+                ingestion.house_organization.c.retrieved_at,
+                ingestion.source.c.code.label("source_code"),
+                ingestion.source.c.url.label("source_url"),
+                ingestion.source.c.data_kind,
+            )
+            .select_from(ingestion.house_organization)
+            .join(
+                ingestion.organization,
+                ingestion.organization.c.id == ingestion.house_organization.c.organization_id,
+            )
+            .join(ingestion.source, ingestion.source.c.id == ingestion.house_organization.c.source_id)
+            .outerjoin(
+                ingestion.organization_source,
+                and_(
+                    ingestion.organization_source.c.source_id == ingestion.house_organization.c.source_id,
+                    ingestion.organization_source.c.organization_id
+                    == ingestion.house_organization.c.organization_id,
+                ),
+            )
+            .where(
+                ingestion.house_organization.c.house_id == house_id,
+                ingestion.house_organization.c.relationship == MANAGES_RELATIONSHIP,
+                or_(
+                    ingestion.house_organization.c.period_to.is_(None),
+                    ingestion.house_organization.c.period_to >= today,
+                ),
+            )
+            .order_by(ingestion.house_organization.c.retrieved_at.desc())
+        )
+    ).all()
+
+    merged: dict[UUID, HouseManagingOrganization] = {}
+    for row in rows:
+        provenance = row.provenance if isinstance(row.provenance, dict) else {}
+        contact_source = provenance.get("contact_source")
+        source = HouseDataSource(
+            code=row.source_code,
+            url=contact_source if isinstance(contact_source, str) else row.source_url,
+            data_kind=row.data_kind,
+            retrieved_at=row.retrieved_at,
+        )
+        entry = merged.get(row.organization_id)
+        if entry is None:
+            entry = merged[row.organization_id] = HouseManagingOrganization(
+                name=row.name,
+                type=row.type,
+                inn=None,
+                ogrn=None,
+                phones=[],
+                email=None,
+                website=None,
+                basis=None,
+                period_from=None,
+                is_platform_manager=False,
+                sources=[],
+            )
+        entry.inn = entry.inn or row.inn
+        entry.ogrn = entry.ogrn or row.ogrn
+        entry.email = entry.email or row.email
+        entry.website = entry.website or row.website
+        entry.basis = entry.basis or row.basis
+        entry.period_from = entry.period_from or row.period_from
+        for phone in row.phones or []:
+            if phone not in entry.phones:
+                entry.phones.append(phone)
+        entry.sources.append(source)
+    for entry in merged.values():
+        entry.is_platform_manager = bool(platform_inn and entry.inn == platform_inn)
+    return list(merged.values())

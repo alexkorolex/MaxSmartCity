@@ -6,6 +6,7 @@ import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
 import { HouseSelector } from '@/features/select-house';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, PageLayout } from '@/shared/ui';
+import { HouseInfoSection } from '@/widgets/house-info';
 
 interface SelectHouseLocationState {
   mode?: 'onboarding';
@@ -48,6 +49,8 @@ export function SelectHousePage() {
       <AsyncState isLoading={profile.isLoading} error={profile.error}>
         <Flex direction="column" gap="var(--space-4)" className="house-selection-page">
           <HouseSelector value={houseId} onChange={setHouseId} />
+
+          {houseId && <HouseInfoSection houseId={houseId} />}
 
           <Flex direction="column" gap="var(--space-2)" className="house-selection-actions">
             <Button

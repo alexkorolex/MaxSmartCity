@@ -154,3 +154,32 @@ export function InboxIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function PhoneIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path
+        d="M6.6 3.8h2.7l1.4 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.4v2.7a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 6a2 2 0 0 1 2-2.2Z"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  );
+}
+
+export function MailIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2.5" />
+      <path d="m4.5 7 7.5 6 7.5-6" strokeLinecap="round" strokeLinejoin="round" />
+    </Icon>
+  );
+}
+
+export function GlobeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5S9.7 5.9 12 3.5Z" />
+    </Icon>
+  );
+}

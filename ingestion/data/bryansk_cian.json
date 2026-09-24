@@ -4,7 +4,7 @@
     "code": "cian-bryansk-pilot",
     "url": "https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/",
     "data_kind": "REAL",
-    "retrieved_at": "2026-09-23T22:33:52+03:00"
+    "retrieved_at": "2026-09-24T11:30:19+03:00"
   },
   "houses": [
     {
@@ -14,6 +14,14 @@
       "house_number": "10",
       "formatted": "Брянская область, Брянск, улица Евдокимова, дом 10",
       "external_id": "1754812"
+    },
+    {
+      "key": "1754530",
+      "city": "Брянск",
+      "street": "улица Гомельская",
+      "house_number": "34",
+      "formatted": "Брянская область, Брянск, улица Гомельская, дом 34",
+      "external_id": "1754530"
     }
   ],
   "organizations": [
@@ -37,12 +45,35 @@
         "suggested_source": "https://mingkh.ru/bryanskaya-oblast/bryansk/1043244013625/",
         "retrieved_at": "2026-09-23T22:33:52+03:00"
       }
+    },
+    {
+      "key": "tszh-tukhachevskiy",
+      "name": "ТСЖ \"ТУХАЧЕВСКИЙ\"",
+      "type": "MANAGING_COMPANY",
+      "external_id": "1093254014897",
+      "inn": "3254507424",
+      "ogrn": "1093254014897",
+      "phones": [
+        "+7 (483) 263-20-53"
+      ],
+      "email": "tuh_br@mail.ru",
+      "provenance": {
+        "contact_source": "https://bryansk.cian.ru/dom/bryanskaya-oblast-bryansk-gomelskaya-ulica-dom-34-1754530/",
+        "organization_source": "https://mingkh.ru/bryanskaya-oblast/bryansk/1093254014897/",
+        "suggested_source": "https://check.tochka.com/company/1093254014897/",
+        "retrieved_at": "2026-09-24T11:30:19+03:00"
+      }
     }
   ],
   "links": [
     {
       "house_key": "1754812",
       "organization_key": "dom-plus",
+      "relationship": "MANAGES"
+    },
+    {
+      "house_key": "1754530",
+      "organization_key": "tszh-tukhachevskiy",
       "relationship": "MANAGES"
     }
   ]

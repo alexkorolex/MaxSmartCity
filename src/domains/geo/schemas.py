@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import ClassVar
 from uuid import UUID
 
@@ -125,3 +125,55 @@ class HouseManagementSummary:
     assigned_via_reserve_registry: bool
     effective_from: date | None
     effective_to: date | None
+
+
+@dataclass(slots=True)
+class HouseDataSource:
+    """Where a piece of reference data came from, so the resident can judge how fresh
+    and trustworthy it is."""
+
+    code: str
+    url: str | None
+    data_kind: str
+    """``REAL`` or ``DEMO`` - demo data must never be presented as a real fact."""
+    retrieved_at: datetime
+
+
+@dataclass(slots=True)
+class HouseManagingOrganization:
+    """The house's management company as published in open sources (ГИС ЖКХ, cian.ru,
+    ...) - reference data from ingestion, including its contacts."""
+
+    name: str
+    type: str
+    inn: str | None
+    ogrn: str | None
+    phones: list[str]
+    email: str | None
+    website: str | None
+    basis: str | None
+    period_from: date | None
+    is_platform_manager: bool
+    """The same organization (by INN) is connected to Smart City and receives residents'
+    requests directly."""
+    sources: list[HouseDataSource]
+
+
+@dataclass(slots=True)
+class HousePlatformManager:
+    """The УК/ТСЖ connected to Smart City that currently manages the house."""
+
+    organization_id: UUID
+    name: str
+    type: str
+    inn: str | None
+    effective_from: date | None
+
+
+@dataclass(slots=True)
+class HouseInfo:
+    house: HouseSummary
+    management_method: str | None
+    official_status: str | None
+    platform_manager: HousePlatformManager | None
+    managing_organizations: list[HouseManagingOrganization]

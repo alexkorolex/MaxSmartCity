@@ -4,7 +4,7 @@
     "code": "nashdom-bryansk-pilot",
     "url": "https://nashdom.info/building/d-288432",
     "data_kind": "REAL",
-    "retrieved_at": "2026-09-22T00:00:00+03:00"
+    "retrieved_at": "2026-09-24T11:27:00+03:00"
   },
   "houses": [
     {
@@ -14,6 +14,14 @@
       "house_number": "8",
       "formatted": "Брянская область, Брянск, улица Евдокимова, дом 8",
       "external_id": "d-288432"
+    },
+    {
+      "key": "mingkh-1189087",
+      "city": "Брянск",
+      "street": "улица Гомельская",
+      "house_number": "34",
+      "formatted": "Брянская область, Брянск, улица Гомельская, дом 34",
+      "external_id": "1189087"
     }
   ],
   "organizations": [
@@ -21,12 +29,22 @@
       "key": "uk-domovladenie",
       "name": "ООО УК Домовладение",
       "type": "MANAGING_COMPANY"
+    },
+    {
+      "key": "tszh-tukhachevskiy",
+      "name": "ТСЖ «Тухачевский»",
+      "type": "MANAGING_COMPANY"
     }
   ],
   "links": [
     {
       "house_key": "d-288432",
       "organization_key": "uk-domovladenie",
+      "relationship": "MANAGES"
+    },
+    {
+      "house_key": "mingkh-1189087",
+      "organization_key": "tszh-tukhachevskiy",
       "relationship": "MANAGES"
     }
   ]

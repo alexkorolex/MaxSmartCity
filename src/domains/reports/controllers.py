@@ -17,10 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.enums import ActorType
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
-from src.domains.collaboration.models import Assignment
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import resolve_organization_scope
-from src.domains.incidents.models import Incident, IncidentReportLink
+from src.domains.incidents.scope import organization_report_ids
 from src.domains.incidents.services import (
     GroupingMode,
     GroupReportCommand,
@@ -132,7 +131,7 @@ _STAFF_ADMIN_ROLES = ("admin", "district_admin", "housing_worker")
 async def _authorize_report_access(db_session: AsyncSession, *, report: Report, principal: Principal) -> None:
     """Raise ``NotFoundException`` unless the caller may view this report: the resident
     who submitted it, an admin (unrestricted), or a district_admin/housing_worker whose
-    organization is assigned to an incident this report is linked to. 404, not 403 - a
+    organization works on it (see ``src.domains.incidents.scope``). 404, not 403 - a
     report's existence is never revealed to a caller who isn't allowed to see it."""
     if principal.actor_type is ActorType.RESIDENT:
         if report.resident_id == principal.actor_id:
@@ -147,15 +146,9 @@ async def _authorize_report_access(db_session: AsyncSession, *, report: Report, 
         return
     if scope.organization_id is not None:
         in_scope = await db_session.scalar(
-            select(IncidentReportLink.report_id)
-            .join(Incident, Incident.id == IncidentReportLink.incident_id)
-            .join(Assignment, Assignment.incident_id == Incident.id)
-            .where(
-                IncidentReportLink.is_active.is_(True),
-                IncidentReportLink.report_id == report.id,
-                Assignment.organization_id == scope.organization_id,
+            select(Report.id).where(
+                Report.id == report.id, Report.id.in_(organization_report_ids(scope.organization_id))
             )
-            .limit(1)
         )
         if in_scope is not None:
             return
@@ -277,16 +270,8 @@ class ReportController(Controller):
                 )
                 criteria.append(Report.house_id.in_(house_ids))
             if not scope.is_admin:
-                in_scope_report_ids = (
-                    select(IncidentReportLink.report_id)
-                    .join(Incident, Incident.id == IncidentReportLink.incident_id)
-                    .join(Assignment, Assignment.incident_id == Incident.id)
-                    .where(
-                        IncidentReportLink.is_active.is_(True),
-                        Assignment.organization_id == scope.organization_id,
-                    )
-                )
-                criteria.append(Report.id.in_(in_scope_report_ids))
+                assert scope.organization_id is not None
+                criteria.append(Report.id.in_(organization_report_ids(scope.organization_id)))
             return await service.get_many(
                 LimitOffset(limit=limit, offset=offset), *criteria, order_by=("received_at", True)
             )

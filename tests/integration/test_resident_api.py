@@ -518,6 +518,8 @@ def test_geo_houses_lists_and_filters_by_city(api_client: TestClient, database_u
         "street": "улица Евдокимова",
         "house_number": "8",
         "formatted": "Test address",
+        "managed_by_organization_id": None,
+        "managed_by_organization_name": None,
     }
 
     missing = api_client.get(f"/geo/houses/{uuid4()}")

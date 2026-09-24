@@ -1,4 +1,12 @@
-export type OrganizationType = 'ADMINISTRATION' | 'POWER_GRID' | 'WATER_UTILITY' | 'EMERGENCY';
+export type OrganizationType =
+  | 'ADMINISTRATION'
+  | 'POWER_GRID'
+  | 'WATER_UTILITY'
+  | 'EMERGENCY'
+  | 'MANAGEMENT_COMPANY'
+  | 'HOA';
+
+export type HousingOrganizationType = Extract<OrganizationType, 'MANAGEMENT_COMPANY' | 'HOA'>;
 
 export interface Organization {
   id: string;
@@ -7,6 +15,49 @@ export interface Organization {
   type: OrganizationType;
   enabled: boolean;
   city: string | null;
+  inn: string | null;
+  ogrn: string | null;
+  license_number: string | null;
+  in_reserve_registry: boolean;
+}
+
+export interface StaffAccountPayload {
+  login: string;
+  password: string;
+  display_name: string;
+  email?: string | null;
+}
+
+export interface OrganizationRegistrationPayload {
+  code: string;
+  name: string;
+  type: HousingOrganizationType;
+  inn: string;
+  ogrn: string;
+  city?: string | null;
+  license_number?: string | null;
+  in_reserve_registry: boolean;
+  employee: StaffAccountPayload;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  login: string;
+  display_name: string;
+  email: string | null;
+  has_max_account: boolean;
+  department_id: string | null;
+  department_name: string | null;
+  role_code: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface OrganizationRegistrationResult {
+  organization_id: string;
+  employee: OrganizationMember;
 }
 
 export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
@@ -14,4 +65,8 @@ export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
   POWER_GRID: 'Энергосети',
   WATER_UTILITY: 'Водоканал',
   EMERGENCY: 'Аварийная служба',
+  MANAGEMENT_COMPANY: 'Управляющая компания',
+  HOA: 'ТСЖ',
 };
+
+export const HOUSING_ORGANIZATION_TYPES: HousingOrganizationType[] = ['MANAGEMENT_COMPANY', 'HOA'];

@@ -11,6 +11,7 @@ from litestar.plugins.prometheus import PrometheusController
 from litestar_autowire import AutowireConfig, AutowirePlugin
 from litestar_granian import GranianPlugin
 
+from src.background import background_jobs_lifespan
 from src.cli import OrchestrationCLIPlugin
 from src.database.cache import CacheSettings
 from src.database.config import DatabaseSettings
@@ -55,6 +56,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),
         on_startup=[auto_subscribe_max_webhook],
+        lifespan=[background_jobs_lifespan(db_config)],
         openapi_config=OpenAPIConfig(
             title="Smart City Project",
             version="0.0.1",

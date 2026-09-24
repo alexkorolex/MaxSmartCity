@@ -1,19 +1,39 @@
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 
-import { BuildingIcon, CityIcon, CloseIcon, HomeIcon, NewsIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
+import { canBrowseOrganizations, useMe, type Principal } from '@/entities/session';
+import {
+  BuildingIcon,
+  CityIcon,
+  CloseIcon,
+  HomeIcon,
+  HousesIcon,
+  NewsIcon,
+  PersonIcon,
+  StaffIcon,
+  WarningIcon,
+} from '@/shared/ui';
 import { ROUTES } from '@/shared/routes';
 
 import './Sidebar.css';
 
-const NAV_ITEMS = [
-  { to: ROUTES.home, label: 'Обзор', icon: HomeIcon, end: true },
-  { to: ROUTES.organizations, label: 'Управы и жилищники', icon: BuildingIcon, end: false },
-  { to: ROUTES.staff, label: 'Сотрудники', icon: StaffIcon, end: false },
-  { to: ROUTES.residents, label: 'Жители', icon: PersonIcon, end: false },
-  { to: ROUTES.incidents, label: 'Инциденты', icon: WarningIcon, end: false },
-  { to: ROUTES.news, label: 'Новости', icon: NewsIcon, end: false },
-];
+function navItems(principal: Principal | undefined) {
+  // A housing worker never browses other organizations - only their own card.
+  const organizationItem = canBrowseOrganizations(principal)
+    ? { to: ROUTES.organizations, label: 'Управы и жилищники', icon: BuildingIcon, end: false }
+    : principal?.organization_id
+      ? { to: ROUTES.organization(principal.organization_id), label: 'Моя организация', icon: BuildingIcon, end: false }
+      : null;
+  return [
+    { to: ROUTES.home, label: 'Обзор', icon: HomeIcon, end: true },
+    ...(organizationItem ? [organizationItem] : []),
+    { to: ROUTES.houses, label: 'Дома', icon: HousesIcon, end: false },
+    { to: ROUTES.staff, label: 'Сотрудники', icon: StaffIcon, end: false },
+    { to: ROUTES.residents, label: 'Жители', icon: PersonIcon, end: false },
+    { to: ROUTES.incidents, label: 'Инциденты', icon: WarningIcon, end: false },
+    { to: ROUTES.news, label: 'Новости', icon: NewsIcon, end: false },
+  ];
+}
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,6 +42,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { data: principal } = useMe();
 
   useEffect(() => {
     if (isOpen) closeButtonRef.current?.focus();
@@ -41,7 +62,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </button>
       </div>
       <nav className="admin-nav">
-        {NAV_ITEMS.map(({ to, label, icon: ItemIcon, end }) => (
+        {navItems(principal).map(({ to, label, icon: ItemIcon, end }) => (
           <NavLink
             key={to}
             to={to}

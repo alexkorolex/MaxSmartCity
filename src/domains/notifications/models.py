@@ -1,11 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, false
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, false, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.models import Entity
-from src.domains.notifications.enums import NotificationType
+from src.domains.notifications.enums import NotificationType, OrganizationChannelType
 
 
 class Notification(Entity):
@@ -22,3 +22,27 @@ class Notification(Entity):
     report_id: Mapped[UUID | None] = mapped_column(ForeignKey("reports.report.id"))
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OrganizationChannel(Entity):
+    """One delivery channel an organization chose for residents' requests. An organization
+    may configure several (e.g. a MAX chat for the dispatcher plus a webhook into its CRM);
+    with none configured, delivery falls back to ``MAX_MEMBERS``."""
+
+    __tablename__ = "organization_channel"
+    __table_args__ = ({"schema": "notifications"},)
+
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("identity.organization.id"), index=True)
+    type: Mapped[OrganizationChannelType] = mapped_column(
+        Enum(
+            OrganizationChannelType,
+            native_enum=False,
+            create_constraint=True,
+            name="organization_channel_type",
+        )
+    )
+    target: Mapped[str | None] = mapped_column(Text)
+    """Channel-specific address - see ``OrganizationChannelType`` for each type's format."""
+    secret: Mapped[str | None] = mapped_column(String(255))
+    """``WEBHOOK`` only: HMAC-SHA256 signing key. Write-only - never returned by the API."""
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

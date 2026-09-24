@@ -10,19 +10,15 @@ from litestar.params import FromPath, Parameter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.common.enums import ActorType
-from src.common.models import utc_now
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
-from src.domains.collaboration.models import Assignment
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import resolve_organization_scope
-from src.domains.incidents.enums import IncidentStatus, ResolutionDisputeStatus
+from src.domains.incidents.enums import IncidentStatus, ResolutionDisputeStatus, ResolutionFeedback
 from src.domains.incidents.models import (
     Incident,
     IncidentAffectedHouse,
     IncidentReportLink,
-    IncidentStatusHistory,
     ResolutionDispute,
 )
 from src.domains.incidents.schemas import (
@@ -37,6 +33,7 @@ from src.domains.incidents.schemas import (
     TransitionIncidentCommand,
     TransitionIncidentResult,
 )
+from src.domains.incidents.scope import organization_incident_ids
 from src.domains.incidents.services import (
     IncidentCoreConflictError,
     IncidentCoreNotFoundError,
@@ -113,10 +110,9 @@ class IncidentController(Controller):
                 )
                 criteria.append(Incident.id.in_(incident_ids))
             if not scope.is_admin:
-                assigned_incident_ids = select(Assignment.incident_id).where(
-                    Assignment.organization_id == scope.organization_id
-                )
-                criteria.append(Incident.id.in_(assigned_incident_ids))
+                # Residents' requests reach their УК/ТСЖ through its houses, before triage.
+                assert scope.organization_id is not None
+                criteria.append(Incident.id.in_(organization_incident_ids(scope.organization_id)))
             return await service.get_many(
                 LimitOffset(limit=limit, offset=offset), *criteria, order_by=("id", False)
             )
@@ -172,22 +168,21 @@ class IncidentController(Controller):
         principal: NamedDependency[Principal],
     ) -> Incident:
         with database_action("update", "incidents.Incident"):
-            await _require_resident_link(db_session, incident_id=item_id, resident_id=principal.actor_id)
+            report_id = await _require_resident_link(
+                db_session, incident_id=item_id, resident_id=principal.actor_id
+            )
 
             incident = await service.get(item_id)
             if incident.status != IncidentStatus.AWAITING_CONFIRMATION:
                 raise HTTPException(status_code=409, detail="Incident is not awaiting confirmation")
 
-            incident.status = IncidentStatus.CLOSED
-            incident.closed_at = utc_now()
-            db_session.add(
-                IncidentStatusHistory(
-                    incident_id=item_id,
-                    from_status=IncidentStatus.AWAITING_CONFIRMATION,
-                    to_status=IncidentStatus.CLOSED,
-                    changed_by_type=ActorType.RESIDENT,
-                    changed_by_id=principal.actor_id,
-                )
+            # Same path as /resolution-feedback: closes the incident together with every
+            # resident request linked to it, and notifies those residents.
+            assert report_id is not None
+            await IncidentCoreService(db_session).record_resolution_feedback(
+                item_id,
+                ResolutionFeedbackCommand(report_id=report_id, feedback=ResolutionFeedback.CONFIRMED),
+                resident_id=principal.actor_id,
             )
             await db_session.commit()
             return incident
@@ -215,7 +210,6 @@ class IncidentController(Controller):
             if incident.status != IncidentStatus.AWAITING_CONFIRMATION:
                 raise HTTPException(status_code=409, detail="Incident is not awaiting confirmation")
 
-            incident.status = IncidentStatus.RESOLUTION_DISPUTED
             dispute = ResolutionDispute(
                 incident_id=item_id,
                 resident_id=principal.actor_id,
@@ -224,15 +218,11 @@ class IncidentController(Controller):
                 comment=data.comment,
             )
             db_session.add(dispute)
-            db_session.add(
-                IncidentStatusHistory(
-                    incident_id=item_id,
-                    from_status=IncidentStatus.AWAITING_CONFIRMATION,
-                    to_status=IncidentStatus.RESOLUTION_DISPUTED,
-                    changed_by_type=ActorType.RESIDENT,
-                    changed_by_id=principal.actor_id,
-                    reason=data.comment,
-                )
+            await IncidentCoreService(db_session).transition_for_resident(
+                incident,
+                IncidentStatus.RESOLUTION_DISPUTED,
+                resident_id=principal.actor_id,
+                reason=data.comment,
             )
             await db_session.commit()
             return dispute
@@ -315,7 +305,17 @@ class IncidentController(Controller):
         self,
         item_id: FromPath[UUID],
         db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
     ) -> IncidentCardResult:
+        scope = resolve_organization_scope(principal)
+        if not scope.is_admin:
+            in_scope = scope.organization_id is not None and await db_session.scalar(
+                select(Incident.id).where(
+                    Incident.id == item_id, Incident.id.in_(organization_incident_ids(scope.organization_id))
+                )
+            )
+            if not in_scope:
+                raise NotFoundException(f"Incident {item_id} was not found")
         try:
             with database_action("get", "incidents.Incident"):
                 return await IncidentCoreService(db_session).get_card(item_id)

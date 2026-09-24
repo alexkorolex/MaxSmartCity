@@ -19,3 +19,15 @@ class CorsSettings:
             return cls()
         origins = tuple(origin.strip() for origin in raw.split(",") if origin.strip())
         return cls(allowed_origins=origins or DEFAULT_CORS_ALLOWED_ORIGINS)
+
+
+@dataclass(frozen=True, slots=True)
+class BackgroundJobsSettings:
+    interval_seconds: float = 0
+    """How often each app worker delivers queued organization notifications and
+    auto-closes unconfirmed resolutions (``BACKGROUND_JOBS_INTERVAL_SECONDS``). ``0`` (the
+    default when unset) disables the loop - e.g. for tests and one-off CLI runs."""
+
+    @classmethod
+    def from_environment(cls) -> "BackgroundJobsSettings":
+        return cls(interval_seconds=float(os.environ.get("BACKGROUND_JOBS_INTERVAL_SECONDS") or 0))

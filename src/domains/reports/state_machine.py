@@ -36,7 +36,8 @@ REPORT_TRANSITIONS: dict[ReportStatus, frozenset[ReportStatus]] = {
             ReportStatus.WITHDRAWN,
         }
     ),
-    ReportStatus.LINKED: frozenset({ReportStatus.WITHDRAWN}),
+    ReportStatus.LINKED: frozenset({ReportStatus.WITHDRAWN, ReportStatus.CLOSED}),
+    ReportStatus.CLOSED: frozenset({ReportStatus.LINKED}),
     ReportStatus.REJECTED: frozenset(),
     ReportStatus.WITHDRAWN: frozenset(),
 }

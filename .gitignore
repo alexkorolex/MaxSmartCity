@@ -15,6 +15,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+# ...but not the frontends' FSD `lib` segments (e.g. admin/shared/lib) - those are source code.
+!admin/**/lib/
+!frontend/**/lib/
 lib64/
 parts/
 sdist/

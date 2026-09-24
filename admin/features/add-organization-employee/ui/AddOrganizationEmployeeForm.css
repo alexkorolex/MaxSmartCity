@@ -1,0 +1,1 @@
+.add-employee { display: flex; max-width: 880px; flex-direction: column; gap: var(--space-4); }

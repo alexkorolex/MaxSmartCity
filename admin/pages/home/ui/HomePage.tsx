@@ -1,9 +1,10 @@
+import { useHouseManagement } from '@/entities/geo';
 import { useIncidents } from '@/entities/incident';
 import { useOrganizations } from '@/entities/organization';
 import { useResidents } from '@/entities/resident';
-import { isAdmin, roleLabel, useMe } from '@/entities/session';
+import { canBrowseOrganizations, isAdmin, roleLabel, useMe } from '@/entities/session';
 import { useStaffList } from '@/entities/staff';
-import { BuildingIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
+import { BuildingIcon, HousesIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
 
 import './HomePage.css';
 
@@ -30,6 +31,7 @@ export function HomePage() {
   const staff = useStaffList();
   const residents = useResidents();
   const incidents = useIncidents();
+  const houses = useHouseManagement();
 
   return (
     <>
@@ -51,7 +53,10 @@ export function HomePage() {
       </section>
 
       <div className="stat-grid">
-        <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} icon={<BuildingIcon />} />
+        {canBrowseOrganizations(principal) && (
+          <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} icon={<BuildingIcon />} />
+        )}
+        <StatCard label="Дома в управлении" value={houses.data?.length} isLoading={houses.isLoading} icon={<HousesIcon />} />
         <StatCard label="Сотрудники" value={staff.data?.length} isLoading={staff.isLoading} icon={<StaffIcon />} />
         <StatCard label="Жители" value={residents.data?.length} isLoading={residents.isLoading} icon={<PersonIcon />} />
         <StatCard label="Инциденты" value={incidents.data?.length} isLoading={incidents.isLoading} icon={<WarningIcon />} />

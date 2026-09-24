@@ -8,7 +8,8 @@ import { LogOutIcon, MenuIcon } from '@/shared/ui';
 import './Topbar.css';
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
-  { prefix: ROUTES.organizations, title: 'Управы и жилищники', subtitle: 'Организации по городам' },
+  { prefix: ROUTES.organizations, title: 'Организации', subtitle: 'Управы, УК и ТСЖ' },
+  { prefix: ROUTES.houses, title: 'Дома', subtitle: 'Дома в управлении УК и ТСЖ' },
   { prefix: ROUTES.staff, title: 'Сотрудники', subtitle: 'Управы, жилищники и администраторы' },
   { prefix: ROUTES.residents, title: 'Жители', subtitle: 'Жители и их заявки' },
   { prefix: ROUTES.incidents, title: 'Инциденты', subtitle: 'Инциденты и обсуждения по ним' },

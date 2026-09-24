@@ -6,6 +6,7 @@ export {
   CloseIcon,
   CommentIcon,
   HomeIcon,
+  HousesIcon,
   InboxIcon,
   LogOutIcon,
   MenuIcon,

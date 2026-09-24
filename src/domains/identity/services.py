@@ -1,16 +1,243 @@
-from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
+from uuid import UUID
 
-from src.domains.identity.models import Department, OperatorUser, Organization, Resident
+from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.domains.identity.enums import OrganizationRegistrationStatus
+from src.domains.identity.models import (
+    Department,
+    OperatorUser,
+    Organization,
+    OrganizationMember,
+    Resident,
+    Role,
+)
 from src.domains.identity.repositories import (
     DepartmentRepository,
     OperatorUserRepository,
+    OrganizationMemberRepository,
     OrganizationRepository,
     ResidentRepository,
 )
+from src.domains.identity.schemas import (
+    OrganizationMemberCreateRequest,
+    OrganizationRegistrationRequest,
+    StaffAccountRequest,
+)
+from src.domains.identity.validation import validate_housing_requisites
+from src.domains.infrastructure.models import OutboxEvent
+from src.security.keycloak_admin import create_staff_user
+from src.security.settings import SecuritySettings
+
+HOUSING_WORKER_ROLE = "housing_worker"
+MIN_PASSWORD_LENGTH = 8
+
+
+class IdentityNotFoundError(RuntimeError):
+    pass
+
+
+class IdentityConflictError(RuntimeError):
+    pass
+
+
+class IdentityForbiddenError(RuntimeError):
+    pass
+
+
+class StaffAccountError(ValueError):
+    """The requested employee account is invalid (e.g. the password is too short)."""
+
+
+def _clean(value: str | None) -> str | None:
+    return value.strip() or None if value is not None else None
 
 
 class OrganizationService(SQLAlchemyAsyncRepositoryService[Organization]):
     repository_type = OrganizationRepository
+
+    async def register_with_employee(
+        self, data: OrganizationRegistrationRequest, *, registered_by: UUID
+    ) -> tuple[Organization, OrganizationMember]:
+        """Admin-only: create an active housing organization and its first employee (a new
+        Keycloak login attached as ``housing_worker``). Everything that can be checked
+        locally is checked before the Keycloak account is created, so a rejected request
+        leaves no orphaned login behind."""
+        session = self.repository.session
+        inn, ogrn = data.inn.strip(), data.ogrn.strip()
+        license_number = _clean(data.license_number)
+        validate_housing_requisites(
+            organization_type=data.type,
+            inn=inn,
+            ogrn=ogrn,
+            license_number=license_number,
+            in_reserve_registry=data.in_reserve_registry,
+        )
+        code = data.code.strip()
+        if await session.scalar(select(Organization.id).where(Organization.code == code)) is not None:
+            raise IdentityConflictError(f"Organization code {code!r} is already taken")
+        if await session.scalar(select(Organization.id).where(Organization.inn == inn)) is not None:
+            raise IdentityConflictError(f"An organization with INN {inn} is already registered")
+        await _ensure_account_available(session, data.employee)
+        role_id = await _housing_worker_role_id(session)
+
+        organization = Organization(
+            code=code,
+            name=data.name.strip(),
+            type=data.type,
+            city=_clean(data.city),
+            inn=inn,
+            ogrn=ogrn,
+            license_number=license_number,
+            in_reserve_registry=data.in_reserve_registry,
+            registration_status=OrganizationRegistrationStatus.APPROVED,
+            enabled=True,
+        )
+        session.add(organization)
+        await session.flush()
+        member = await _create_member_account(session, organization.id, role_id, data.employee)
+        session.add(
+            OutboxEvent(
+                aggregate_type="ORGANIZATION",
+                aggregate_id=organization.id,
+                event_type="ORGANIZATION_REGISTERED",
+                payload={
+                    "organization_id": str(organization.id),
+                    "type": organization.type.value,
+                    "inn": inn,
+                    "employee_id": str(member.user_id),
+                    "registered_by": str(registered_by),
+                },
+            )
+        )
+        await session.flush()
+        return organization, member
+
+
+async def _housing_worker_role_id(session: AsyncSession) -> UUID:
+    role_id = await session.scalar(select(Role.id).where(Role.code == HOUSING_WORKER_ROLE))
+    if role_id is None:
+        raise IdentityNotFoundError(f"Role {HOUSING_WORKER_ROLE!r} is not seeded")
+    return role_id
+
+
+async def _ensure_account_available(session: AsyncSession, account: StaffAccountRequest) -> None:
+    if not account.login.strip() or not account.display_name.strip():
+        raise StaffAccountError("Employee login and name are required")
+    if len(account.password) < MIN_PASSWORD_LENGTH:
+        raise StaffAccountError(f"Employee password must be at least {MIN_PASSWORD_LENGTH} characters")
+    login = account.login.strip()
+    if await session.scalar(select(OperatorUser.id).where(OperatorUser.login == login)) is not None:
+        raise IdentityConflictError(f"Login {login!r} is already taken")
+
+
+async def _create_member_account(
+    session: AsyncSession, organization_id: UUID, role_id: UUID, account: StaffAccountRequest
+) -> OrganizationMember:
+    """Create the Keycloak login (last, after every local check) and attach it to the
+    organization as an active member."""
+    login = account.login.strip()
+    display_name = account.display_name.strip()
+    email = _clean(account.email)
+    subject = await create_staff_user(
+        SecuritySettings.from_environment(),
+        login=login,
+        password=account.password,
+        email=email,
+        display_name=display_name,
+        role=HOUSING_WORKER_ROLE,
+    )
+    operator = OperatorUser(login=login, display_name=display_name, email=email, keycloak_subject=subject)
+    session.add(operator)
+    await session.flush()
+    member = OrganizationMember(organization_id=organization_id, user_id=operator.id, role_id=role_id)
+    session.add(member)
+    await session.flush()
+    return member
+
+
+class OrganizationMemberService(SQLAlchemyAsyncRepositoryService[OrganizationMember]):
+    repository_type = OrganizationMemberRepository
+
+    async def add(
+        self,
+        organization_id: UUID,
+        data: OrganizationMemberCreateRequest,
+        *,
+        allow_any_role: bool,
+    ) -> OrganizationMember:
+        """Attach an existing staff account to an approved organization (or re-activate a
+        previous membership). Only a platform ``admin`` may grant a role other than
+        ``housing_worker``."""
+        session = self.repository.session
+        organization = await session.get(Organization, organization_id)
+        if organization is None:
+            raise IdentityNotFoundError(f"Organization {organization_id} was not found")
+        if organization.registration_status is not OrganizationRegistrationStatus.APPROVED:
+            raise IdentityConflictError("Members can only be added to an approved organization")
+        if await session.get(OperatorUser, data.user_id) is None:
+            raise IdentityNotFoundError(f"Operator user {data.user_id} was not found")
+        role = await session.scalar(select(Role).where(Role.code == data.role_code))
+        if role is None:
+            raise IdentityNotFoundError(f"Role {data.role_code!r} was not found")
+        if not allow_any_role and role.code != HOUSING_WORKER_ROLE:
+            raise IdentityForbiddenError(f"Only an admin can grant role {role.code!r}")
+        if data.department_id is not None:
+            department = await session.get(Department, data.department_id)
+            if department is None or department.organization_id != organization.id:
+                raise IdentityNotFoundError(
+                    f"Department {data.department_id} was not found in this organization"
+                )
+        elsewhere = await session.scalar(
+            select(OrganizationMember.id).where(
+                OrganizationMember.user_id == data.user_id,
+                OrganizationMember.organization_id != organization.id,
+                OrganizationMember.is_active.is_(True),
+            )
+        )
+        if elsewhere is not None:
+            raise IdentityConflictError("The user is already an active member of another organization")
+
+        member = await session.scalar(
+            select(OrganizationMember).where(
+                OrganizationMember.organization_id == organization.id,
+                OrganizationMember.user_id == data.user_id,
+            )
+        )
+        if member is None:
+            member = OrganizationMember(
+                organization_id=organization.id, user_id=data.user_id, role_id=role.id
+            )
+            session.add(member)
+        member.role_id = role.id
+        member.department_id = data.department_id
+        member.is_active = True
+        await session.flush()
+        return member
+
+    async def create_account(self, organization_id: UUID, account: StaffAccountRequest) -> OrganizationMember:
+        """Admin-only: a brand-new employee login attached straight to the organization."""
+        session = self.repository.session
+        organization = await session.get(Organization, organization_id)
+        if organization is None:
+            raise IdentityNotFoundError(f"Organization {organization_id} was not found")
+        await _ensure_account_available(session, account)
+        role_id = await _housing_worker_role_id(session)
+        return await _create_member_account(session, organization.id, role_id, account)
+
+    async def deactivate(self, organization_id: UUID, member_id: UUID) -> OrganizationMember:
+        member = await self.repository.session.scalar(
+            select(OrganizationMember).where(
+                OrganizationMember.id == member_id,
+                OrganizationMember.organization_id == organization_id,
+            )
+        )
+        if member is None:
+            raise IdentityNotFoundError(f"Member {member_id} was not found in this organization")
+        member.is_active = False
+        await self.repository.session.flush()
+        return member
 
 
 class DepartmentService(SQLAlchemyAsyncRepositoryService[Department]):

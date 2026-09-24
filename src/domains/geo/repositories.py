@@ -1,6 +1,6 @@
 from advanced_alchemy.repository import SQLAlchemyAsyncRepository
 
-from src.domains.geo.models import Address, AdministrativeArea, AffectedObject, House
+from src.domains.geo.models import Address, AdministrativeArea, AffectedObject, House, HouseManagement
 
 
 class AddressRepository(SQLAlchemyAsyncRepository[Address]):
@@ -17,3 +17,7 @@ class HouseRepository(SQLAlchemyAsyncRepository[House]):
 
 class AffectedObjectRepository(SQLAlchemyAsyncRepository[AffectedObject]):
     model_type = AffectedObject
+
+
+class HouseManagementRepository(SQLAlchemyAsyncRepository[HouseManagement]):
+    model_type = HouseManagement

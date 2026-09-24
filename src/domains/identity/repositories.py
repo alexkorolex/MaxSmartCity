@@ -1,6 +1,12 @@
 from advanced_alchemy.repository import SQLAlchemyAsyncRepository
 
-from src.domains.identity.models import Department, OperatorUser, Organization, Resident
+from src.domains.identity.models import (
+    Department,
+    OperatorUser,
+    Organization,
+    OrganizationMember,
+    Resident,
+)
 
 
 class OrganizationRepository(SQLAlchemyAsyncRepository[Organization]):
@@ -17,3 +23,7 @@ class ResidentRepository(SQLAlchemyAsyncRepository[Resident]):
 
 class OperatorUserRepository(SQLAlchemyAsyncRepository[OperatorUser]):
     model_type = OperatorUser
+
+
+class OrganizationMemberRepository(SQLAlchemyAsyncRepository[OrganizationMember]):
+    model_type = OrganizationMember

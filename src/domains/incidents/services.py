@@ -7,14 +7,15 @@ from decimal import Decimal
 from uuid import UUID
 
 from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
-from sqlalchemy import Select, func, select, text
+from sqlalchemy import Select, exists, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.common.models import utc_now
 from src.domains.collaboration.enums import AssignmentStatus
 from src.domains.collaboration.models import Assignment
-from src.domains.geo.models import Address, House
+from src.domains.geo.models import Address, House, HouseManagement
+from src.domains.geo.services import active_house_manager_id
 from src.domains.incidents.enums import (
     AffectedHouseSource,
     GroupingMode,
@@ -58,6 +59,9 @@ from src.domains.incidents.schemas import (
 )
 from src.domains.incidents.state_machine import ensure_incident_transition
 from src.domains.infrastructure.models import OutboxEvent
+from src.domains.notifications.dispatcher import OrganizationMessage, enqueue_organization_notification
+from src.domains.notifications.enums import NotificationType
+from src.domains.notifications.models import Notification
 from src.domains.reports.enums import ReportStatus
 from src.domains.reports.models import ProblemCategory, Report, ReportStatusHistory
 from src.domains.reports.state_machine import ensure_report_transition
@@ -78,6 +82,11 @@ ACTIVE_INCIDENT_STATUSES = frozenset(
 
 DISPUTE_ESCALATION_THRESHOLD = 3
 DISPUTE_ESCALATION_WINDOW = timedelta(minutes=30)
+
+RESOLUTION_CONFIRMATION_WINDOW = timedelta(days=3)
+"""How long residents have to confirm or dispute a resolution before the incident (and
+their requests with it) is closed automatically."""
+_AWAITING_RESIDENT_STATUSES = frozenset({IncidentStatus.RESOLVED, IncidentStatus.AWAITING_CONFIRMATION})
 
 
 class IncidentCoreError(RuntimeError):
@@ -204,39 +213,59 @@ class IncidentCoreService:
                 raise IncidentCoreConflictError(
                     "All required assignments must be completed before resolving the incident"
                 )
-        previous = incident.status
-        incident.status = command.target_status
-        now = utc_now()
-        if command.target_status is IncidentStatus.RESOLVED:
-            incident.resolved_at = now
-        elif command.target_status is IncidentStatus.CLOSED:
-            incident.closed_at = now
-        elif command.target_status is IncidentStatus.REOPENED:
-            incident.closed_at = None
-            incident.resolved_at = None
-        self.session.add(
-            IncidentStatusHistory(
-                incident_id=incident.id,
-                from_status=previous,
-                to_status=command.target_status,
-                changed_by_type=ActorType.OPERATOR,
-                changed_by_id=changed_by_id,
-                reason=command.reason,
-            )
-        )
-        self._emit(
-            incident.id,
-            "INCIDENT_STATUS_CHANGED",
-            {
-                "incident_id": str(incident.id),
-                "from_status": previous.value,
-                "to_status": command.target_status.value,
-            },
+        await self._apply_transition(
+            incident,
+            command.target_status,
+            actor_type=ActorType.OPERATOR,
+            actor_id=changed_by_id,
+            reason=command.reason,
         )
         await self.session.flush()
         return TransitionIncidentResult(
             incident_id=incident.id, status=incident.status, version=incident.version
         )
+
+    async def transition_for_resident(
+        self, incident: Incident, target: IncidentStatus, *, resident_id: UUID, reason: str | None
+    ) -> None:
+        """A resident-driven status change (confirming or disputing a resolution), with
+        the same side effects as an operator's: closing their requests, notifications."""
+        await self._apply_transition(
+            incident, target, actor_type=ActorType.RESIDENT, actor_id=resident_id, reason=reason
+        )
+
+    async def close_unconfirmed_resolutions(self, *, limit: int = 100) -> int:
+        """Close incidents whose residents neither confirmed nor disputed the resolution
+        within ``RESOLUTION_CONFIRMATION_WINDOW`` - silence counts as consent. Incidents
+        with an open dispute are left for an operator."""
+        cutoff = utc_now() - RESOLUTION_CONFIRMATION_WINDOW
+        open_dispute = exists().where(
+            ResolutionDispute.incident_id == Incident.id,
+            ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+        )
+        incidents = (
+            await self.session.scalars(
+                select(Incident)
+                .where(
+                    Incident.status.in_(_AWAITING_RESIDENT_STATUSES),
+                    Incident.resolved_at <= cutoff,
+                    ~open_dispute,
+                )
+                .order_by(Incident.resolved_at)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
+        for incident in incidents:
+            await self._apply_transition(
+                incident,
+                IncidentStatus.CLOSED,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                reason="Резолюция не оспорена жителями в срок - заявка закрыта автоматически",
+            )
+        await self.session.flush()
+        return len(incidents)
 
     async def get_card(self, incident_id: UUID) -> IncidentCardResult:
         incident = await self.session.get(Incident, incident_id)
@@ -402,25 +431,19 @@ class IncidentCoreService:
                 incident.status is not IncidentStatus.RESOLUTION_DISPUTED
                 and (dispute_count or 0) >= DISPUTE_ESCALATION_THRESHOLD
             ):
-                self._transition_incident_for_actor(
+                await self.transition_for_resident(
                     incident,
                     IncidentStatus.RESOLUTION_DISPUTED,
-                    ActorType.RESIDENT,
-                    resident_id,
-                    command.comment or "Resident reports that the problem continues",
+                    resident_id=resident_id,
+                    reason=command.comment or "Resident reports that the problem continues",
                 )
-        elif incident.status in {
-            IncidentStatus.RESOLVED,
-            IncidentStatus.AWAITING_CONFIRMATION,
-        }:
-            self._transition_incident_for_actor(
+        elif incident.status in _AWAITING_RESIDENT_STATUSES:
+            await self.transition_for_resident(
                 incident,
                 IncidentStatus.CLOSED,
-                ActorType.RESIDENT,
-                resident_id,
-                command.comment or "Resident confirmed resolution",
+                resident_id=resident_id,
+                reason=command.comment or "Resident confirmed resolution",
             )
-            incident.closed_at = utc_now()
         else:
             raise IncidentCoreConflictError("An open resolution dispute must be handled by an operator")
         self._emit(
@@ -518,6 +541,7 @@ class IncidentCoreService:
                 reason_codes=reasons,
             )
         )
+        await self._notify_house_manager(report, incident, new_incident=False)
         return await self._record_result(
             report, GroupingOutcome.ATTACHED, incident.id, score, reasons, command, proposal
         )
@@ -569,6 +593,7 @@ class IncidentCoreService:
             ]
         )
         await self._mark_linked(report)
+        await self._notify_house_manager(report, incident, new_incident=True)
         return await self._record_result(
             report, GroupingOutcome.CREATED, incident.id, None, reasons, command, proposal
         )
@@ -664,17 +689,28 @@ class IncidentCoreService:
             )
         )
 
-    def _transition_incident_for_actor(
+    async def _apply_transition(
         self,
         incident: Incident,
         target: IncidentStatus,
+        *,
         actor_type: ActorType,
-        actor_id: UUID,
-        reason: str,
+        actor_id: UUID | None,
+        reason: str | None,
     ) -> None:
+        """The one place an incident changes status: history, outbox event, and what that
+        means for the residents' requests and the organizations handling them."""
         previous = incident.status
         ensure_incident_transition(previous, target)
         incident.status = target
+        now = utc_now()
+        if target is IncidentStatus.RESOLVED:
+            incident.resolved_at = now
+        elif target is IncidentStatus.CLOSED:
+            incident.closed_at = now
+        elif target is IncidentStatus.REOPENED:
+            incident.closed_at = None
+            incident.resolved_at = None
         self.session.add(
             IncidentStatusHistory(
                 incident_id=incident.id,
@@ -684,6 +720,144 @@ class IncidentCoreService:
                 changed_by_id=actor_id,
                 reason=reason,
             )
+        )
+        self._emit(
+            incident.id,
+            "INCIDENT_STATUS_CHANGED",
+            {
+                "incident_id": str(incident.id),
+                "from_status": previous.value,
+                "to_status": target.value,
+                "changed_by_type": actor_type.value,
+            },
+        )
+
+        if target in _AWAITING_RESIDENT_STATUSES and previous not in _AWAITING_RESIDENT_STATUSES:
+            days = RESOLUTION_CONFIRMATION_WINDOW.days
+            await self._notify_residents(
+                incident,
+                NotificationType.RESOLUTION_REQUESTED,
+                "Проблема устранена - подтвердите",
+                f"По вашей заявке «{incident.title}» исполнитель сообщил, что проблема устранена. "
+                "Подтвердите это или сообщите, что проблема сохраняется. Если ответа не будет "
+                f"в течение {days} дн., заявка будет закрыта автоматически.",
+            )
+        elif target is IncidentStatus.CLOSED:
+            await self._move_linked_reports(incident, ReportStatus.LINKED, ReportStatus.CLOSED, reason)
+            await self._notify_residents(
+                incident,
+                NotificationType.REPORT_STATUS_CHANGED,
+                "Заявка закрыта",
+                f"Ваша заявка «{incident.title}» закрыта. Спасибо, что помогаете городу!",
+            )
+        elif target is IncidentStatus.REOPENED:
+            await self._move_linked_reports(incident, ReportStatus.CLOSED, ReportStatus.LINKED, reason)
+            await self._notify_residents(
+                incident,
+                NotificationType.INCIDENT_STATUS_CHANGED,
+                "Заявка возобновлена",
+                f"Работа по вашей заявке «{incident.title}» возобновлена.",
+            )
+            await self._notify_organizations(
+                incident, "INCIDENT_REOPENED", "Заявка возобновлена", reason or incident.title
+            )
+        elif target is IncidentStatus.RESOLUTION_DISPUTED:
+            await self._notify_organizations(
+                incident,
+                "RESOLUTION_DISPUTED",
+                "Жители оспорили решение",
+                f"«{incident.title}»: жители сообщают, что проблема сохраняется."
+                + (f"\n\n{reason}" if reason else ""),
+            )
+
+    async def _linked_reports(self, incident: Incident) -> list[Report]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Report)
+                    .join(IncidentReportLink, IncidentReportLink.report_id == Report.id)
+                    .where(
+                        IncidentReportLink.incident_id == incident.id,
+                        IncidentReportLink.is_active.is_(True),
+                    )
+                    .order_by(Report.received_at)
+                )
+            ).all()
+        )
+
+    async def _move_linked_reports(
+        self, incident: Incident, source: ReportStatus, target: ReportStatus, reason: str | None
+    ) -> None:
+        for report in await self._linked_reports(incident):
+            if report.status is source:
+                self._transition_report(report, target, reason or f"Incident {incident.status.value}")
+
+    async def _notify_residents(
+        self, incident: Incident, notification_type: NotificationType, title: str, body: str
+    ) -> None:
+        for report in await self._linked_reports(incident):
+            if report.resident_id is None:
+                continue
+            self.session.add(
+                Notification(
+                    resident_id=report.resident_id,
+                    type=notification_type,
+                    title=title,
+                    body=body,
+                    incident_id=incident.id,
+                    report_id=report.id,
+                )
+            )
+
+    async def _notify_organizations(self, incident: Incident, event_type: str, title: str, body: str) -> None:
+        """Everyone working on the incident: its (non-cancelled) assignees plus the
+        managing organization of every affected house."""
+        assigned = select(Assignment.organization_id).where(
+            Assignment.incident_id == incident.id,
+            Assignment.status.not_in({AssignmentStatus.REJECTED, AssignmentStatus.CANCELLED}),
+        )
+        managing = (
+            select(HouseManagement.organization_id)
+            .join(IncidentAffectedHouse, IncidentAffectedHouse.house_id == HouseManagement.house_id)
+            .where(IncidentAffectedHouse.incident_id == incident.id, HouseManagement.is_active.is_(True))
+        )
+        organization_ids = set((await self.session.scalars(assigned.union(managing))).all())
+        for organization_id in sorted(organization_ids):
+            enqueue_organization_notification(
+                self.session,
+                OrganizationMessage(
+                    organization_id=organization_id,
+                    event_type=event_type,
+                    title=title,
+                    body=body,
+                    incident_id=incident.id,
+                ),
+            )
+
+    async def _notify_house_manager(self, report: Report, incident: Incident, *, new_incident: bool) -> None:
+        """Route a resident's request to the УК/ТСЖ managing the house it concerns."""
+        if report.house_id is None:
+            return
+        organization_id = await active_house_manager_id(self.session, report.house_id)
+        if organization_id is None:
+            return
+        address = await self.session.scalar(
+            select(Address.formatted)
+            .join(House, House.address_id == Address.id)
+            .where(House.id == report.house_id)
+        )
+        title = "Новая заявка жителя" if new_incident else "Новое обращение по открытой заявке"
+        enqueue_organization_notification(
+            self.session,
+            OrganizationMessage(
+                organization_id=organization_id,
+                event_type="RESIDENT_REPORT_RECEIVED",
+                title=title,
+                body="\n".join(part for part in (address, incident.title, report.text) if part),
+                incident_id=incident.id,
+                report_id=report.id,
+                house_id=report.house_id,
+            ),
         )
 
     def _emit(

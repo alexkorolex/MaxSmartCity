@@ -2,6 +2,8 @@ export const ROUTES = {
   login: '/login',
   home: '/',
   organizations: '/organizations',
+  organization: (organizationId: string) => `/organizations/${organizationId}`,
+  houses: '/houses',
   staff: '/staff',
   residents: '/residents',
   resident: (residentId: string) => `/residents/${residentId}`,

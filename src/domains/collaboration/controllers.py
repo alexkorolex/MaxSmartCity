@@ -32,6 +32,8 @@ from src.domains.collaboration.services import (
 )
 from src.domains.identity.admin_scope import resolve_organization_scope
 from src.domains.identity.models import OperatorUser
+from src.domains.incidents.models import Incident
+from src.domains.incidents.scope import organization_incident_ids
 from src.security.dependency import provide_principal
 from src.security.guards import require_roles
 from src.security.principal import Principal
@@ -197,7 +199,7 @@ class IncidentCommentCreateRequest:
 class IncidentCommentController(Controller):
     """Admin-panel incident discussion thread. ``admin`` sees every comment (internal and
     public) on any incident; a ``district_admin``/``housing_worker`` only sees comments on
-    incidents their own organization is assigned to."""
+    incidents their organization works on - its houses' and its assignments'."""
 
     path = "/collaboration/incident-comments"
     tags = ("collaboration",)
@@ -238,10 +240,10 @@ class IncidentCommentController(Controller):
             if incident_id is not None:
                 statement = statement.where(IncidentComment.incident_id == incident_id)
             if not scope.is_admin:
-                assigned_incident_ids = select(Assignment.incident_id).where(
-                    Assignment.organization_id == scope.organization_id
+                assert scope.organization_id is not None
+                statement = statement.where(
+                    IncidentComment.incident_id.in_(organization_incident_ids(scope.organization_id))
                 )
-                statement = statement.where(IncidentComment.incident_id.in_(assigned_incident_ids))
             statement = statement.order_by(IncidentComment.created_at.desc()).limit(limit).offset(offset)
             rows = (await db_session.execute(statement)).all()
             return [
@@ -271,16 +273,14 @@ class IncidentCommentController(Controller):
             if not scope.is_admin:
                 if scope.organization_id is None:
                     raise PermissionDeniedException("No active organization membership")
-                assigned = await db_session.scalar(
-                    select(Assignment.id)
-                    .where(
-                        Assignment.incident_id == data.incident_id,
-                        Assignment.organization_id == scope.organization_id,
+                in_scope = await db_session.scalar(
+                    select(Incident.id).where(
+                        Incident.id == data.incident_id,
+                        Incident.id.in_(organization_incident_ids(scope.organization_id)),
                     )
-                    .limit(1)
                 )
-                if assigned is None:
-                    raise PermissionDeniedException("Organization is not assigned to this incident")
+                if in_scope is None:
+                    raise PermissionDeniedException("The incident is outside your organization's houses")
 
             comment = IncidentComment(
                 incident_id=data.incident_id,

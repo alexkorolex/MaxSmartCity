@@ -18,6 +18,9 @@ class ReportStatus(StrEnum):
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
     REJECTED = "REJECTED"
     WITHDRAWN = "WITHDRAWN"
+    CLOSED = "CLOSED"
+    """The linked incident was closed - the resident confirmed the fix, or didn't answer
+    within the confirmation window. Returns to ``LINKED`` if the incident is reopened."""
 
 
 class AttachmentType(StrEnum):

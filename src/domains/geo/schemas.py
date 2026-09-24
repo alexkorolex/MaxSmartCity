@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from typing import ClassVar
 from uuid import UUID
 
@@ -81,3 +82,46 @@ class HouseSummary:
     street: str | None
     house_number: str | None
     formatted: str
+    managed_by_organization_id: UUID | None = None
+    """The УК/ТСЖ currently managing the house, if any."""
+    managed_by_organization_name: str | None = None
+
+
+@dataclass
+class AssignHouseManagementCommand:
+    """Record who manages a house: either the residents' own choice (general meeting,
+    ТСЖ) or, when they chose none / it wasn't implemented, a management company from the
+    Перечень appointed by the local authority (Правила №1616, п. 5). Replaces the house's
+    current manager, if any."""
+
+    house_id: UUID
+    organization_id: UUID
+    basis: str
+    """Legal basis, e.g. "протокол общего собрания №3 от 01.02.2026" or "решение
+    администрации №... об определении УК из Перечня"."""
+    assigned_via_reserve_registry: bool = False
+    effective_from: date | None = None
+    """Defaults to today."""
+
+
+@dataclass
+class TerminateHouseManagementCommand:
+    effective_to: date | None = None
+    """Defaults to today."""
+    reason: str | None = None
+
+
+@dataclass(slots=True)
+class HouseManagementSummary:
+    id: UUID
+    house_id: UUID
+    house_formatted: str
+    organization_id: UUID
+    organization_name: str
+    organization_type: str
+    organization_inn: str | None
+    is_active: bool
+    basis: str | None
+    assigned_via_reserve_registry: bool
+    effective_from: date | None
+    effective_to: date | None

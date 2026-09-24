@@ -20,6 +20,7 @@ from src.domains.incidents.enums import IncidentStatus
 from src.domains.incidents.models import Incident, IncidentStatusHistory
 from src.domains.incidents.state_machine import ensure_incident_transition
 from src.domains.infrastructure.models import OutboxEvent
+from src.domains.notifications.dispatcher import OrganizationMessage, enqueue_organization_notification
 
 
 class CollaborationNotFoundError(RuntimeError):
@@ -121,6 +122,24 @@ class AssignmentService(SQLAlchemyAsyncRepositoryService[Assignment]):
                     "role": command.role.value,
                 },
             )
+        )
+        enqueue_organization_notification(
+            session,
+            OrganizationMessage(
+                organization_id=organization.id,
+                event_type="ASSIGNMENT_CREATED",
+                title="Вам назначена заявка",
+                body="\n".join(
+                    part
+                    for part in (
+                        incident.title,
+                        incident.description,
+                        f"Срок: {command.due_at:%d.%m.%Y %H:%M}" if command.due_at else None,
+                    )
+                    if part
+                ),
+                incident_id=incident.id,
+            ),
         )
         await session.flush()
         return CreateAssignmentResult(

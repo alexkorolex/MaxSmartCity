@@ -5,6 +5,7 @@ from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.domains.identity.enums import OrganizationType
 from src.domains.identity.models import Department, Organization, Resident
 
 
@@ -113,3 +114,64 @@ class ResidentSummary:
     house_formatted: str | None
     reports_count: int
     created_at: datetime
+
+
+@dataclass
+class StaffAccountRequest:
+    """A new staff login created by an admin on someone's behalf - a Keycloak account
+    (realm role ``housing_worker``) plus its local ``OperatorUser``."""
+
+    login: str
+    password: str
+    display_name: str
+    email: str | None = None
+
+
+@dataclass
+class OrganizationRegistrationRequest:
+    """An admin registers a housing organization (УК/ТСЖ) together with its first
+    employee in one step - the organization is active right away and the employee can
+    sign in and receive its residents' requests immediately."""
+
+    code: str
+    name: str
+    type: OrganizationType
+    inn: str
+    ogrn: str
+    employee: StaffAccountRequest
+    city: str | None = None
+    license_number: str | None = None
+    """Required for ``MANAGEMENT_COMPANY``, forbidden for ``HOA``."""
+    in_reserve_registry: bool = False
+    """Included in the Перечень (ГИС ЖКХ) - checked by the admin against the registry."""
+
+
+@dataclass
+class OrganizationMemberCreateRequest:
+    user_id: UUID
+    role_code: str = "housing_worker"
+    department_id: UUID | None = None
+
+
+@dataclass(slots=True)
+class OrganizationMemberSummary:
+    id: UUID
+    organization_id: UUID
+    user_id: UUID
+    login: str
+    display_name: str
+    email: str | None
+    has_max_account: bool
+    """Whether the member linked a MAX account - i.e. can receive ``MAX_MEMBERS``
+    notifications."""
+    department_id: UUID | None
+    department_name: str | None
+    role_code: str
+    is_active: bool
+    created_at: datetime
+
+
+@dataclass(slots=True)
+class OrganizationRegistrationResult:
+    organization_id: UUID
+    employee: OrganizationMemberSummary

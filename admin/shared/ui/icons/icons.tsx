@@ -25,6 +25,17 @@ export function HomeIcon(props: IconProps) {
   );
 }
 
+export function HousesIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 20.5h18" strokeLinecap="round" />
+      <path d="M4.5 20.5v-9L9.5 7l5 4.5v9" strokeLinejoin="round" />
+      <path d="M14.5 11.5 17 9.5l3 2.5v8.5" strokeLinejoin="round" />
+      <path d="M8 20.5v-4h3v4" />
+    </Icon>
+  );
+}
+
 export function BuildingIcon(props: IconProps) {
   return (
     <Icon {...props}>

@@ -1,6 +1,7 @@
+from datetime import date
 from uuid import UUID
 
-from sqlalchemy import JSON, CheckConstraint, Enum, ForeignKey, String, Text
+from sqlalchemy import JSON, CheckConstraint, Date, Enum, ForeignKey, Index, String, Text, false, text, true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -51,6 +52,40 @@ class House(Entity):
     )
     point: Mapped[str | None] = mapped_column(GeographyText("POINT", srid=4326))
     external_id: Mapped[str | None] = mapped_column(String(255))
+
+
+class HouseManagement(Entity):
+    """Standing "this organization manages this house" relationship - distinct from
+    ``collaboration.Assignment``, which is scoped to a single incident. Only one row per
+    house may be active at a time (see ``uq_house_management_active_house`` below)."""
+
+    __tablename__ = "house_management"
+    __table_args__ = (
+        Index(
+            "uq_house_management_active_house",
+            "house_id",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
+        CheckConstraint(
+            "effective_to IS NULL OR effective_from IS NULL OR effective_to >= effective_from",
+            name="effective_range",
+        ),
+        {"schema": "geo"},
+    )
+
+    house_id: Mapped[UUID] = mapped_column(ForeignKey("geo.house.id"), index=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("identity.organization.id"), index=True)
+    is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    basis: Mapped[str | None] = mapped_column(Text)
+    """Free-text basis for the assignment, e.g. "решение общего собрания №..." or
+    "включение в Перечень"."""
+    assigned_via_reserve_registry: Mapped[bool] = mapped_column(default=False, server_default=false())
+    """True when this house had no resident-chosen manager and was assigned from the
+    government's Перечень (see ``Organization.in_reserve_registry``), rather than by a
+    residents' general-meeting decision."""
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    effective_to: Mapped[date | None] = mapped_column(Date)
 
 
 class AffectedObject(Entity):

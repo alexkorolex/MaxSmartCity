@@ -6,15 +6,15 @@ from advanced_alchemy.filters import LimitOffset
 from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
-from litestar.exceptions import NotFoundException
+from litestar.exceptions import ClientException, HTTPException, NotFoundException, PermissionDeniedException
 from litestar.params import FromPath, Parameter
-from sqlalchemy import Select, func, select
+from sqlalchemy import Row, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
-from src.domains.collaboration.models import Assignment
 from src.domains.geo.models import Address, House
-from src.domains.identity.admin_scope import resolve_organization_scope
+from src.domains.identity.admin_scope import is_platform_admin, resolve_organization_scope
+from src.domains.identity.enums import OrganizationRegistrationStatus
 from src.domains.identity.models import (
     Department,
     OperatorUser,
@@ -29,18 +29,34 @@ from src.domains.identity.schemas import (
     DepartmentUpdateDTO,
     OperatorUserSummary,
     OrganizationCreateDTO,
+    OrganizationMemberCreateRequest,
+    OrganizationMemberSummary,
     OrganizationReadDTO,
+    OrganizationRegistrationRequest,
+    OrganizationRegistrationResult,
     OrganizationUpdateDTO,
     PrincipalRead,
     ResidentReadDTO,
     ResidentSelfUpdateRequest,
     ResidentSummary,
+    StaffAccountRequest,
 )
-from src.domains.identity.services import DepartmentService, OrganizationService, ResidentService
-from src.domains.incidents.models import Incident, IncidentReportLink
+from src.domains.identity.services import (
+    DepartmentService,
+    IdentityConflictError,
+    IdentityForbiddenError,
+    IdentityNotFoundError,
+    OrganizationMemberService,
+    OrganizationService,
+    ResidentService,
+    StaffAccountError,
+)
+from src.domains.identity.validation import OrganizationRequisitesError
+from src.domains.incidents.scope import organization_resident_ids
 from src.domains.reports.models import Report
 from src.security.dependency import provide_principal
 from src.security.guards import require_resident, require_roles
+from src.security.keycloak_admin import KeycloakAdminError
 from src.security.principal import Principal
 
 
@@ -52,40 +68,114 @@ def provide_department_service(db_session: NamedDependency[AsyncSession]) -> Dep
     return DepartmentService(session=db_session, auto_commit=True)
 
 
+_STAFF_ADMIN_ROLES = ("admin", "district_admin", "housing_worker")
+
+
+_ORGANIZATION_DIRECTORY_ROLES = ("admin", "district_admin")
+"""May browse every organization: the platform admin, and the district administration
+(Управа) that appoints managers for houses. A ``housing_worker`` only ever sees their own
+organization - never other УК/ТСЖ."""
+
+
 class OrganizationController(Controller):
+    """Organizations directory. Reads are staff-only and scoped (see
+    ``_ORGANIZATION_DIRECTORY_ROLES``); every mutation is ``admin``-only."""
+
     path = "/identity/organizations"
     tags = ("identity",)
     return_dto = OrganizationReadDTO
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
-        self.dependencies = {"service": Provide(provide_organization_service, sync_to_thread=False)}
+        self.dependencies = {
+            "service": Provide(provide_organization_service, sync_to_thread=False),
+            "principal": Provide(provide_principal),
+        }
 
-    @get("/", name="identity:Organization:list")
+    @get("/", name="identity:Organization:list", guards=[require_roles(*_STAFF_ADMIN_ROLES)])
     async def list_items(
         self,
         service: NamedDependency[OrganizationService],
+        principal: NamedDependency[Principal],
+        registration_status: Annotated[OrganizationRegistrationStatus | None, Parameter()] = None,
         limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[Organization]:
         with database_action("list", "identity.Organization"):
-            return await service.get_many(LimitOffset(limit=limit, offset=offset), order_by=("id", False))
+            criteria = []
+            if not principal.has_role(*_ORGANIZATION_DIRECTORY_ROLES):
+                if principal.organization_id is None:
+                    return []
+                criteria.append(Organization.id == principal.organization_id)
+            if registration_status is not None:
+                criteria.append(Organization.registration_status == registration_status)
+            return await service.get_many(
+                LimitOffset(limit=limit, offset=offset), *criteria, order_by=("id", False)
+            )
 
-    @get("/{item_id:uuid}", name="identity:Organization:get")
+    @post(
+        "/register",
+        return_dto=None,
+        name="identity:Organization:register",
+        guards=[require_roles("admin")],
+    )
+    async def register(
+        self,
+        data: OrganizationRegistrationRequest,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> OrganizationRegistrationResult:
+        """Register a management company / HOA together with its first employee (a new
+        staff login). Admin-only: the organization is active immediately."""
+        with database_action("create", "identity.Organization"):
+            try:
+                organization, member = await OrganizationService(session=db_session).register_with_employee(
+                    data, registered_by=principal.actor_id
+                )
+            except (OrganizationRequisitesError, StaffAccountError) as exc:
+                raise ClientException(status_code=400, detail=str(exc)) from exc
+            except IdentityNotFoundError as exc:
+                raise NotFoundException(str(exc)) from exc
+            except IdentityConflictError as exc:
+                raise ClientException(status_code=409, detail=str(exc)) from exc
+            except KeycloakAdminError as exc:
+                raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
+            await db_session.commit()
+            return OrganizationRegistrationResult(
+                organization_id=organization.id,
+                employee=await OrganizationMemberController.load_summary(db_session, member.id),
+            )
+
+    @get("/{item_id:uuid}", name="identity:Organization:get", guards=[require_roles(*_STAFF_ADMIN_ROLES)])
     async def get_item(
-        self, item_id: FromPath[UUID], service: NamedDependency[OrganizationService]
+        self,
+        item_id: FromPath[UUID],
+        service: NamedDependency[OrganizationService],
+        principal: NamedDependency[Principal],
     ) -> Organization:
+        if not principal.has_role(*_ORGANIZATION_DIRECTORY_ROLES) and item_id != principal.organization_id:
+            raise NotFoundException(f"Organization {item_id} was not found")
         with database_action("get", "identity.Organization"):
             return await service.get(item_id)
 
-    @post("/", dto=OrganizationCreateDTO, name="identity:Organization:create")
+    @post(
+        "/",
+        dto=OrganizationCreateDTO,
+        name="identity:Organization:create",
+        guards=[require_roles("admin")],
+    )
     async def create_item(
         self, data: DTOData[Organization], service: NamedDependency[OrganizationService]
     ) -> Organization:
         with database_action("create", "identity.Organization"):
             return await service.create(data)
 
-    @patch("/{item_id:uuid}", dto=OrganizationUpdateDTO, name="identity:Organization:update")
+    @patch(
+        "/{item_id:uuid}",
+        dto=OrganizationUpdateDTO,
+        name="identity:Organization:update",
+        guards=[require_roles("admin")],
+    )
     async def update_item(
         self,
         item_id: FromPath[UUID],
@@ -95,7 +185,12 @@ class OrganizationController(Controller):
         with database_action("update", "identity.Organization"):
             return await service.update(data, item_id=item_id)
 
-    @delete("/{item_id:uuid}", return_dto=None, name="identity:Organization:delete")
+    @delete(
+        "/{item_id:uuid}",
+        return_dto=None,
+        name="identity:Organization:delete",
+        guards=[require_roles("admin")],
+    )
     async def delete_item(
         self, item_id: FromPath[UUID], service: NamedDependency[OrganizationService]
     ) -> None:
@@ -171,6 +266,161 @@ class DepartmentController(Controller):
             await service.delete(item_id)
 
 
+def _member_summary_statement() -> Select[Any]:
+    return (
+        select(
+            OrganizationMember.id,
+            OrganizationMember.organization_id,
+            OrganizationMember.user_id,
+            OperatorUser.login,
+            OperatorUser.display_name,
+            OperatorUser.email,
+            OperatorUser.max_user_id.is_not(None).label("has_max_account"),
+            OrganizationMember.department_id,
+            Department.name.label("department_name"),
+            Role.code.label("role_code"),
+            OrganizationMember.is_active,
+            OrganizationMember.created_at,
+        )
+        .select_from(OrganizationMember)
+        .join(OperatorUser, OperatorUser.id == OrganizationMember.user_id)
+        .join(Role, Role.id == OrganizationMember.role_id)
+        .outerjoin(Department, Department.id == OrganizationMember.department_id)
+    )
+
+
+def _to_member_summary(row: Row[Any]) -> OrganizationMemberSummary:
+    return OrganizationMemberSummary(
+        id=row.id,
+        organization_id=row.organization_id,
+        user_id=row.user_id,
+        login=row.login,
+        display_name=row.display_name,
+        email=row.email,
+        has_max_account=row.has_max_account,
+        department_id=row.department_id,
+        department_name=row.department_name,
+        role_code=row.role_code,
+        is_active=row.is_active,
+        created_at=row.created_at,
+    )
+
+
+class OrganizationMemberController(Controller):
+    """Staff attached to an organization - who acts for a УК/ТСЖ and receives its
+    ``MAX_MEMBERS`` notifications. ``admin`` manages any organization's roster; a
+    ``district_admin``/``housing_worker`` only their own, and can only grant the
+    ``housing_worker`` role."""
+
+    path = "/identity/organizations/{organization_id:uuid}/members"
+    tags = ("identity",)
+    return_dto = None
+
+    def __init__(self, owner: Router) -> None:
+        super().__init__(owner)
+        self.dependencies = {"principal": Provide(provide_principal)}
+
+    @get("/", name="identity:OrganizationMember:list", guards=[require_roles(*_STAFF_ADMIN_ROLES)])
+    async def list_items(
+        self,
+        organization_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+        include_inactive: Annotated[bool, Parameter()] = False,
+    ) -> Sequence[OrganizationMemberSummary]:
+        resolve_organization_scope(principal, organization_id)
+        with database_action("list", "identity.OrganizationMember"):
+            statement = _member_summary_statement().where(
+                OrganizationMember.organization_id == organization_id
+            )
+            if not include_inactive:
+                statement = statement.where(OrganizationMember.is_active.is_(True))
+            rows = (await db_session.execute(statement.order_by(OperatorUser.login))).all()
+            return [_to_member_summary(row) for row in rows]
+
+    @post("/", name="identity:OrganizationMember:add", guards=[require_roles(*_STAFF_ADMIN_ROLES)])
+    async def add_member(
+        self,
+        organization_id: FromPath[UUID],
+        data: OrganizationMemberCreateRequest,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> OrganizationMemberSummary:
+        resolve_organization_scope(principal, organization_id)
+        with database_action("create", "identity.OrganizationMember"):
+            try:
+                member = await OrganizationMemberService(session=db_session).add(
+                    organization_id, data, allow_any_role=is_platform_admin(principal)
+                )
+            except IdentityNotFoundError as exc:
+                raise NotFoundException(str(exc)) from exc
+            except IdentityForbiddenError as exc:
+                raise PermissionDeniedException(str(exc)) from exc
+            except IdentityConflictError as exc:
+                raise ClientException(status_code=409, detail=str(exc)) from exc
+            await db_session.commit()
+            return await self.load_summary(db_session, member.id)
+
+    @post(
+        "/accounts",
+        name="identity:OrganizationMember:create-account",
+        guards=[require_roles("admin")],
+    )
+    async def create_account(
+        self,
+        organization_id: FromPath[UUID],
+        data: StaffAccountRequest,
+        db_session: NamedDependency[AsyncSession],
+    ) -> OrganizationMemberSummary:
+        """Admin-only: create a new employee login directly inside the organization."""
+        with database_action("create", "identity.OrganizationMember"):
+            try:
+                member = await OrganizationMemberService(session=db_session).create_account(
+                    organization_id, data
+                )
+            except StaffAccountError as exc:
+                raise ClientException(status_code=400, detail=str(exc)) from exc
+            except IdentityNotFoundError as exc:
+                raise NotFoundException(str(exc)) from exc
+            except IdentityConflictError as exc:
+                raise ClientException(status_code=409, detail=str(exc)) from exc
+            except KeycloakAdminError as exc:
+                raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
+            await db_session.commit()
+            return await self.load_summary(db_session, member.id)
+
+    @post(
+        "/{member_id:uuid}/deactivate",
+        status_code=200,
+        name="identity:OrganizationMember:deactivate",
+        guards=[require_roles(*_STAFF_ADMIN_ROLES)],
+    )
+    async def deactivate_member(
+        self,
+        organization_id: FromPath[UUID],
+        member_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> OrganizationMemberSummary:
+        resolve_organization_scope(principal, organization_id)
+        with database_action("update", "identity.OrganizationMember"):
+            try:
+                await OrganizationMemberService(session=db_session).deactivate(organization_id, member_id)
+            except IdentityNotFoundError as exc:
+                raise NotFoundException(str(exc)) from exc
+            await db_session.commit()
+            return await self.load_summary(db_session, member_id)
+
+    @staticmethod
+    async def load_summary(db_session: AsyncSession, member_id: UUID) -> OrganizationMemberSummary:
+        row = (
+            await db_session.execute(_member_summary_statement().where(OrganizationMember.id == member_id))
+        ).first()
+        if row is None:
+            raise NotFoundException(f"Member {member_id} was not found")
+        return _to_member_summary(row)
+
+
 def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> ResidentService:
     return ResidentService(session=db_session, auto_commit=True)
 
@@ -241,8 +491,6 @@ class MeController(Controller):
                 return await resident_service.get(principal.actor_id)
             return await resident_service.update(updates, item_id=principal.actor_id)
 
-
-_STAFF_ADMIN_ROLES = ("admin", "district_admin", "housing_worker")
 
 # Outer join to the operator's *active* membership/organization/department/role - a staff
 # member with no active membership still comes back (with those fields `None`) rather than
@@ -382,28 +630,11 @@ class OperatorUserController(Controller):
             )
 
 
-def _residents_in_scope_for_organization(organization_id: UUID) -> Select[Any]:
-    """Residents with at least one report linked to an incident assigned to
-    ``organization_id`` - a proper filtered/joined subquery, not a Python-side filter."""
-    return (
-        select(Report.resident_id)
-        .join(IncidentReportLink, IncidentReportLink.report_id == Report.id)
-        .join(Incident, Incident.id == IncidentReportLink.incident_id)
-        .join(Assignment, Assignment.incident_id == Incident.id)
-        .where(
-            IncidentReportLink.is_active.is_(True),
-            Assignment.organization_id == organization_id,
-            Report.resident_id.is_not(None),
-        )
-        .distinct()
-    )
-
-
 class ResidentController(Controller):
     """Admin-panel resident directory. ``admin`` browses every resident; a
-    ``district_admin``/``housing_worker`` only sees residents who have submitted at least
-    one report linked to an incident assigned to their organization - never another
-    organization's unrelated residents."""
+    ``district_admin``/``housing_worker`` only sees residents of their organization's
+    houses and those whose reports it works on (``src.domains.incidents.scope``) - never
+    another organization's residents."""
 
     path = "/identity/residents"
     tags = ("identity",)
@@ -452,9 +683,7 @@ class ResidentController(Controller):
                 statement = statement.where(Address.city == city)
             if not scope.is_admin:
                 assert scope.organization_id is not None
-                statement = statement.where(
-                    Resident.id.in_(_residents_in_scope_for_organization(scope.organization_id))
-                )
+                statement = statement.where(Resident.id.in_(organization_resident_ids(scope.organization_id)))
             statement = statement.order_by(Resident.created_at.desc()).limit(limit).offset(offset)
             rows = (await db_session.execute(statement)).all()
             return [
@@ -512,9 +741,7 @@ class ResidentController(Controller):
             )
             if not scope.is_admin:
                 assert scope.organization_id is not None
-                statement = statement.where(
-                    Resident.id.in_(_residents_in_scope_for_organization(scope.organization_id))
-                )
+                statement = statement.where(Resident.id.in_(organization_resident_ids(scope.organization_id)))
             row = (await db_session.execute(statement)).first()
             if row is None:
                 raise NotFoundException(f"Resident {item_id} was not found")

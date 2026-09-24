@@ -16,6 +16,17 @@ export function isAdmin(principal: Principal | undefined): boolean {
   return Boolean(principal?.roles.includes(STAFF_ROLES.admin));
 }
 
+/**
+ * The platform admin and the district administration (Управа) browse every organization;
+ * a housing worker (жилищник) only ever sees their own - mirrors the backend's
+ * `_ORGANIZATION_DIRECTORY_ROLES` / `_HOUSE_MANAGEMENT_AUTHORITY_ROLES`.
+ */
+export function canBrowseOrganizations(principal: Principal | undefined): boolean {
+  return Boolean(
+    principal?.roles.some((role) => role === STAFF_ROLES.admin || role === STAFF_ROLES.districtAdmin),
+  );
+}
+
 export function roleLabel(role: string): string {
   switch (role) {
     case STAFF_ROLES.admin:

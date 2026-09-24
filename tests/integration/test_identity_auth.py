@@ -73,9 +73,11 @@ def test_department_mutation_requires_admin_role(
     api_client: TestClient, rsa_keypair: tuple[str, str]
 ) -> None:
     private_pem, _ = rsa_keypair
+    admin_token = _staff_token(private_pem, subject=str(uuid4()), roles=["admin"])
     org = api_client.post(
         "/identity/organizations",
         json={"code": f"org-{uuid4().hex[:8]}", "name": "Utility", "type": "WATER_UTILITY"},
+        headers={"Authorization": f"Bearer {admin_token}"},
     ).json()
 
     anonymous = api_client.post(
@@ -91,7 +93,6 @@ def test_department_mutation_requires_admin_role(
     )
     assert forbidden.status_code == 403
 
-    admin_token = _staff_token(private_pem, subject=str(uuid4()), roles=["admin"])
     created = api_client.post(
         "/identity/departments",
         json={"organization_id": org["id"], "code": "d1", "name": "Repairs"},

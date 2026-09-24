@@ -11,12 +11,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    false,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.models import Association, Entity
-from src.domains.identity.enums import BotStatus, OrganizationType
+from src.domains.identity.enums import BotStatus, OrganizationRegistrationStatus, OrganizationType
 
 
 class Resident(Entity):
@@ -69,6 +70,31 @@ class Organization(Entity):
     city: Mapped[str | None] = mapped_column(String(255))
     """Free-text city name (same convention as ``Address.city``, not a relational
     ``AdministrativeArea`` FK) - what city this organization operates in/from."""
+    inn: Mapped[str | None] = mapped_column(String(12))
+    """Russian tax ID (10 digits for a legal entity, 12 for a sole proprietor)."""
+    ogrn: Mapped[str | None] = mapped_column(String(15))
+    """Russian state registration number (13 digits, or 15 for a sole proprietor)."""
+    license_number: Mapped[str | None] = mapped_column(String(255))
+    """Required for ``MANAGEMENT_COMPANY`` (Постановление №1616) - not applicable to
+    ``HOA``, which is resident self-management rather than a licensed commercial entity.
+    Enforced in the registration handler, not the database."""
+    registration_status: Mapped[OrganizationRegistrationStatus] = mapped_column(
+        Enum(
+            OrganizationRegistrationStatus,
+            native_enum=False,
+            create_constraint=True,
+            name="organization_registration_status",
+        ),
+        default=OrganizationRegistrationStatus.APPROVED,
+        server_default=OrganizationRegistrationStatus.APPROVED.value,
+    )
+    """Defaults to APPROVED so existing rows and admin-direct-CRUD-created orgs are
+    unaffected; the self-registration endpoint overrides this to PENDING."""
+    in_reserve_registry: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    """Included in the government's Перечень (list) of organizations eligible to be
+    assigned as a fallback manager for a house whose residents haven't chosen one -
+    distinct from ``registration_status``: an org can be a fully approved, legitimate
+    management company without being on this reserve list."""
 
 
 class Department(Entity):

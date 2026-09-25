@@ -41,6 +41,11 @@ class MLDecisionClient:
     async def decide(self, payload: dict[str, Any]) -> MLHTTPResult:
         return await self._request("POST", "/v1/decide", json=payload)
 
+    async def recommend_grouping(self, payload: dict[str, Any]) -> MLHTTPResult:
+        """Ask for an advisory semantic match; callers must keep a non-ML fallback."""
+
+        return await self._request("POST", "/v1/grouping:recommend", json=payload)
+
     async def _request(
         self,
         method: str,

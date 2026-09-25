@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/semantic-grouping-response.json",
+  "title": "Semantic grouping recommendation response v2 draft",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "request_id",
+    "action",
+    "selected_incident_id",
+    "candidates",
+    "suggested_title",
+    "reason_codes",
+    "model_name",
+    "scorer_version"
+  ],
+  "properties": {
+    "contract_version": {"const": "2.0.0-draft"},
+    "request_id": {"type": "string"},
+    "action": {"enum": ["ATTACH", "CREATE", "CLARIFY", "ABSTAIN"]},
+    "selected_incident_id": {"type": ["string", "null"]},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["incident_id", "score"],
+        "properties": {
+          "incident_id": {"type": "string"},
+          "score": {"type": "number", "minimum": -1, "maximum": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "suggested_title": {"type": ["string", "null"]},
+    "reason_codes": {"type": "array", "items": {"type": "string"}},
+    "model_name": {"type": ["string", "null"]},
+    "scorer_version": {"type": "string"}
+  },
+  "additionalProperties": false
+}

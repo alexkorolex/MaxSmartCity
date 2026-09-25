@@ -11,6 +11,7 @@ from typing import Any
 from litestar import Litestar, get, post
 from litestar.response import Response
 
+from maxsmartcity.ml.adapters.embeddings.fastembed import DEFAULT_MODEL as DEFAULT_SEMANTIC_MODEL
 from maxsmartcity.ml.domain.results import CONTRACT_VERSION
 from maxsmartcity.ml.service.runtime import (
     MLRuntime,
@@ -40,11 +41,21 @@ def _error(
 
 
 def create_app(runtime: MLRuntime | None = None) -> Litestar:
+    semantic_enabled = os.getenv("ML_SEMANTIC_ENABLED", "false").casefold() in {"1", "true", "yes"}
     active_runtime = runtime or MLRuntime.load(
         artifact_dir=Path(os.getenv("ML_ARTIFACT_DIR", "ml/artifacts/category-tfidf-logreg-v2")),
         rule_config_path=Path(os.getenv("ML_RULE_CONFIG", "ml/configs/rule-baseline.v1.json")),
         extraction_config_path=Path(os.getenv("ML_EXTRACTION_CONFIG", "ml/configs/extraction-rules.v1.json")),
         max_input_characters=int(os.getenv("ML_MAX_INPUT_CHARACTERS", "4000")),
+        semantic_model_name=(
+            os.getenv(
+                "ML_SEMANTIC_MODEL",
+                DEFAULT_SEMANTIC_MODEL,
+            )
+            if semantic_enabled
+            else None
+        ),
+        semantic_cache_dir=Path(os.getenv("ML_SEMANTIC_CACHE_DIR", "ml/models")),
     )
 
     @get("/health", sync_to_thread=False)
@@ -174,7 +185,38 @@ def create_app(runtime: MLRuntime | None = None) -> Litestar:
             return _error("FORBIDDEN_CANDIDATE", str(exc), status_code=500, request_id=request_id)
         return Response(content=decision_response_to_dict(result))
 
-    return Litestar(route_handlers=[health, ready, models, classify, classify_batch, decide])
+    @post("/v1/grouping:recommend", status_code=200)
+    async def recommend_grouping(data: dict[str, Any]) -> Response[dict[str, Any]]:
+        request_id = data.get("request_id") if isinstance(data.get("request_id"), str) else None
+        try:
+            deadline_ms = data.get("deadline_ms", 5_000)
+            if not isinstance(deadline_ms, int) or deadline_ms < 1:
+                raise RequestValidationError("deadline_ms must be a positive integer")
+            async with asyncio.timeout(deadline_ms / 1000):
+                result = await asyncio.to_thread(active_runtime.recommend_semantic_grouping, data)
+        except RequestValidationError as exc:
+            code = "UNKNOWN_CONTRACT_VERSION" if "contract_version" in str(exc) else "INVALID_INPUT"
+            status_code = 400 if code == "UNKNOWN_CONTRACT_VERSION" else 422
+            return _error(code, str(exc), status_code=status_code, request_id=request_id)
+        except TimeoutError:
+            return _error(
+                "TIMEOUT",
+                "semantic grouping deadline exceeded",
+                status_code=504,
+                request_id=request_id,
+                retryable=True,
+            )
+        return Response(
+            content={
+                "contract_version": CONTRACT_VERSION,
+                "request_id": request_id,
+                **asdict(result),
+            }
+        )
+
+    return Litestar(
+        route_handlers=[health, ready, models, classify, classify_batch, decide, recommend_grouping]
+    )
 
 
 def _error_payload(

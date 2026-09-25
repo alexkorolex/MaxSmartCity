@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from maxsmartcity.ml.adapters.baselines import RuleBaselineDecisionModel, RuleIncidentRanker
+from maxsmartcity.ml.adapters.embeddings import FastEmbedProvider
 from maxsmartcity.ml.adapters.extraction import RuleFeatureExtractor
 from maxsmartcity.ml.application.decision_service import DecisionService
 from maxsmartcity.ml.application.input_policy import InputPolicy
@@ -23,6 +24,11 @@ from maxsmartcity.ml.domain.requests import (
 from maxsmartcity.ml.domain.results import CONTRACT_VERSION, DecisionResponse, ModelMetadata
 from maxsmartcity.ml.inference.category import CategoryArtifact, CategoryPrediction
 from maxsmartcity.ml.inference.decision import ArtifactDecisionModel
+from maxsmartcity.ml.inference.semantic_grouping import (
+    SemanticGroupingRecommendation,
+    SemanticGroupingService,
+    SemanticIncidentCandidate,
+)
 
 
 class RequestValidationError(ValueError):
@@ -38,12 +44,14 @@ class MLRuntime:
         decision_service: DecisionService,
         model_metadata: tuple[ModelMetadata, ...],
         max_input_characters: int,
+        semantic_grouping: SemanticGroupingService | None = None,
     ) -> None:
         self.category = category
         self.artifact_error = artifact_error
         self.decision_service = decision_service
         self.model_metadata = model_metadata
         self.input_policy = InputPolicy(max_input_characters)
+        self.semantic_grouping = semantic_grouping or SemanticGroupingService(None)
 
     @classmethod
     def load(
@@ -53,6 +61,8 @@ class MLRuntime:
         rule_config_path: Path,
         extraction_config_path: Path,
         max_input_characters: int = 4_000,
+        semantic_model_name: str | None = None,
+        semantic_cache_dir: Path | None = None,
     ) -> MLRuntime:
         rule_ranker = RuleIncidentRanker(load_rule_baseline(rule_config_path))
         extractor = RuleFeatureExtractor.from_path(extraction_config_path)
@@ -73,6 +83,11 @@ class MLRuntime:
             decision_service=DecisionService(primary, fallback),
             model_metadata=metadata,
             max_input_characters=max_input_characters,
+            semantic_grouping=SemanticGroupingService(
+                FastEmbedProvider(semantic_model_name, cache_dir=semantic_cache_dir)
+                if semantic_model_name
+                else None
+            ),
         )
 
     @property
@@ -93,6 +108,34 @@ class MLRuntime:
         bounded, truncated = self.input_policy.apply(request)
         response = self.decision_service.decide(bounded)
         return replace(response, input_truncated=truncated)
+
+    def recommend_semantic_grouping(self, payload: Mapping[str, Any]) -> SemanticGroupingRecommendation:
+        _require_contract(payload)
+        report = _mapping(payload, "report")
+        report_text = _string(report, "text", allow_empty=True)
+        if len(report_text) > self.input_policy.max_characters:
+            raise RequestValidationError(
+                f"report.text must not exceed {self.input_policy.max_characters} characters"
+            )
+        candidate_payloads = _mapping_list(payload, "candidate_incidents")
+        if len(candidate_payloads) > self.semantic_grouping.config.max_candidates:
+            raise RequestValidationError(
+                f"candidate_incidents must not exceed {self.semantic_grouping.config.max_candidates} items"
+            )
+        candidates = tuple(
+            SemanticIncidentCandidate(
+                incident_id=_string(item, "id"),
+                title=_string(item, "title", allow_empty=True),
+                representative_texts=_string_tuple(item, "representative_texts"),
+                last_activity_at=_datetime(item, "last_activity_at"),
+            )
+            for item in candidate_payloads
+        )
+        return self.semantic_grouping.recommend(
+            report_text,
+            candidates,
+            occurred_at=_datetime(report, "occurred_at"),
+        )
 
 
 def parse_decision_request(payload: Mapping[str, Any]) -> DecisionRequest:

@@ -26,6 +26,11 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.65b0",
 ]
 
+[project.optional-dependencies]
+semantic = [
+    "fastembed>=0.7,<1",
+]
+
 [dependency-groups]
 dev = [
     "fakeredis>=2.26.1",

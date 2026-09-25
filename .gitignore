@@ -226,6 +226,7 @@ __marimo__/
 ml/data/synthetic/stress-*/
 # Trained weights and local benchmark output are reproducible from versioned configs/data.
 ml/artifacts/
+ml/models/
 # Downloaded external datasets and rebuildable intermediate artifacts.
 ml/data/external/raw/
 ml/data/external/interim/

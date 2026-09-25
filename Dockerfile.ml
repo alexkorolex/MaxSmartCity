@@ -13,16 +13,21 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-dev
+    uv sync --locked --no-install-project --no-dev --extra semantic
 
 COPY pyproject.toml uv.lock README.md main.py ./
 COPY maxsmartcity ./maxsmartcity
 COPY ml ./ml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev \
+    uv sync --locked --no-dev --extra semantic \
     && uv run python -m maxsmartcity.ml.training.cli \
        --config ml/configs/training/category-tfidf-logreg.v2.json
+
+# Download the quantized local embedding model during the image build. Runtime
+# stays network-independent and can keep a read-only filesystem.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv run python -c "from pathlib import Path; from maxsmartcity.ml.adapters.embeddings import FastEmbedProvider; FastEmbedProvider(cache_dir=Path('/app/ml/models')).embed(('проверка модели',))"
 
 
 FROM python:3.12-slim AS runtime
@@ -37,13 +42,16 @@ COPY --from=builder --chown=app:app /app/main.py ./main.py
 COPY --from=builder --chown=app:app /app/maxsmartcity ./maxsmartcity
 COPY --from=builder --chown=app:app /app/ml/configs ./ml/configs
 COPY --from=builder --chown=app:app /app/ml/artifacts ./ml/artifacts
+COPY --from=builder --chown=app:app /app/ml/models ./ml/models
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     ML_ARTIFACT_DIR=/app/ml/artifacts/category-tfidf-logreg-v2 \
     ML_RULE_CONFIG=/app/ml/configs/rule-baseline.v1.json \
-    ML_EXTRACTION_CONFIG=/app/ml/configs/extraction-rules.v1.json
+    ML_EXTRACTION_CONFIG=/app/ml/configs/extraction-rules.v1.json \
+    ML_SEMANTIC_ENABLED=true \
+    ML_SEMANTIC_CACHE_DIR=/app/ml/models
 
 USER app
 

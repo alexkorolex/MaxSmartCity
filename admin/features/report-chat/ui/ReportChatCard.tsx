@@ -11,14 +11,14 @@ function Bubble({ message }: { message: ChatMessage }) {
     ? `${message.author_name} · ${message.organization_name}`
     : message.author_name;
   return (
-    <div className={`chat-bubble${message.is_mine ? ' chat-bubble--mine' : ''}`}>
+    <article className={`chat-bubble${message.is_mine ? ' chat-bubble--mine' : ''}`}>
       <div className="chat-bubble__author">{author}</div>
       <div className="chat-bubble__text">{message.text}</div>
       <div className="chat-bubble__meta">
         {formatDateTime(message.created_at)}
         {message.is_mine && message.read_at ? ' · прочитано жителем' : ''}
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -57,7 +57,13 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
           {count === 0 ? (
             <div className="cell-muted">Сообщений пока нет — напишите жителю первым.</div>
           ) : (
-            <div className="report-chat-card__messages">
+            <div
+              className="report-chat-card__messages"
+              role="log"
+              aria-label="История переписки"
+              aria-live="polite"
+              aria-relevant="additions"
+            >
               {chat.data?.messages.map((message) => (
                 <Bubble key={message.id} message={message} />
               ))}
@@ -66,9 +72,12 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
           )}
         </AsyncState>
         <form className="report-chat-card__form" onSubmit={handleSubmit}>
+          <label className="sr-only" htmlFor="report-chat-message">Сообщение жителю</label>
           <textarea
+            id="report-chat-message"
             className="field"
-            placeholder="Ответ жителю"
+            placeholder="Напишите ответ жителю…"
+            rows={3}
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
@@ -76,7 +85,7 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
             }}
           />
           {send.isError && <div className="form-error">{apiErrorMessage(send.error)}</div>}
-          <div className="form-actions">
+          <div className="form-actions report-chat-card__actions">
             <button type="submit" className="btn" disabled={!text.trim() || send.isPending}>
               {send.isPending ? 'Отправляем…' : 'Отправить'}
             </button>

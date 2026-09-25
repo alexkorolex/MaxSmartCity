@@ -161,7 +161,7 @@ export function OrganizationChannelsCard({ organizationId, isAdmin, ownMember }:
                       </button>
                       <button
                         type="button"
-                        className="btn btn--ghost btn--small"
+                        className="btn btn--danger-ghost btn--small"
                         disabled={remove.isPending}
                         onClick={() => {
                           if (window.confirm('Удалить канал уведомлений?')) remove.mutate(channel.id);

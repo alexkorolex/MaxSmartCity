@@ -4,6 +4,8 @@ import { TakeHouseForm } from '@/features/take-house';
 import { formatCalendarDate } from '@/shared/lib';
 import { AsyncState, EmptyState, HousesIcon, Pill } from '@/shared/ui';
 
+import './HousesPage.css';
+
 export function HousesPage() {
   const { data: principal } = useMe();
   const isAuthority = canBrowseOrganizations(principal);
@@ -44,7 +46,7 @@ export function HousesPage() {
                   <tbody>
                     {houses.data.map((item) => (
                       <tr key={item.id}>
-                        <td data-label="Адрес">
+                        <td className="houses-page__address" data-label="Адрес">
                           <div className="cell-primary">{item.house_formatted}</div>
                           {item.assigned_via_reserve_registry && <Pill tone="info" label="Из Перечня" />}
                         </td>
@@ -58,7 +60,7 @@ export function HousesPage() {
                         <td data-label="Действия">
                           <button
                             type="button"
-                            className="btn btn--ghost btn--small"
+                            className="btn btn--danger-ghost btn--small"
                             disabled={terminate.isPending}
                             onClick={() => {
                               if (window.confirm(`Снять дом «${item.house_formatted}» с управления?`)) {

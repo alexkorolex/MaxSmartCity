@@ -146,7 +146,7 @@ export function OrganizationDetailPage() {
                             {member.is_active && member.user_id !== principal?.actor_id && (
                               <button
                                 type="button"
-                                className="btn btn--ghost btn--small"
+                                className="btn btn--danger-ghost btn--small"
                                 disabled={deactivate.isPending}
                                 onClick={() => {
                                   if (window.confirm(`Отключить сотрудника «${member.display_name}» от организации?`)) {

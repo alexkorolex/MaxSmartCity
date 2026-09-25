@@ -28,6 +28,8 @@ export function HouseSearchField({ value, onChange, isDisabled, describe = defau
   const [query, setQuery] = useState('');
   const [city, setCity] = useState('');
   const search = useHouseSearch(query, city);
+  const resultsId = `${idPrefix}-results`;
+  const isSearchOpen = !value && query.trim().length >= 2;
 
   return (
     <div className="house-search">
@@ -60,6 +62,10 @@ export function HouseSearchField({ value, onChange, isDisabled, describe = defau
           <input
             id={`${idPrefix}-query`}
             className="field"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={isSearchOpen}
+            aria-controls={resultsId}
             placeholder="Улица и номер дома"
             value={query}
             onChange={(event) => {
@@ -81,8 +87,8 @@ export function HouseSearchField({ value, onChange, isDisabled, describe = defau
           </button>
         </div>
       ) : (
-        query.trim().length >= 2 && (
-          <div className="house-search__results" role="listbox" aria-label="Найденные дома">
+        isSearchOpen && (
+          <div id={resultsId} className="house-search__results" role="listbox" aria-label="Найденные дома">
             {search.isLoading && <div className="house-search__hint">Ищем…</div>}
             {search.data?.length === 0 && <div className="house-search__hint">Ничего не найдено</div>}
             {search.data?.map((candidate) => (

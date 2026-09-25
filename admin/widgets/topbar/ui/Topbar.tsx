@@ -13,6 +13,7 @@ const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: ROUTES.messages, title: 'Сообщения', subtitle: 'Переписка с жителями по обращениям' },
   { prefix: ROUTES.staff, title: 'Сотрудники', subtitle: 'Управы, жилищники и администраторы' },
   { prefix: ROUTES.residents, title: 'Жители', subtitle: 'Жители и их заявки' },
+  { prefix: ROUTES.reports, title: 'Обращение', subtitle: 'Карточка обращения и переписка с жителем' },
   { prefix: ROUTES.incidents, title: 'Инциденты', subtitle: 'Инциденты и обсуждения по ним' },
   { prefix: ROUTES.news, title: 'Новости', subtitle: 'Публикации для жителей' },
 ];

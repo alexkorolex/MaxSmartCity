@@ -1,13 +1,18 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { useChatConversations } from '@/entities/chat';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, CommentIcon, EmptyState, Pill } from '@/shared/ui';
+import { AsyncState, ChevronRightIcon, CommentIcon, EmptyState } from '@/shared/ui';
+
+import './MessagesPage.css';
+
+function getResidentInitial(name: string | null): string {
+  return name?.trim().charAt(0).toLocaleUpperCase('ru-RU') || 'Ж';
+}
 
 /** The organization's inbox: every resident chat, unread first by recency. */
 export function MessagesPage() {
-  const navigate = useNavigate();
   const conversations = useChatConversations();
 
   return (
@@ -16,8 +21,7 @@ export function MessagesPage() {
         <div>
           <div className="card__title">Сообщения жителей</div>
           <div className="card__meta">
-            Переписка по обращениям жителей ваших домов. Непрочитанные сообщения дублируются в выбранные
-            организацией каналы уведомлений.
+            Все диалоги по обращениям. Непрочитанные сообщения всегда остаются заметными.
           </div>
         </div>
       </div>
@@ -30,47 +34,41 @@ export function MessagesPage() {
           {!conversations.data || conversations.data.length === 0 ? (
             <EmptyState icon={<CommentIcon />} title="Сообщений пока нет" />
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Житель</th>
-                    <th>Обращение</th>
-                    <th>Последнее сообщение</th>
-                    <th>Когда</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {conversations.data.map((item) => (
-                    <tr
-                      key={item.report_id}
-                      className="is-clickable"
-                      tabIndex={0}
-                      onClick={() => navigate(ROUTES.report(item.report_id))}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') navigate(ROUTES.report(item.report_id));
-                      }}
-                    >
-                      <td data-label="Житель">
-                        <div className="cell-primary">{item.resident_name ?? 'Житель'}</div>
-                        <div className="cell-muted">{item.address ?? '—'}</div>
-                      </td>
-                      <td className="cell-secondary" data-label="Обращение">
-                        {(item.report_text ?? '—').slice(0, 80)}
-                      </td>
-                      <td className="cell-secondary" data-label="Последнее сообщение">
-                        {item.last_message_from_resident ? '' : 'Вы: '}
-                        {item.last_message_text.slice(0, 120)}
-                      </td>
-                      <td className="cell-muted" data-label="Когда">{formatDateTime(item.last_message_at)}</td>
-                      <td data-label="Статус">
-                        {item.unread_count > 0 && <Pill tone="info" label={`Новых: ${item.unread_count}`} />}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="message-inbox" aria-label="Диалоги с жителями">
+              {conversations.data.map((item) => (
+                <Link
+                  key={item.report_id}
+                  className={`message-thread${item.unread_count > 0 ? ' message-thread--unread' : ''}`}
+                  to={ROUTES.report(item.report_id)}
+                >
+                  <span className="message-thread__avatar" aria-hidden="true">
+                    {getResidentInitial(item.resident_name)}
+                  </span>
+                  <span className="message-thread__content">
+                    <span className="message-thread__heading">
+                      <strong>{item.resident_name ?? 'Житель'}</strong>
+                      <time dateTime={item.last_message_at}>{formatDateTime(item.last_message_at)}</time>
+                    </span>
+                    <span className="message-thread__address">{item.address ?? 'Адрес не указан'}</span>
+                    <strong className="message-thread__subject">{item.report_text ?? 'Обращение жителя'}</strong>
+                    <span className="message-thread__preview">
+                      {item.last_message_from_resident ? '' : 'Вы: '}
+                      {item.last_message_text}
+                    </span>
+                  </span>
+                  <span className="message-thread__aside">
+                    {item.unread_count > 0 ? (
+                      <span
+                        className="message-thread__badge"
+                        aria-label={`Новых сообщений: ${item.unread_count}`}
+                      >
+                        {item.unread_count}
+                      </span>
+                    ) : null}
+                    <ChevronRightIcon width={18} height={18} />
+                  </span>
+                </Link>
+              ))}
             </div>
           )}
         </AsyncState>

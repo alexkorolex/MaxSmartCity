@@ -8,6 +8,7 @@ export const ROUTES = {
   staff: '/staff',
   residents: '/residents',
   resident: (residentId: string) => `/residents/${residentId}`,
+  reports: '/reports',
   report: (reportId: string) => `/reports/${reportId}`,
   incidents: '/incidents',
   incident: (incidentId: string) => `/incidents/${incidentId}`,

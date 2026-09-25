@@ -1,0 +1,13 @@
+.houses-page__address .pill {
+  margin-top: 7px;
+}
+
+@media (max-width: 640px) {
+  .houses-page__address .pill {
+    align-self: flex-start;
+  }
+
+  .data-table td[data-label='Действия'] .btn--danger-ghost {
+    width: 100%;
+  }
+}

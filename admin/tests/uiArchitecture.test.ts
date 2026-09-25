@@ -17,12 +17,20 @@ test('global stylesheet delegates styles to FSD layers', () => {
   assert.ok(stylesheet.split('\n').length <= 6);
 });
 
+test('the main lint command validates colocated CSS files', () => {
+  const packageJson = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
+  const stylelintConfig = read('stylelint.config.js');
+
+  assert.match(packageJson.scripts.lint, /lint:css/);
+  assert.match(packageJson.scripts['lint:css'], /stylelint/);
+  assert.match(stylelintConfig, /stylelint-config-standard/);
+});
+
 test('responsive table cells provide mobile labels', () => {
   const tablePages = [
     'pages/houses/ui/HousesPage.tsx',
     'pages/incident-detail/ui/IncidentDetailPage.tsx',
     'pages/incidents/ui/IncidentsPage.tsx',
-    'pages/messages/ui/MessagesPage.tsx',
     'pages/news/ui/NewsPage.tsx',
     'pages/organization-detail/ui/OrganizationDetailPage.tsx',
     'pages/organizations/ui/OrganizationsPage.tsx',
@@ -37,6 +45,23 @@ test('responsive table cells provide mobile labels', () => {
     assert.ok(cells.length > 0, `${page} should contain table cells`);
     assert.ok(cells.every((cell) => cell.includes('data-label=')), `${page} has an unlabeled mobile cell`);
   }
+});
+
+test('message inbox uses semantic links instead of clickable table rows', () => {
+  const source = read('pages/messages/ui/MessagesPage.tsx');
+
+  assert.match(source, /<Link/);
+  assert.match(source, /className="message-inbox"/);
+  assert.doesNotMatch(source, /<table/);
+  assert.doesNotMatch(source, /tabIndex=/);
+});
+
+test('house address search exposes combobox state', () => {
+  const source = read('entities/geo/ui/HouseSearchField.tsx');
+
+  assert.match(source, /role="combobox"/);
+  assert.match(source, /aria-expanded=/);
+  assert.match(source, /aria-controls=/);
 });
 
 test('page and feature UI avoids inline style objects', () => {

@@ -495,6 +495,29 @@ def test_resident_self_profile_get_and_patch(api_client: TestClient, rsa_keypair
 # --- Geo: houses, and setting a resident's own home ------------------------------------
 
 
+def test_geo_house_search_matches_numbers_against_the_house_number_not_the_postcode(
+    api_client: TestClient, database_url: str
+) -> None:
+    city = f"Город-{uuid4().hex[:8]}"
+
+    def house(number: str, formatted: str) -> str:
+        return _insert_house(
+            database_url, city=city, street="улица Мира", house_number=number, formatted=formatted
+        )
+
+    ten = house("10", f"{city}, улица Мира, дом 10")
+    ten_a = house("10А", f"{city}, улица Мира, дом 10А")
+    # Postcode 241028 contains "10" - a number must still not match it.
+    one = house("1", f"241028, {city}, ул. Мира, д. 1")
+
+    def search(q: str) -> list[str]:
+        found = api_client.get("/geo/houses", params={"city": city, "q": q}).json()
+        return [item["house_id"] for item in found]
+
+    assert search("Мира 10") == [ten, ten_a]
+    assert search("мира") == [one, ten, ten_a]
+
+
 def test_geo_houses_lists_and_filters_by_city(api_client: TestClient, database_url: str) -> None:
     bryansk_house = _insert_house(database_url, city="Брянск", street="улица Евдокимова", house_number="8")
     crimea_house = _insert_house(database_url, city="Бахчисарай", street="улица Мира", house_number="9")

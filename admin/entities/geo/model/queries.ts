@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { fetchCities } from '../api/geo';
-import { assignHouseManagement, fetchHouseManagement, searchHouses, terminateHouseManagement } from '../api/houses';
+import {
+  assignHouseManagement,
+  fetchHouseInfo,
+  fetchHouseManagement,
+  searchHouses,
+  terminateHouseManagement,
+} from '../api/houses';
 import type { AssignHouseManagementPayload } from './types';
 
 export const citiesQueryKey = ['cities'] as const;
@@ -27,6 +33,17 @@ export function useHouseSearch(q: string, city: string) {
     queryKey: houseSearchQueryKey(query, city),
     queryFn: () => searchHouses({ q: query, city: city || undefined }),
     enabled: query.length >= 2,
+  });
+}
+
+export const houseInfoQueryKey = (houseId: string) => ['houses', houseId, 'info'] as const;
+
+export function useHouseInfo(houseId: string | null | undefined) {
+  return useQuery({
+    queryKey: houseInfoQueryKey(houseId ?? ''),
+    queryFn: () => fetchHouseInfo(houseId ?? ''),
+    enabled: Boolean(houseId),
+    staleTime: 5 * 60_000,
   });
 }
 

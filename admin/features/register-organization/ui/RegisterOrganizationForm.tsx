@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 
+import { useAssignHouseManagement, type House, type HouseInfo, type HouseManagingOrganization } from '@/entities/geo';
 import {
   EMPTY_STAFF_ACCOUNT,
   HOUSING_ORGANIZATION_TYPES,
@@ -8,11 +10,16 @@ import {
   isValidOgrn,
   ORGANIZATION_TYPE_LABELS,
   StaffAccountFields,
+  useOrganizations,
   useRegisterOrganization,
   type HousingOrganizationType,
   type StaffAccountPayload,
 } from '@/entities/organization';
 import { apiErrorMessage } from '@/shared/lib';
+import { ROUTES } from '@/shared/routes';
+
+import { findRegistered, type RequisitesPrefill } from '../lib/prefill';
+import { HouseManagerLookup } from './HouseManagerLookup';
 
 import './RegisterOrganizationForm.css';
 
@@ -38,6 +45,8 @@ const EMPTY_REQUISITES: RequisitesState = {
   inReserveRegistry: false,
 };
 
+const DEFAULT_BASIS = 'Сведения открытых реестров (ГИС ЖКХ) об управлении домом';
+
 interface RegisterOrganizationFormProps {
   onRegistered: (organizationId: string) => void;
   onCancel: () => void;
@@ -46,12 +55,25 @@ interface RegisterOrganizationFormProps {
 /**
  * Admin registers a management company (УК) or HOA (ТСЖ) together with its first
  * employee in one step - per Постановление №1616 a УК must hold a license, and only a
- * licensed УК can be on the Перечень of fallback managers.
+ * licensed УК can be on the Перечень of fallback managers. Starting from a house it
+ * manages, the form is prefilled from what the platform already knows about that house,
+ * and the house can be attached to the new organization right away.
  */
 export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrganizationFormProps) {
   const [requisites, setRequisites] = useState<RequisitesState>(EMPTY_REQUISITES);
   const [employee, setEmployee] = useState<StaffAccountPayload>(EMPTY_STAFF_ACCOUNT);
+  const [touched, setTouched] = useState(false);
+  const [house, setHouse] = useState<House | null>(null);
+  const [houseInfo, setHouseInfo] = useState<HouseInfo | undefined>();
+  const [applied, setApplied] = useState<{ key: string; candidate: HouseManagingOrganization } | null>(null);
+  const [attachHouse, setAttachHouse] = useState(true);
+  const [basis, setBasis] = useState(DEFAULT_BASIS);
+  const [registeredId, setRegisteredId] = useState<string | null>(null);
   const register = useRegisterOrganization();
+  const assign = useAssignHouseManagement();
+  const organizations = useOrganizations();
+  const alreadyRegistered = findRegistered(organizations.data ?? [], requisites);
+  const platformManager = houseInfo?.platform_manager ?? null;
 
   const isManagementCompany = requisites.type === 'MANAGEMENT_COMPANY';
   const innError = requisites.inn && !isValidInn(requisites.inn) ? 'ИНН не прошёл проверку контрольной суммы' : '';
@@ -62,10 +84,31 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
     isValidInn(requisites.inn) &&
     isValidOgrn(requisites.ogrn) &&
     (!isManagementCompany || Boolean(requisites.licenseNumber.trim())) &&
-    isStaffAccountComplete(employee);
+    isStaffAccountComplete(employee) &&
+    !alreadyRegistered &&
+    (!house || !attachHouse || Boolean(basis.trim()));
 
   function update<K extends keyof RequisitesState>(key: K, value: RequisitesState[K]) {
+    setTouched(true);
     setRequisites((current) => ({ ...current, [key]: value }));
+  }
+
+  function changeHouse(next: House | null) {
+    setHouse(next);
+    setApplied(null);
+    // Taking a house from another platform organization is a deliberate step, not a default.
+    setAttachHouse(Boolean(next) && !next?.managed_by_organization_id);
+  }
+
+  function applyPrefill(prefill: RequisitesPrefill, key: string, candidate: HouseManagingOrganization) {
+    setApplied({ key, candidate });
+    setRequisites((current) => ({
+      ...current,
+      ...prefill,
+      // A registry never publishes the license - keep what the admin typed.
+      licenseNumber: prefill.type === 'HOA' ? '' : current.licenseNumber,
+      inReserveRegistry: prefill.type === 'HOA' ? false : current.inReserveRegistry,
+    }));
   }
 
   function changeType(type: HousingOrganizationType) {
@@ -90,13 +133,93 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
         in_reserve_registry: isManagementCompany && requisites.inReserveRegistry,
         employee: { ...employee, email: employee.email?.trim() || null },
       },
-      { onSuccess: (result) => onRegistered(result.organization_id) },
+      {
+        onSuccess: (result) => {
+          if (!house || !attachHouse) {
+            onRegistered(result.organization_id);
+            return;
+          }
+          assign.mutate(
+            { house_id: house.house_id, organization_id: result.organization_id, basis: basis.trim() },
+            {
+              onSuccess: () => onRegistered(result.organization_id),
+              // The organization exists either way - say what's missing, don't lose it.
+              onError: () => setRegisteredId(result.organization_id),
+            },
+          );
+        },
+      },
+    );
+  }
+
+  if (registeredId) {
+    return (
+      <div className="register-organization">
+        <div className="form-error">
+          Организация зарегистрирована, но дом не удалось привязать: {apiErrorMessage(assign.error)}. Привяжите его
+          на странице «Дома».
+        </div>
+        <div className="form-actions">
+          <button type="button" className="btn" onClick={() => onRegistered(registeredId)}>
+            Перейти к организации
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
     <form className="register-organization" onSubmit={handleSubmit}>
+      <div className="form-section-title">Дом, который обслуживает организация</div>
+      <div className="form-hint">
+        Необязательно, но экономит время: по адресу подтянем название, ИНН/ОГРН и контакты из открытых источников.
+      </div>
+      <HouseManagerLookup
+        house={house}
+        onHouseChange={changeHouse}
+        appliedKey={applied?.key ?? null}
+        autoApply={!touched}
+        onApply={applyPrefill}
+        onInfo={setHouseInfo}
+      />
+      {platformManager && (
+        <div className="form-error">
+          Дом уже обслуживает на платформе {platformManager.name}.{' '}
+          <Link to={ROUTES.organization(platformManager.organization_id)}>Открыть карточку</Link>
+        </div>
+      )}
+      {house && (
+        <div className="form-grid">
+          <label className="checkbox-field form-grid__wide">
+            <input type="checkbox" checked={attachHouse} onChange={(event) => setAttachHouse(event.target.checked)} />
+            {platformManager
+              ? 'Передать дом новой организации (прежнее управление на платформе завершится)'
+              : 'Сразу привязать дом к организации — сотрудник увидит его жителей и заявки'}
+          </label>
+          {attachHouse && (
+            <div className="form-grid__wide">
+              <label className="field-label" htmlFor="org-house-basis">
+                Основание управления
+              </label>
+              <input
+                id="org-house-basis"
+                className="field"
+                value={basis}
+                onChange={(event) => setBasis(event.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="form-section-title">Организация</div>
+      {alreadyRegistered && (
+        <div className="form-error">
+          {alreadyRegistered.name} с такими ИНН/ОГРН уже зарегистрирована.{' '}
+          <Link to={ROUTES.organization(alreadyRegistered.id)}>Открыть карточку</Link> — там можно добавить
+          сотрудников.
+        </div>
+      )}
       <div className="form-grid">
         <div className="form-grid__wide">
           <label className="field-label" htmlFor="org-name">
@@ -154,6 +277,9 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
             onChange={(event) => update('inn', event.target.value.replace(/\D/g, ''))}
           />
           {innError && <div className="form-hint form-hint--error">{innError}</div>}
+          {!innError && applied && !applied.candidate.inn && !requisites.inn && (
+            <div className="form-hint">В открытых источниках ИНН не найден — укажите вручную</div>
+          )}
         </div>
         <div>
           <label className="field-label" htmlFor="org-ogrn">
@@ -210,13 +336,23 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
 
       <div className="form-section-title">Первый сотрудник</div>
       <StaffAccountFields idPrefix="org-employee" value={employee} onChange={setEmployee} />
+      {applied?.candidate.email && !employee.email && (
+        <div className="form-hint">
+          Контактный e-mail организации из открытых источников: {applied.candidate.email}
+        </div>
+      )}
 
       {register.isError && <div className="form-error">{apiErrorMessage(register.error)}</div>}
       <div className="form-actions">
-        <button type="submit" className="btn" disabled={!canSubmit || register.isPending}>
-          {register.isPending ? 'Регистрируем…' : 'Зарегистрировать'}
+        <button type="submit" className="btn" disabled={!canSubmit || register.isPending || assign.isPending}>
+          {register.isPending || assign.isPending ? 'Регистрируем…' : 'Зарегистрировать'}
         </button>
-        <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={register.isPending}>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          onClick={onCancel}
+          disabled={register.isPending || assign.isPending}
+        >
           Отмена
         </button>
       </div>

@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 
-import { useAssignHouseManagement, useCities, useHouseSearch, type House } from '@/entities/geo';
+import { HouseSearchField, useAssignHouseManagement, type House } from '@/entities/geo';
 import { HOUSING_ORGANIZATION_TYPES, useOrganizations } from '@/entities/organization';
 import { canBrowseOrganizations, useMe } from '@/entities/session';
 import { apiErrorMessage } from '@/shared/lib';
@@ -17,17 +17,13 @@ export function TakeHouseForm() {
   const { data: principal } = useMe();
   const isAuthority = canBrowseOrganizations(principal);
   const organizations = useOrganizations();
-  const { data: cities } = useCities();
   const assign = useAssignHouseManagement();
 
-  const [query, setQuery] = useState('');
-  const [city, setCity] = useState('');
   const [house, setHouse] = useState<House | null>(null);
   const [organizationId, setOrganizationId] = useState('');
   const [basis, setBasis] = useState('');
   const [viaReserveRegistry, setViaReserveRegistry] = useState(false);
   const [lastAdded, setLastAdded] = useState('');
-  const search = useHouseSearch(query, city);
 
   const housingOrganizations = useMemo(
     () =>
@@ -68,8 +64,8 @@ export function TakeHouseForm() {
 
   return (
     <form className="take-house" onSubmit={handleSubmit}>
-      <div className="form-grid">
-        {isAuthority && (
+      {isAuthority && (
+        <div className="form-grid">
           <div className="form-grid__wide">
             <label className="field-label" htmlFor="take-house-organization">
               Организация
@@ -92,65 +88,10 @@ export function TakeHouseForm() {
               ))}
             </select>
           </div>
-        )}
-        <div>
-          <label className="field-label" htmlFor="take-house-query">
-            Адрес
-          </label>
-          <input
-            id="take-house-query"
-            className="field"
-            placeholder="Улица и номер дома"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setHouse(null);
-            }}
-          />
-        </div>
-        <div>
-          <label className="field-label" htmlFor="take-house-city">
-            Город
-          </label>
-          <select id="take-house-city" className="field" value={city} onChange={(event) => setCity(event.target.value)}>
-            <option value="">Все города</option>
-            {(cities ?? []).map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {query.trim().length >= 2 && (
-        <div className="take-house__results" role="listbox" aria-label="Найденные дома">
-          {search.isLoading && <div className="take-house__hint">Ищем…</div>}
-          {search.data?.length === 0 && <div className="take-house__hint">Ничего не найдено</div>}
-          {search.data?.map((candidate) => {
-            const selectable = isSelectable(candidate);
-            const selected = house?.house_id === candidate.house_id;
-            return (
-              <button
-                key={candidate.house_id}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                className={`take-house__option${selected ? ' take-house__option--selected' : ''}`}
-                disabled={!selectable}
-                onClick={() => setHouse(candidate)}
-              >
-                <span className="take-house__address">{candidate.formatted}</span>
-                <span className="take-house__manager">
-                  {candidate.managed_by_organization_name
-                    ? `Обслуживает: ${candidate.managed_by_organization_name}`
-                    : 'Свободен'}
-                </span>
-              </button>
-            );
-          })}
         </div>
       )}
+
+      <HouseSearchField value={house} onChange={setHouse} isDisabled={(candidate) => !isSelectable(candidate)} />
 
       {house && (
         <div className="form-grid">

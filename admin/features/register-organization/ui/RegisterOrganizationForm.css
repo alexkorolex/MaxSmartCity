@@ -1,1 +1,15 @@
 .register-organization { display: flex; max-width: 880px; flex-direction: column; gap: var(--space-4); }
+
+.manager-lookup { display: flex; flex-direction: column; gap: var(--space-3); }
+.manager-lookup__candidates { display: flex; flex-direction: column; gap: var(--space-2); }
+.manager-lookup__candidate { display: flex; flex-direction: column; gap: 8px; padding: 13px 15px; background: var(--background-secondary); border: 1px solid transparent; border-radius: var(--radius-sm); }
+.manager-lookup__candidate--applied { background: var(--surface); border-color: var(--success); }
+.manager-lookup__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.manager-lookup__name { color: var(--text-primary); font-size: 14px; font-weight: 720; }
+.manager-lookup__meta, .manager-lookup__sources { color: var(--text-muted); font-size: 12px; }
+.manager-lookup__contacts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.manager-lookup__contacts a, .register-organization .form-error a { color: var(--blue-strong); text-decoration: none; }
+
+@media (max-width: 640px) {
+    .manager-lookup__head { flex-direction: column; }
+}

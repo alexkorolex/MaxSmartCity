@@ -9,7 +9,7 @@ from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
 from litestar.exceptions import ClientException, NotFoundException, PermissionDeniedException
 from litestar.params import FromPath, Parameter
-from sqlalchemy import Row, Select, select
+from sqlalchemy import Row, Select, case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
@@ -165,19 +165,30 @@ class HouseController(Controller):
         limit: Annotated[int, Parameter(ge=1, le=200)] = 200,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[HouseSummary]:
-        """``q`` searches the formatted address word by word (every word must occur,
-        case-insensitively), so "Мира 9" finds "ул. Мира, д. 9"."""
+        """``q`` searches word by word, case-insensitively: every word must occur in the
+        formatted address, except numbers, which must start the house number - so
+        "Мира 9" finds "ул. Мира, д. 9" and "9А", but not a house whose postcode has a 9."""
         with database_action("list", "geo.House"):
+            words = _search_words(q)
+            numbers = [word.lower() for word in words if word[0].isdigit()]
+            # A typed house number first ("Мира 10" -> дом 10, then 10А, 10 корп. 1, ...).
+            exact_number_first = (
+                case((func.lower(Address.house_number).in_(numbers), 0), else_=1) if numbers else literal(1)
+            )
             statement = (
                 _house_summary_statement()
-                .order_by(Address.city, Address.street, Address.house_number)
+                .order_by(exact_number_first, Address.city, Address.street, Address.house_number)
                 .limit(limit)
                 .offset(offset)
             )
             if city:
                 statement = statement.where(Address.city == city)
-            for word in _search_words(q):
-                statement = statement.where(Address.formatted.ilike(f"%{word}%"))
+            for word in words:
+                if word[0].isdigit():
+                    # Numbers match the house number itself - never a postcode ("241028" holds "10").
+                    statement = statement.where(Address.house_number.ilike(f"{word}%"))
+                else:
+                    statement = statement.where(Address.formatted.ilike(f"%{word}%"))
             rows = (await db_session.execute(statement)).all()
             return [_to_house_summary(row) for row in rows]
 

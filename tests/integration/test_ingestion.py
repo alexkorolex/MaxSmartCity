@@ -366,7 +366,7 @@ async def test_unexpected_failure_rolls_back_entire_run(
     async def crash(*args: object) -> str:
         raise RuntimeError("unexpected importer failure")
 
-    monkeypatch.setattr("src.domains.ingestion.importer._organization", crash)
+    monkeypatch.setattr("src.domains.ingestion.importer.run.write_organization", crash)
     with pytest.raises(RuntimeError, match="unexpected importer failure"):
         await import_file(save(path, dataset), database_url)
     assert (await house_row(database_url, code))[4] == "1"

@@ -11,6 +11,8 @@ from litestar.exceptions import PermissionDeniedException
 from src.security.principal import Principal
 
 ADMIN_ROLE = "admin"
+STAFF_ROLES = ("admin", "district_admin", "housing_worker")
+"""Every staff role - who may use the admin panel at all (then scoped by organization)."""
 
 
 def is_platform_admin(principal: Principal) -> bool:

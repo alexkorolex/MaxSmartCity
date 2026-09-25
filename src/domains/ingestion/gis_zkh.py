@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from src.domains.ingestion.importer import _normalize_house_number, _normalize_street
+from src.domains.ingestion.importer import normalize_house_number, normalize_street
 
 SOURCE_CODE = "gis-zkh-public-pilot"
 SOURCE_PAGE = "https://dom.gosuslugi.ru/#!/houses"
@@ -68,7 +68,7 @@ def _value(row: dict[str, str], aliases: tuple[str, ...]) -> str | None:
 
 
 def _key(city: str, street: str, house_number: str) -> tuple[str, str, str]:
-    return city.casefold(), _normalize_street(street).casefold(), _normalize_house_number(house_number)
+    return city.casefold(), normalize_street(street).casefold(), normalize_house_number(house_number)
 
 
 PILOT_KEYS = {_key(*address): address for address in PILOT_HOUSES}
@@ -77,7 +77,7 @@ PILOT_KEYS = {_key(*address): address for address in PILOT_HOUSES}
 def _address_key(address: str) -> tuple[str, str, str] | None:
     compact = " ".join(address.casefold().replace(",", " ").split())
     for key, (city, street, number) in PILOT_KEYS.items():
-        street_tail = _normalize_street(street).removeprefix("улица ").casefold()
+        street_tail = normalize_street(street).removeprefix("улица ").casefold()
         pattern = (
             rf"\b{re.escape(city.casefold())}\b.*\b(?:ул\.?|улица)\s+{re.escape(street_tail)}\b"
             rf".*\b(?:д\.?|дом)\s*{re.escape(number)}(?![0-9а-я])"

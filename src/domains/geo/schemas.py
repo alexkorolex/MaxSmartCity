@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import ClassVar
+from typing import ClassVar, Literal
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
@@ -178,3 +178,51 @@ class HouseInfo:
     official_status: str | None
     platform_manager: HousePlatformManager | None
     managing_organizations: list[HouseManagingOrganization]
+
+
+@dataclass(slots=True)
+class GeoJSONPoint:
+    coordinates: tuple[float, float]
+    type: Literal["Point"] = "Point"
+
+
+@dataclass(slots=True)
+class HouseMapProperties:
+    house_id: UUID
+    formatted: str
+    city: str | None
+    street: str | None
+    house_number: str | None
+    active_reports: int
+    active_incidents: int
+    footprint_area_m2: float | None = None
+    size_group: Literal["UP_TO_MEDIAN", "ABOVE_MEDIAN"] | None = None
+
+
+@dataclass(slots=True)
+class HouseMapFeature:
+    id: str
+    geometry: GeoJSONPoint | None
+    properties: HouseMapProperties
+    type: Literal["Feature"] = "Feature"
+
+
+@dataclass(slots=True)
+class HouseMapMetadata:
+    city: str
+    returned: int
+    limit: int
+    offset: int
+    has_more: bool
+    located: int
+    unlocated: int
+    geometry_source: Literal["HOUSE_OR_ADDRESS_POINT"] = "HOUSE_OR_ADDRESS_POINT"
+    footprint_area_available: bool = False
+    median_footprint_area_m2: float | None = None
+
+
+@dataclass(slots=True)
+class HouseMapFeatureCollection:
+    features: list[HouseMapFeature]
+    metadata: HouseMapMetadata
+    type: Literal["FeatureCollection"] = "FeatureCollection"

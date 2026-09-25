@@ -24,8 +24,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && uv run python -m maxsmartcity.ml.training.cli \
        --config ml/configs/training/category-tfidf-logreg.v2.json
 
-# Download the quantized local embedding model during the image build. Runtime
-# stays network-independent and can keep a read-only filesystem.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv run python -c "from pathlib import Path; from maxsmartcity.ml.adapters.embeddings import FastEmbedProvider; FastEmbedProvider(cache_dir=Path('/app/ml/models')).embed(('проверка модели',))"
 

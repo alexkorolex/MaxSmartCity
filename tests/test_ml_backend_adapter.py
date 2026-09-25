@@ -24,6 +24,7 @@ def test_backend_exposes_ml_gateway_routes() -> None:
 
     assert "get" in schema["paths"]["/ml/health"]
     assert "post" in schema["paths"]["/ml/decide"]
+    assert "post" in schema["paths"]["/ml/grouping/recommend"]
 
 
 def test_backend_entities_map_to_allowlisted_ml_snapshot() -> None:
@@ -86,6 +87,20 @@ def test_ml_client_forwards_contract_without_mutating_it() -> None:
     assert result.status_code == 200
     assert result.body["request_id"] == "REQ-2"
     assert payload == {"contract_version": "2.0.0-draft", "request_id": "REQ-2"}
+
+
+def test_ml_client_forwards_semantic_grouping_contract() -> None:
+    payload = {"contract_version": "2.0.0-draft", "request_id": "REQ-SEMANTIC"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/grouping:recommend"
+        return httpx.Response(200, json={"request_id": "REQ-SEMANTIC", "action": "ABSTAIN"})
+
+    client = MLDecisionClient("http://ml.test", transport=httpx.MockTransport(handler))
+    result = asyncio.run(client.recommend_grouping(payload))
+
+    assert result.status_code == 200
+    assert result.body["action"] == "ABSTAIN"
 
 
 def test_ml_client_returns_retryable_error_when_service_is_down() -> None:

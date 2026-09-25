@@ -62,8 +62,6 @@ class SemanticAction(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SemanticGroupingConfig:
-    # Conservative zero-shot defaults. They intentionally prefer clarification;
-    # production values must be calibrated on human-reviewed Russian reports.
     attach_threshold: float = 0.88
     clarify_threshold: float = 0.84
     minimum_margin: float = 0.05

@@ -4,6 +4,7 @@ import hashlib
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
@@ -18,7 +19,7 @@ from src.domains.collaboration.models import Assignment, AssignmentStatusHistory
 from src.domains.collaboration.state_machine import ASSIGNMENT_TRANSITIONS
 from src.domains.geo.models import Address, House, HouseManagement
 from src.domains.geo.services import active_house_manager_id
-from src.domains.identity.models import Organization
+from src.domains.identity.models import Organization, Resident
 from src.domains.incidents.enums import (
     AffectedHouseSource,
     GroupingMode,
@@ -71,6 +72,8 @@ from src.domains.notifications.models import Notification
 from src.domains.reports.enums import ReportStatus
 from src.domains.reports.models import ProblemCategory, Report, ReportStatusHistory
 from src.domains.reports.state_machine import ensure_report_transition
+from src.max_bot.links import max_profile_url
+from src.settings import admin_panel_url
 
 ACTIVE_INCIDENT_STATUSES = frozenset(
     {
@@ -1086,18 +1089,46 @@ class IncidentCoreService:
             .where(House.id == report.house_id)
         )
         title = "Новая заявка жителя" if new_incident else "Новое обращение по открытой заявке"
+        requester = await self._requester(report)
+        lines = [f"Адрес: {address}" if address else None, f"Заявка: {incident.title}"]
+        if report.text:
+            lines.append(f"Текст: {report.text}")
+        if requester is not None:
+            lines.append(f"Заявитель: {requester['name'] or 'имя не указано'}")
+            if requester["max_profile_url"]:
+                lines.append(f"Профиль MAX: {requester['max_profile_url']}")
+            elif requester["max_user_id"]:
+                lines.append(f"MAX ID: {requester['max_user_id']} (публичного профиля нет)")
+        panel = admin_panel_url()
+        if panel:
+            lines.append(f"Открыть в панели: {panel}/incidents/{incident.id}")
         enqueue_organization_notification(
             self.session,
             OrganizationMessage(
                 organization_id=organization_id,
                 event_type="RESIDENT_REPORT_RECEIVED",
                 title=title,
-                body="\n".join(part for part in (address, incident.title, report.text) if part),
+                body="\n".join(line for line in lines if line),
                 incident_id=incident.id,
                 report_id=report.id,
                 house_id=report.house_id,
+                requester=requester,
             ),
         )
+
+    async def _requester(self, report: Report) -> dict[str, Any] | None:
+        """Who filed the report, as far as MAX told us - for the organization to reach them."""
+        if report.resident_id is None:
+            return None
+        resident = await self.session.get(Resident, report.resident_id)
+        if resident is None:
+            return None
+        return {
+            "name": resident.display_name,
+            "max_user_id": resident.max_user_id,
+            "max_username": resident.username,
+            "max_profile_url": max_profile_url(resident.username),
+        }
 
     def _emit(
         self,

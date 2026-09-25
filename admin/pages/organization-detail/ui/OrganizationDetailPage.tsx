@@ -10,6 +10,7 @@ import {
 } from '@/entities/organization';
 import { canBrowseOrganizations, isAdmin, roleLabel, useMe } from '@/entities/session';
 import { AddOrganizationEmployeeForm } from '@/features/add-organization-employee';
+import { OrganizationChannelsCard } from '@/features/organization-channels';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
@@ -167,6 +168,14 @@ export function OrganizationDetailPage() {
           </AsyncState>
         </div>
       </div>
+
+      {canManage && org && (
+        <OrganizationChannelsCard
+          organizationId={org.id}
+          isAdmin={isAdmin(principal)}
+          ownMember={members.data?.find((member) => member.user_id === principal?.actor_id && member.is_active)}
+        />
+      )}
 
       {canManage && org && (
         <div className="card">

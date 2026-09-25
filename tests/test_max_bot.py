@@ -360,3 +360,58 @@ async def test_auto_subscribe_never_raises_on_api_failure(
     monkeypatch.setattr(MaxClient, "subscribe", failing_subscribe)
 
     await startup.auto_subscribe_max_webhook()  # must not raise
+
+
+async def test_chatid_command_in_a_group_replies_with_the_chat_id(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    service = _FakeResidentService()
+    group_message = {
+        "sender": {"user_id": 7, "is_bot": False},
+        "recipient": {"chat_type": "chat", "chat_id": -70001},
+        "body": {"mid": "m1", "text": "/chatid"},
+    }
+
+    await handlers.handle_message_created(
+        {"update_type": "message_created", "message": group_message}, cast(ResidentService, service), settings
+    )
+    chatter = {**group_message, "body": {"mid": "m2", "text": "привет"}}
+    await handlers.handle_message_created(
+        {"update_type": "message_created", "message": chatter}, cast(ResidentService, service), settings
+    )
+
+    assert len(sent) == 1
+    assert sent[0]["chat_id"] == -70001
+    assert "-70001" in sent[0]["text"]
+    assert service.upserts == []
+
+
+async def test_id_command_in_a_dialog_replies_with_the_max_id_without_registering(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    service = _FakeResidentService()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 4242, "is_bot": False},
+            "recipient": {"chat_type": "dialog"},
+            "body": {"mid": "m3", "text": "/id"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, service), settings)
+
+    assert sent == [{"user_id": 4242, "text": handlers.MY_ID_TEXT.format(user_id=4242)}]
+    assert service.upserts == []

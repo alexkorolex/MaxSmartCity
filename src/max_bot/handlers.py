@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 START_COMMANDS = frozenset({"/start", "старт", "начать"})
 LOGIN_COMMANDS = frozenset({"/login", "войти", "вход"})
+CHAT_ID_COMMANDS = frozenset({"/chatid", "/chat_id"})
+MY_ID_COMMANDS = frozenset({"/id", "/myid", "/my_id"})
 
 WELCOME_TEXT = (
     "Добро пожаловать в бот, связанный с развитием умного города Smart City!\n\n"
@@ -27,6 +29,19 @@ LOGIN_TEXT = "Вот ваша ссылка для входа в приложен
 
 LOGIN_PROMPT_TEXT = (
     "Напишите /login, чтобы получить ссылку для входа, либо /start, чтобы узнать, что умеет бот."
+)
+
+
+CHAT_ID_TEXT = (
+    "ID этого чата: {chat_id}\n\n"
+    "Чтобы получать сюда уведомления о заявках жителей, укажите его в панели Smart City: "
+    "«Моя организация» → «Уведомления о заявках» → «Чат MAX»."
+)
+
+MY_ID_TEXT = (
+    "Ваш MAX ID: {user_id}\n\n"
+    "Сотрудникам управляющих организаций: укажите его в панели Smart City "
+    "(«Моя организация» → «Уведомления о заявках»), чтобы получать уведомления о заявках лично."
 )
 
 
@@ -109,12 +124,24 @@ async def handle_message_created(
         return
 
     recipient = message["recipient"]
-    if recipient.get("chat_type") != "dialog":
-        return
-
     body = message["body"]
     text = (body.get("text") or "").strip().lower()
+    command = text.split("@", 1)[0]
     client = MaxClient(settings)
+
+    if recipient.get("chat_type") != "dialog":
+        # In group chats the bot only answers /chatid - so an organization can route its
+        # request notifications into its own dispatchers' chat (the MAX_CHAT channel).
+        if command in CHAT_ID_COMMANDS and recipient.get("chat_id"):
+            chat_id = recipient["chat_id"]
+            await client.send_message(chat_id=chat_id, text=CHAT_ID_TEXT.format(chat_id=chat_id))
+        return
+
+    if command in MY_ID_COMMANDS:
+        # Deliberately before anything that registers a resident: staff ask this too.
+        user_id = sender["user_id"]
+        await client.send_message(user_id=user_id, text=MY_ID_TEXT.format(user_id=user_id))
+        return
 
     if text in START_COMMANDS or text in LOGIN_COMMANDS:
         await _issue_login_button(

@@ -44,6 +44,9 @@ class OrganizationMessage:
     incident_id: UUID | None = None
     report_id: UUID | None = None
     house_id: UUID | None = None
+    requester: dict[str, Any] | None = None
+    """Who filed the request - ``name``, ``max_user_id``, ``max_username``,
+    ``max_profile_url`` - also sent to webhooks as structured data."""
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -54,6 +57,7 @@ class OrganizationMessage:
             "incident_id": str(self.incident_id) if self.incident_id else None,
             "report_id": str(self.report_id) if self.report_id else None,
             "house_id": str(self.house_id) if self.house_id else None,
+            "requester": self.requester,
         }
 
     @classmethod
@@ -69,6 +73,7 @@ class OrganizationMessage:
             incident_id=optional("incident_id"),
             report_id=optional("report_id"),
             house_id=optional("house_id"),
+            requester=payload.get("requester"),
         )
 
     @property

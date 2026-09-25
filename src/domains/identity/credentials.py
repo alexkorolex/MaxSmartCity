@@ -3,10 +3,10 @@ account. Sent directly after the registration is committed - never through the o
 so the temporary password is not stored anywhere in the database."""
 
 import logging
-import os
 from dataclasses import dataclass
 
 from src.domains.notifications.mailer import MailDeliveryError, send_email
+from src.settings import admin_panel_url
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,6 @@ class CredentialsEmailResult:
     recipient: str | None
     sent: bool
     error: str | None = None
-
-
-def admin_panel_url() -> str | None:
-    """Where staff sign in (``ADMIN_PANEL_URL``, e.g. ``https://admin.maxsmartcity.ru``)."""
-    return (os.environ.get("ADMIN_PANEL_URL") or "").strip() or None
 
 
 def build_credentials_email(

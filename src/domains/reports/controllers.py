@@ -327,14 +327,29 @@ class ReportController(Controller):
     async def create_item(
         self,
         data: DTOData[Report],
-        service: NamedDependency[ReportService],
+        db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
     ) -> Report:
+        """The resident app's "Сообщить о проблеме". Goes through the same intake as
+        ``/reports/intake`` (``ReportIntakeService.accept_new``): grouped into an incident,
+        so the house's УК/ТСЖ is notified and staff see it."""
         with database_action("create", "reports.Report"):
             report = data.create_instance()
             report.resident_id = principal.actor_id
             report.source_type = ReportSourceType.MAX
-            return await service.create(report)
+            if report.house_id is not None and await db_session.get(House, report.house_id) is None:
+                raise NotFoundException(f"House {report.house_id} was not found")
+            category_id = report.category_id
+            if category_id is not None and await db_session.get(ProblemCategory, category_id) is None:
+                raise NotFoundException(f"Category {category_id} was not found")
+            db_session.add(report)
+            await db_session.flush()
+            try:
+                await ReportIntakeService(db_session).accept_new(report, resident_id=principal.actor_id)
+            except (IncidentCoreConflictError, InvalidStateTransition) as exc:
+                raise ClientException(status_code=409, detail=str(exc)) from exc
+            await db_session.commit()
+            return report
 
     @post(
         "/{item_id:uuid}/attachments",

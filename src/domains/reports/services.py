@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType, Priority
 from src.domains.geo.models import House
-from src.domains.incidents.schemas import GroupReportCommand
+from src.domains.incidents.schemas import GroupReportCommand, GroupReportResult
 from src.domains.incidents.services import IncidentCoreService
 from src.domains.infrastructure.models import OutboxEvent
 from src.domains.reports.enums import ReportSourceType, ReportStatus
@@ -107,6 +107,19 @@ class ReportIntakeService:
         )
         self.session.add(report)
         await self.session.flush()
+        grouping = await self.accept_new(report, resident_id=resident_id, request_id=command.request_id)
+        return CreateReportResult(report_id=report.id, grouping=grouping)
+
+    async def accept_new(
+        self, report: Report, *, resident_id: UUID, request_id: UUID | None = None
+    ) -> GroupReportResult:
+        """Everything a freshly saved resident report goes through, whichever endpoint
+        created it: the ``RECEIVED`` history entry, the ``REPORT_RECEIVED`` event, and
+        grouping into an incident - which is what routes it to the house's УК/ТСЖ (their
+        notification) and into the staff's incident list."""
+        category_code = await self.session.scalar(
+            select(ProblemCategory.code).where(ProblemCategory.id == report.category_id)
+        )
         self.session.add_all(
             [
                 ReportStatusHistory(
@@ -124,13 +137,12 @@ class ReportIntakeService:
                     payload={
                         "report_id": str(report.id),
                         "resident_id": str(resident_id),
-                        "house_id": str(command.house_id),
-                        "category_code": category.code,
+                        "house_id": str(report.house_id) if report.house_id else None,
+                        "category_code": category_code,
                     },
                 ),
             ]
         )
-        grouping = await IncidentCoreService(self.session).group_report(
-            report.id, GroupReportCommand(request_id=command.request_id)
+        return await IncidentCoreService(self.session).group_report(
+            report.id, GroupReportCommand(request_id=request_id)
         )
-        return CreateReportResult(report_id=report.id, grouping=grouping)

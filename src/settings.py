@@ -31,3 +31,9 @@ class BackgroundJobsSettings:
     @classmethod
     def from_environment(cls) -> "BackgroundJobsSettings":
         return cls(interval_seconds=float(os.environ.get("BACKGROUND_JOBS_INTERVAL_SECONDS") or 0))
+
+
+def admin_panel_url() -> str | None:
+    """Where staff sign in and work (``ADMIN_PANEL_URL``, e.g. ``https://admin.maxsmartcity.ru``) -
+    used for links in e-mails and notifications."""
+    return (os.environ.get("ADMIN_PANEL_URL") or "").strip().rstrip("/") or None

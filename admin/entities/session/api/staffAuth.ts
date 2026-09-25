@@ -26,3 +26,8 @@ export function staffLogout(refreshToken: string): Promise<void> {
 export function fetchMe(): Promise<Principal> {
   return http.get<Principal>('/identity/me/');
 }
+
+/** Link the signed-in staff member's own MAX account - for personal request notifications. */
+export function linkMaxAccount(maxUserId: number): Promise<{ operator_id: string; max_user_id: number }> {
+  return http.post('/auth/staff/max-id', { max_user_id: maxUserId });
+}

@@ -47,6 +47,8 @@ test('page and feature UI avoids inline style objects', () => {
     'features/add-organization-employee/ui/AddOrganizationEmployeeForm.tsx',
     'pages/organization-detail/ui/OrganizationDetailPage.tsx',
     'features/take-house/ui/TakeHouseForm.tsx',
+    'features/organization-channels/ui/OrganizationChannelsCard.tsx',
+    'features/complete-incident/ui/CompleteIncidentCard.tsx',
     'pages/houses/ui/HousesPage.tsx',
   ];
 

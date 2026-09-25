@@ -2,6 +2,7 @@
 employee, organization members, house management, notification channels, and how a
 housing worker's visibility is confined to their own organization's houses."""
 
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ from litestar.testing import TestClient
 
 from src.domains.notifications.mailer import MailDeliveryError
 from tests.integration.test_housing_organizations import random_inn, random_ogrn
+from tests.integration.test_ingestion import rows
 from tests.integration.test_resident_api import (  # noqa: F401
     _insert_affected_house,
     _insert_category,
@@ -391,3 +393,54 @@ def test_staff_register_colleagues_and_close_requests_residents_close_their_own(
     assert closed.json()["report_status"] == "CLOSED"
     assert closed.json()["incident_status"] == "CLOSED"
     assert api_client.post(close_path, json={}, headers=_headers(resident_token)).status_code == 409
+
+
+def test_report_from_the_resident_app_reaches_the_house_managers_channels(
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, _ = rsa_keypair
+    admin = _headers(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]))
+    organization_id, worker = _register_housing_organization(
+        api_client, monkeypatch, private_pem, admin, "ТСЖ Письмо"
+    )
+    house = _insert_house(database_url, formatted=f"ул. Уведомлений, {uuid4().hex[:6]}")
+    body = {"house_id": house, "organization_id": organization_id, "basis": "Протокол общего собрания"}
+    assert api_client.post("/geo/house-management/", json=body, headers=worker).status_code == 201
+    channel = {"organization_id": organization_id, "type": "EMAIL", "target": "dispatch@tszh.example"}
+    added = api_client.post("/notifications/organization-channels/", json=channel, headers=worker)
+    assert added.status_code == 201
+    category = _insert_category(database_url)
+    _resident_id, resident_token = _resident_token(api_client)
+
+    # Exactly what the resident app sends (frontend/entities/report/api/reports.ts).
+    created = api_client.post(
+        "/reports/",
+        json={
+            "source_type": "MAX",
+            "text": "Протекает крыша над подъездом",
+            "category_id": category,
+            "urgency": "NORMAL",
+            "problem_continues": True,
+            "house_id": house,
+        },
+        headers=_headers(resident_token),
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["status"] == "LINKED"
+
+    incidents = api_client.get("/incidents/", headers=worker).json()
+    assert len(incidents) == 1
+    notifications = asyncio.run(
+        rows(
+            database_url,
+            "SELECT payload->>'event_type' AS kind, payload->>'report_id' AS report_id "
+            "FROM infrastructure.outbox_event "
+            "WHERE event_type = 'ORGANIZATION_NOTIFICATION' AND aggregate_id = :organization_id",
+            organization_id=organization_id,
+        )
+    )
+    queued = [(row.kind, row.report_id) for row in notifications]
+    assert ("RESIDENT_REPORT_RECEIVED", created.json()["id"]) in queued

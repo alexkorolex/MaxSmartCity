@@ -4,6 +4,7 @@ delivery strategies, and closing a resident's request once the problem is solved
 
 import random
 from datetime import timedelta
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -423,3 +424,50 @@ async def test_organization_without_channels_falls_back_to_members_in_max(db_ses
     ).deliver(event)
     assert members.sent == [("fallback:MAX_MEMBERS", "Заявка")]
     assert event.status is OutboxStatus.PUBLISHED
+
+
+@pytest.mark.anyio
+async def test_new_request_notification_says_who_filed_it(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ADMIN_PANEL_URL", "https://admin.example/")
+    house, category = await _catalog(db_session)
+    manager = await _approved_organization(db_session)
+    await HouseManagementService(session=db_session).assign(
+        AssignHouseManagementCommand(house_id=house.id, organization_id=manager.id, basis="Протокол №1"),
+        changed_by=uuid4(),
+    )
+    named = Resident(
+        max_user_id=50_000 + int(uuid4().hex[:5], 16), display_name="Иван Петров", username="ivan_p"
+    )
+    anonymous = Resident(max_user_id=60_000 + int(uuid4().hex[:5], 16))
+    db_session.add_all([named, anonymous])
+    await db_session.flush()
+    intake = ReportIntakeService(db_session)
+    for resident, text in ((named, "Нет горячей воды"), (anonymous, "Нет горячей воды во всём подъезде")):
+        await intake.create(
+            CreateReportCommand(
+                source_external_id=f"max-{uuid4()}", house_id=house.id, category_code=category.code, text=text
+            ),
+            resident_id=resident.id,
+        )
+
+    received: list[dict[str, Any]] = [
+        cast(dict[str, Any], event.payload)
+        for event in await _organization_notifications(db_session, manager.id)
+        if event.payload["event_type"] == "RESIDENT_REPORT_RECEIVED"
+    ]
+    assert len(received) == 2
+    first, second = received
+    assert "Заявитель: Иван Петров" in first["body"]
+    assert "Профиль MAX: https://max.ru/ivan_p" in first["body"]
+    assert f"Открыть в панели: https://admin.example/incidents/{first['incident_id']}" in first["body"]
+    assert first["requester"] == {
+        "name": "Иван Петров",
+        "max_user_id": named.max_user_id,
+        "max_username": "ivan_p",
+        "max_profile_url": "https://max.ru/ivan_p",
+    }
+    assert "Заявитель: имя не указано" in second["body"]
+    assert f"MAX ID: {anonymous.max_user_id} (публичного профиля нет)" in second["body"]
+    assert second["requester"]["max_profile_url"] is None

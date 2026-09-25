@@ -81,8 +81,6 @@ services:
         - ALL
       read_only: true
       tmpfs:
-        # `mc` writes its alias config to $HOME/.mc, which needs to be writable even
-        # though the rest of the (otherwise read-only) filesystem doesn't.
         - /tmp
         - /root/.mc
       pids_limit: 50

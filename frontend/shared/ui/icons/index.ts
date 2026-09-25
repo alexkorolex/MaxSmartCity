@@ -4,6 +4,7 @@ export {
   BellIcon,
   CheckCircleIcon,
   CityIcon,
+  CommentIcon,
   GlobeIcon,
   HelpIcon,
   HomeIcon,

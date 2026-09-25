@@ -24,10 +24,6 @@ def transition_path[StateT: StrEnum](
     target: StateT,
     transitions: Mapping[StateT, frozenset[StateT]],
 ) -> list[StateT]:
-    """Shortest chain of allowed transitions from ``current`` to ``target`` (excluding
-    ``current``), for commands that jump ahead through the normal intermediate states -
-    each step still goes through the state machine and its history. Raises
-    ``InvalidStateTransition`` when ``target`` is unreachable."""
     previous: dict[StateT, StateT | None] = {current: None}
     queue = deque([current])
     while queue:

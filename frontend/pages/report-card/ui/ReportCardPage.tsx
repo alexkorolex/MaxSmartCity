@@ -1,5 +1,5 @@
 import { CellHeader, CellList, CellSimple, Flex, Typography } from '@maxhub/max-ui';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import {
   PRIORITY_LABELS,
@@ -11,10 +11,9 @@ import {
   useReportAttachments,
 } from '@/entities/report';
 import { CloseReportCard } from '@/features/close-report';
-import { ReportChat } from '@/features/report-chat';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
+import { AsyncState, CommentIcon, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
 
 import './ReportCardPage.css';
 
@@ -81,7 +80,20 @@ export function ReportCardPage() {
               </CellList>
             </ListCard>
 
-            <ReportChat reportId={report.data.id} />
+            <ListCard>
+              <CellList mode="full-width">
+                <CellSimple
+                  asChild
+                  showChevron
+                  before={<CommentIcon className="report-chat-link__icon" />}
+                  title="Чат по обращению"
+                  subtitle="Задать вопрос исполнителю или ответить ему"
+                  subtitleMode="tertiary"
+                >
+                  <Link to={ROUTES.reportChat(report.data.id)} />
+                </CellSimple>
+              </CellList>
+            </ListCard>
 
             <CloseReportCard report={report.data} />
 

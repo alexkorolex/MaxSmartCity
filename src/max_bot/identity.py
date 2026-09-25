@@ -9,13 +9,6 @@ _cached_username: str | None = None
 
 
 async def get_bot_username(settings: MaxBotSettings) -> str | None:
-    """The bot's own MAX username.
-
-    Needed as the ``web_app`` value on ``open_app`` inline-keyboard buttons, which take
-    the "unique public name of the bot" the mini app is registered against - not a URL.
-    Cached for the process lifetime; it can't change without reconfiguring the bot itself
-    in MAX's dashboard.
-    """
     global _cached_username
     if _cached_username is not None:
         return _cached_username

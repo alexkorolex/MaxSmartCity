@@ -19,11 +19,6 @@ def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> Resid
 
 
 def _delivery_key(update: dict[str, Any]) -> str | None:
-    """Build a best-effort idempotency key per the documented dedup strategy.
-
-    MAX ``Update`` has no universal id, so the key is assembled from whatever fields the
-    given subtype carries.
-    """
     update_type = update.get("update_type")
     if update_type == "message_created":
         mid = update.get("message", {}).get("body", {}).get("mid")
@@ -41,9 +36,6 @@ def _delivery_key(update: dict[str, Any]) -> str | None:
 
 
 class MaxWebhookController(Controller):
-    """Receives MAX Bot API Updates. See etc/max_api/ for the source documentation this
-    implementation follows."""
-
     path = "/webhook/max"
     tags = ("max-bot",)
     include_in_schema = False

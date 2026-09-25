@@ -6,3 +6,14 @@
 @media (max-width: 480px) {
     .attachment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 }
+
+.report-chat-link { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6); color: inherit; text-decoration: none; transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.report-chat-link:hover { border-color: color-mix(in srgb, var(--blue) 30%, var(--border)); box-shadow: var(--shadow-md); }
+.report-chat-link__icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; color: var(--blue-strong); background: var(--blue-soft); border-radius: 13px; }
+.report-chat-link__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.report-chat-link__action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: var(--blue-strong); font-size: 13px; font-weight: 720; }
+
+@media (max-width: 560px) {
+    .report-chat-link { padding: var(--space-4); }
+    .report-chat-link__label { display: none; }
+}

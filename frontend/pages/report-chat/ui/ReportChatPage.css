@@ -1,0 +1,7 @@
+.report-chat-page {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--background);
+}

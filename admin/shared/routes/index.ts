@@ -10,6 +10,7 @@ export const ROUTES = {
   resident: (residentId: string) => `/residents/${residentId}`,
   reports: '/reports',
   report: (reportId: string) => `/reports/${reportId}`,
+  reportChat: (reportId: string) => `/reports/${reportId}/chat`,
   incidents: '/incidents',
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   news: '/news',

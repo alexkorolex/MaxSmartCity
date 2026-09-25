@@ -8,13 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 async def auto_subscribe_max_webhook() -> None:
-    """Register this backend's webhook with MAX on startup, so the bot is wired up without
-    a manual ``litestar max-subscribe`` step.
-
-    Best-effort and never fatal: silently does nothing if MAX isn't configured at all, or
-    if ``MAX_WEBHOOK_PUBLIC_URL`` isn't set (e.g. local dev with no public HTTPS endpoint
-    to register), and only logs (never raises) if MAX itself is unreachable.
-    """
     try:
         settings = MaxBotSettings.from_environment()
     except ValueError:

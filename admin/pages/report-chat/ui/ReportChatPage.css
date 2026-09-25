@@ -1,0 +1,36 @@
+/*
+ * The chat page never scrolls as a whole: the layout is pinned to the viewport height
+ * while it is open, and only the message list inside the card scrolls. Otherwise the
+ * page and the message list would each show a scrollbar.
+ */
+.admin-shell:has(.report-chat-page) {
+  height: 100dvh;
+}
+
+.admin-shell:has(.report-chat-page) .admin-main {
+  height: 100%;
+  min-height: 0;
+}
+
+.admin-shell:has(.report-chat-page) .admin-content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.admin-shell:has(.report-chat-page) .admin-content__inner {
+  min-height: 0;
+  flex: 1;
+}
+
+.report-chat-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.report-chat-page .report-chat-card {
+  flex: 1;
+}

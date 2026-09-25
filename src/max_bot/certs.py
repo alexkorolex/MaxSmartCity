@@ -4,9 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-# Published by the Russian Ministry of Digital Development - MAX's TLS chain roots here.
-# See etc/max_api/MAX_API_AGENT_CONTEXT.md §2 and the Dockerfile, which installs these
-# into the image's trust store via `update-ca-certificates`.
 CERT_URLS: dict[str, str] = {
     "russian_trusted_root_ca.crt": "https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt",
     "russian_trusted_sub_ca.crt": "https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt",
@@ -14,9 +11,6 @@ CERT_URLS: dict[str, str] = {
 
 CERTS_DIR = Path(__file__).resolve().parent.parent.parent / "etc" / "max_api" / "certs"
 
-# gu-st.ru appears to reset connections from urllib's default "Python-urllib/x.y"
-# User-Agent (and occasionally the handshake itself) - a browser-like UA plus a couple
-# of retries clears it up in practice without needing a different HTTP stack.
 _REQUEST_HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; MaxSmartCity-cert-fetch/1.0)",
     "Accept": "*/*",
@@ -49,11 +43,6 @@ def _fetch(url: str) -> bytes:
 
 
 def fetch_russian_trusted_ca_certs(target_dir: Path = CERTS_DIR) -> list[FetchedCert]:
-    """Download the Root/Sub CA certs MAX's TLS chain needs and write them to ``target_dir``.
-
-    Re-running this simply overwrites the existing files - useful if the Ministry ever
-    rotates these certs. The Dockerfile reads them from the default location.
-    """
     target_dir.mkdir(parents=True, exist_ok=True)
     fetched = []
     for filename, url in CERT_URLS.items():

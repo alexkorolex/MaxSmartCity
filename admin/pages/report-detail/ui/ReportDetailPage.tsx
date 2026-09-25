@@ -10,10 +10,9 @@ import {
   useReportAttachments,
 } from '@/entities/report';
 import { useResident } from '@/entities/resident';
-import { ReportChatCard } from '@/features/report-chat';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
+import { ArrowLeftIcon, AsyncState, ChevronRightIcon, CommentIcon, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 
 import './ReportDetailPage.css';
 
@@ -101,6 +100,22 @@ export function ReportDetailPage() {
         )}
       </AsyncState>
 
+      {report.data?.resident_id && (
+        <Link to={ROUTES.reportChat(report.data.id)} className="card report-chat-link">
+          <span className="report-chat-link__icon" aria-hidden="true">
+            <CommentIcon />
+          </span>
+          <span className="report-chat-link__copy">
+            <span className="card__title">Переписка с жителем</span>
+            <span className="card__meta">Вопросы по обращению и ответы жителю — в отдельном чате</span>
+          </span>
+          <span className="report-chat-link__action">
+            <span className="report-chat-link__label">Открыть чат</span>
+            <ChevronRightIcon width={16} height={16} />
+          </span>
+        </Link>
+      )}
+
       <div className="card">
         <div className="card__header">
           <div className="card__title">Фото</div>
@@ -131,8 +146,6 @@ export function ReportDetailPage() {
           </AsyncState>
         </div>
       </div>
-
-      {report.data?.resident_id && <ReportChatCard reportId={report.data.id} />}
     </>
   );
 }

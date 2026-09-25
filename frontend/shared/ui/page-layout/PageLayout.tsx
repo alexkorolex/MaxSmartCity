@@ -14,9 +14,11 @@ interface PageLayoutProps {
   eyebrow?: string;
   children: ReactNode;
   withNavSpacing?: boolean;
+  /** Exactly the viewport's height: the page itself never scrolls, its content does (a chat). */
+  fill?: boolean;
 }
 
-type PageHeadingProps = Omit<PageLayoutProps, 'children' | 'withNavSpacing'>;
+type PageHeadingProps = Omit<PageLayoutProps, 'children' | 'withNavSpacing' | 'fill'>;
 
 function PageHeading({ title, subtitle, action, backTo, eyebrow }: PageHeadingProps) {
   if (!title && !action) return null;
@@ -43,13 +45,13 @@ function PageHeading({ title, subtitle, action, backTo, eyebrow }: PageHeadingPr
 }
 
 export function PageLayout(props: PageLayoutProps) {
-  const { children, withNavSpacing = true } = props;
+  const { children, withNavSpacing = true, fill = false, ...heading } = props;
 
   return (
-    <main className={`app-page${withNavSpacing ? ' app-page--with-nav' : ''}`}>
+    <main className={`app-page${withNavSpacing ? ' app-page--with-nav' : ''}${fill ? ' app-page--fill' : ''}`}>
       <Container fullWidth>
         <Flex direction="column" gap="var(--space-4)" className="page-content">
-          <PageHeading {...props} />
+          <PageHeading {...heading} />
           {children}
         </Flex>
       </Container>

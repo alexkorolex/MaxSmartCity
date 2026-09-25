@@ -86,14 +86,15 @@ function Timeline({ messages, endRef }: { messages: ChatMessage[]; endRef: RefOb
   );
 }
 
-function ChatHeader({ counterpart }: { counterpart: string }) {
+function ChatHeader({ counterpart, subject }: { counterpart: string; subject?: string }) {
   return (
     <header className="report-chat-card__header">
       <span className="report-chat-card__avatar" aria-hidden="true">{initials(counterpart)}</span>
       <div className="report-chat-card__heading">
         <span className="report-chat-card__eyebrow">Диалог по обращению</span>
         <h2>{counterpart}</h2>
-        <p><i aria-hidden="true" />Житель получает ответы в приложении и MAX</p>
+        {subject && <p className="report-chat-card__subject" title={subject}>{subject}</p>}
+        <p className="report-chat-card__presence"><i aria-hidden="true" />Житель получает ответы в приложении и MAX</p>
       </div>
     </header>
   );
@@ -135,7 +136,10 @@ function Composer({ text, pending, error, onTextChange, onSubmit }: ComposerProp
   );
 }
 
-/** The organization's side of the chat with the resident who filed the report. */
+/**
+ * The organization's side of the chat with the resident who filed the report. Fills its
+ * parent's height: only the message list scrolls, never the card or the page around it.
+ */
 export function ReportChatCard({ reportId }: { reportId: string }) {
   const chat = useChatThread(reportId);
   useChatLiveUpdates(reportId, chat.isSuccess);
@@ -145,8 +149,31 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
   const count = chat.data?.messages.length ?? 0;
 
   useEffect(() => {
-    if (count > 0) endRef.current?.scrollIntoView({ block: 'nearest' });
+    // Scroll the message list itself to the newest message, not the page around it.
+    const list = endRef.current?.parentElement;
+    if (count > 0 && list) list.scrollTop = list.scrollHeight;
   }, [count]);
+
+  const hasMessages = count > 0;
+  useEffect(() => {
+    // The list shrinks when the header or the composer grows, or the on-screen keyboard
+    // opens - keep the newest message in view unless the user scrolled up to read.
+    const list = endRef.current?.parentElement;
+    if (!hasMessages || !list) return undefined;
+    let pinned = true;
+    const onScroll = () => {
+      pinned = list.scrollHeight - list.clientHeight - list.scrollTop < 48;
+    };
+    const observer = new ResizeObserver(() => {
+      if (pinned) list.scrollTop = list.scrollHeight;
+    });
+    list.addEventListener('scroll', onScroll, { passive: true });
+    observer.observe(list);
+    return () => {
+      list.removeEventListener('scroll', onScroll);
+      observer.disconnect();
+    };
+  }, [hasMessages]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,7 +186,7 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
       <AsyncState isLoading={chat.isLoading} error={chat.error} onRetry={() => void chat.refetch()}>
         {chat.data && (
           <>
-            <ChatHeader counterpart={chat.data.counterparts.join(', ') || 'Житель'} />
+            <ChatHeader counterpart={chat.data.counterparts.join(', ') || 'Житель'} subject={chat.data.report_text ?? undefined} />
             {count > 0 ? <Timeline messages={chat.data.messages} endRef={endRef} /> : <div className="report-chat-card__empty"><strong>Диалог пока пуст</strong><span>Напишите жителю первым — уведомление придёт ему в MAX.</span></div>}
             {chat.data.can_write && <Composer text={text} pending={send.isPending} error={send.isError ? send.error : null} onTextChange={setText} onSubmit={handleSubmit} />}
           </>

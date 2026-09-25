@@ -12,6 +12,7 @@ import { NewsItemPage } from '@/pages/news-item';
 import { NotificationsPage } from '@/pages/notifications';
 import { ProfilePage } from '@/pages/profile';
 import { ReportCardPage } from '@/pages/report-card';
+import { ReportChatPage } from '@/pages/report-chat';
 import { ReportNewPage } from '@/pages/report-new';
 import { SelectHousePage } from '@/pages/select-house';
 import { SettingsPage } from '@/pages/settings';
@@ -31,6 +32,7 @@ export function AppRouter() {
           <Route path={ROUTES.reportNew} element={<ReportNewPage />} />
           <Route path={ROUTES.myReports} element={<MyReportsPage />} />
           <Route path="/reports/:reportId" element={<ReportCardPage />} />
+          <Route path="/reports/:reportId/chat" element={<ReportChatPage />} />
           <Route path="/incidents/:incidentId" element={<IncidentCardPage />} />
           <Route path="/incidents/:incidentId/resolution" element={<IncidentResolutionPage />} />
           <Route path={ROUTES.myHouse} element={<MyHousePage />} />

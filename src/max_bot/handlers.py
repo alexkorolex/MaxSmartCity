@@ -50,18 +50,6 @@ def _display_name(first_name: str | None, last_name: str | None) -> str | None:
 
 
 async def login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
-    """Inline-keyboard attachment that lets the resident finish login in the web app.
-
-    Prefers MAX's native ``open_app`` button, which opens the app embedded inside MAX
-    itself via the MAX Bridge (``https://st.max.ru/js/max-web-app.js``) instead of the
-    system browser - the one-time ``code`` travels as the button's ``payload``, and the
-    frontend reads it back via ``window.WebApp.initDataUnsafe.start_param``. This only
-    works once the mini app is registered against the bot in MAX's own dashboard
-    (Чат-боты -> bot -> Настройки, "Введите ссылку") - independent of anything this
-    backend can configure - so a ``link`` button to the same page (read via the ``code``
-    query param instead) is always included too, as a fallback that works regardless of
-    that registration.
-    """
     login_url = f"{settings.web_app_login_url}?code={code}"
     row: list[dict[str, Any]] = []
 
@@ -102,9 +90,6 @@ async def _issue_login_button(
 async def handle_bot_started(
     update: dict[str, Any], resident_service: ResidentService, settings: MaxBotSettings
 ) -> None:
-    """User pressed Start - register them as a resident (saving the dialog's ``chat_id``,
-    where their notifications go), greet them, and hand out a button that logs them into
-    the web app (no code to type in by hand)."""
     user = update["user"]
     client = MaxClient(settings)
     await _issue_login_button(
@@ -120,7 +105,6 @@ async def handle_bot_started(
 
 
 async def handle_bot_stopped(update: dict[str, Any], resident_service: ResidentService) -> None:
-    """The resident stopped/blocked the bot - stop messaging them until the next /start."""
     with database_action("update", "identity.Resident"):
         await resident_service.mark_bot_stopped(max_user_id=update["user"]["user_id"])
 
@@ -140,15 +124,12 @@ async def handle_message_created(
     client = MaxClient(settings)
 
     if recipient.get("chat_type") != "dialog":
-        # In group chats the bot only answers /chatid - so an organization can route its
-        # request notifications into its own dispatchers' chat (the MAX_CHAT channel).
         if command in CHAT_ID_COMMANDS and recipient.get("chat_id"):
             chat_id = recipient["chat_id"]
             await client.send_message(chat_id=chat_id, text=CHAT_ID_TEXT.format(chat_id=chat_id))
         return
 
     if command in MY_ID_COMMANDS:
-        # Deliberately before anything that registers a resident: staff ask this too.
         user_id = sender["user_id"]
         await client.send_message(user_id=user_id, text=MY_ID_TEXT.format(user_id=user_id))
         return

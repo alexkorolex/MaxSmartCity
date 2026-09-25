@@ -25,7 +25,7 @@ UNREAD_NOTIFICATION_DELAY = timedelta(minutes=1)
 """How long a message may stay unread before the recipient is assumed not to be in the chat
 (an open chat reads new messages within seconds)."""
 PREVIEW_MESSAGES = 3
-REPLY_HINT = "Ответить можно в приложении Smart City - в карточке обращения."
+REPLY_HINT = "Ответить можно в приложении Smart City - в чате по обращению."
 
 
 def _preview(messages: list[ReportMessage]) -> str:
@@ -84,7 +84,7 @@ async def _notify_organizations(
     lines.append(_preview(batch))
     panel = admin_panel_url()
     if panel:
-        lines.append(f"\nОтветить: {panel}/reports/{report.id}")
+        lines.append(f"\nОтветить: {panel}/reports/{report.id}/chat")
     for organization_id, _name in await report_organizations(session, report):
         enqueue_organization_notification(
             session,

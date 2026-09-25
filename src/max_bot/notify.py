@@ -27,10 +27,6 @@ def reachable_in_max(resident: Resident) -> bool:
 
 
 async def send_to_resident(resident: Resident, text: str) -> bool:
-    """Into the resident's dialog with the bot (``max_chat_id``, saved on /start), by
-    ``max_user_id`` while that isn't known yet. Best effort - ``False`` (logged, never
-    raised) when MAX isn't configured or the message couldn't be delivered. The login
-    button's code lives 5 minutes, hence the hint."""
     try:
         settings = MaxBotSettings.from_environment()
     except ValueError:

@@ -25,6 +25,15 @@ export function PlusIcon(props: IconProps) {
   return <Icon {...props}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></Icon>;
 }
 
+export function CommentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5.5h16v10H9l-4 3.5v-3.5H4Z" strokeLinejoin="round" />
+      <path d="M8 9.5h8M8 12.5h5" strokeLinecap="round" />
+    </Icon>
+  );
+}
+
 export function SendIcon(props: IconProps) {
   return (
     <Icon {...props}>

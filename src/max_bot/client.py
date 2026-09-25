@@ -18,14 +18,6 @@ class MaxApiError(RuntimeError):
 
 @lru_cache(maxsize=1)
 def _ssl_context() -> ssl.SSLContext:
-    """Default trust store *plus* the Russian Trusted Root/Sub CA (etc/max_api/certs/).
-
-    The Dockerfile also installs these system-wide via ``update-ca-certificates``, but
-    that only covers the container - this client is also used by the ``litestar max-*``
-    CLI commands, which run directly on the host (e.g. a developer's Mac) where those
-    certs were never installed. Building our own trust anchors here makes MAX API calls
-    work identically in both places, without depending on the OS trust store either way.
-    """
     context = ssl.create_default_context()
     for cert_path in sorted(CERTS_DIR.glob("*.crt")):
         context.load_verify_locations(cafile=str(cert_path))
@@ -33,13 +25,6 @@ def _ssl_context() -> ssl.SSLContext:
 
 
 class MaxClient:
-    """Minimal MAX Bot API client.
-
-    Follows the documented rules: fixed ``platform-api2.max.ru`` base URL, a bare
-    ``Authorization: <token>`` header (never ``Bearer``), and never a token in the query
-    string. Only the handful of endpoints this backend actually needs are wrapped.
-    """
-
     def __init__(self, settings: MaxBotSettings) -> None:
         self._settings = settings
 

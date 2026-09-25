@@ -35,10 +35,22 @@ test('new interactive screens avoid inline presentation styles', () => {
     'pages/incident-resolution/ui/IncidentResolutionPage.tsx',
     'pages/notifications/ui/NotificationsPage.tsx',
     'pages/report-card/ui/ReportCardPage.tsx',
+    'pages/report-chat/ui/ReportChatPage.tsx',
     'pages/select-house/ui/SelectHousePage.tsx',
   ];
 
   for (const sourcePath of sources) {
     assert.doesNotMatch(read(sourcePath), /style=\{\{/);
   }
+});
+
+test('report chat owns the viewport instead of rendering as a content card', () => {
+  const page = read('pages/report-chat/ui/ReportChatPage.tsx');
+  const pageStyles = read('pages/report-chat/ui/ReportChatPage.css');
+  const chat = read('features/report-chat/ui/ReportChat.tsx');
+
+  assert.match(page, /className="report-chat-page"/);
+  assert.doesNotMatch(page, /PageLayout/);
+  assert.match(pageStyles, /height:\s*100dvh/);
+  assert.doesNotMatch(chat, /surface-card report-chat/);
 });

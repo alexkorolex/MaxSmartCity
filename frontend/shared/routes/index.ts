@@ -4,6 +4,7 @@ export const ROUTES = {
   reportNew: '/report/new',
   myReports: '/reports',
   report: (reportId: string) => `/reports/${reportId}`,
+  reportChat: (reportId: string) => `/reports/${reportId}/chat`,
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   incidentResolution: (incidentId: string) => `/incidents/${incidentId}/resolution`,
   myHouse: '/house',

@@ -38,7 +38,6 @@ JOBS: tuple[tuple[str, Job], ...] = (
     ("dispatch_organization_notifications", dispatch_organization_notifications),
     ("close_unconfirmed_resolutions", close_unconfirmed_resolutions),
     ("notify_unread_chat_messages", notify_unread_chat_messages),
-    # After the jobs that create resident notifications, so they go out in the same round.
     ("push_resident_notifications", push_resident_notifications),
 )
 

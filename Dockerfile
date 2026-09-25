@@ -10,7 +10,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Install dependencies first so this layer is cached while only app code changes.
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -25,9 +25,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.12-slim AS runtime
 
-# Needed to verify TLS certificates for outbound HTTPS calls (e.g. the MAX Bot API).
-# MAX's certificate chains up to the Russian Ministry of Digital Development's own CA,
-# which isn't in the public trust store - see etc/max_api/MAX_API_AGENT_CONTEXT.md §2.
+
 COPY etc/max_api/certs/*.crt /usr/local/share/ca-certificates/
 RUN apt-get update \
     && apt-get install --no-install-recommends -y ca-certificates \

@@ -39,7 +39,7 @@ export function MessagesPage() {
                 <Link
                   key={item.report_id}
                   className={`message-thread${item.unread_count > 0 ? ' message-thread--unread' : ''}`}
-                  to={ROUTES.report(item.report_id)}
+                  to={ROUTES.reportChat(item.report_id)}
                 >
                   <span className="message-thread__avatar" aria-hidden="true">
                     {getResidentInitial(item.resident_name)}

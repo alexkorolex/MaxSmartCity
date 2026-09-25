@@ -18,7 +18,9 @@ function NotificationRow({ notification }: { notification: AppNotification }) {
   const target = notification.incident_id
     ? ROUTES.incident(notification.incident_id)
     : notification.report_id
-      ? ROUTES.report(notification.report_id)
+      ? notification.type === 'CHAT_MESSAGE'
+        ? ROUTES.reportChat(notification.report_id)
+        : ROUTES.report(notification.report_id)
       : undefined;
 
   const cellProps = {

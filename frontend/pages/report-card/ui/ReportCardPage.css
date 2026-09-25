@@ -25,3 +25,7 @@
         transform: scale(1.04);
     }
 }
+
+.report-chat-link__icon {
+    color: var(--blue-strong);
+}

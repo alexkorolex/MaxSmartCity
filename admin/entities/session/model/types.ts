@@ -27,14 +27,25 @@ export function canBrowseOrganizations(principal: Principal | undefined): boolea
   );
 }
 
+const ROLE_PRIORITY: readonly string[] = [STAFF_ROLES.admin, STAFF_ROLES.districtAdmin, STAFF_ROLES.housingWorker];
+
+/**
+ * The caller's staff role, highest first. The token also carries Keycloak's technical
+ * roles (`default-roles-<realm>`, `offline_access`, ...) - those are never shown.
+ */
+export function primaryRole(principal: Principal | undefined): string | null {
+  if (!principal) return null;
+  return ROLE_PRIORITY.find((role) => principal.roles.includes(role)) ?? null;
+}
+
 export function roleLabel(role: string): string {
   switch (role) {
     case STAFF_ROLES.admin:
-      return 'Администратор';
+      return 'Администратор платформы';
     case STAFF_ROLES.districtAdmin:
-      return 'Управа';
+      return 'Сотрудник управы';
     case STAFF_ROLES.housingWorker:
-      return 'Жилищник';
+      return 'Сотрудник управляющей компании';
     default:
       return role;
   }

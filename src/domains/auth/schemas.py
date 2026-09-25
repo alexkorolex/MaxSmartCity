@@ -104,3 +104,32 @@ class StaffLinkMaxIdRequest:
 class StaffLinkMaxIdResponse:
     operator_id: str
     max_user_id: int
+
+
+@dataclass
+class StaffProfileRead:
+    """The signed-in staff member's own account, as shown on their profile page."""
+
+    id: str
+    login: str
+    display_name: str
+    email: str | None
+    max_user_id: int | None
+    organization_name: str | None
+    department_name: str | None
+    role_code: str | None
+
+
+@dataclass
+class StaffProfileUpdateRequest:
+    display_name: str
+    email: str | None = None
+
+
+@dataclass
+class StaffPasswordChangeRequest:
+    """The current password is re-checked against Keycloak, so a borrowed open session
+    alone can't be used to lock the owner out."""
+
+    current_password: str
+    new_password: str

@@ -31,6 +31,18 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: stylelint-fix-frontend
+        name: Stylelint autofix (frontend)
+        entry: frontend/node_modules/.bin/stylelint --fix --config frontend/stylelint.config.js
+        language: system
+        files: ^frontend/.*\.css$
+
+      - id: stylelint-fix-admin
+        name: Stylelint autofix (admin)
+        entry: admin/node_modules/.bin/stylelint --fix --config admin/stylelint.config.js
+        language: system
+        files: ^admin/.*\.css$
+
       - id: eslint
         name: ESLint (frontend)
         entry: npm --prefix frontend run lint

@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
+
 import { useHouseManagement } from '@/entities/geo';
 import { useIncidents } from '@/entities/incident';
 import { useOrganizations } from '@/entities/organization';
 import { useResidents } from '@/entities/resident';
-import { canBrowseOrganizations, isAdmin, roleLabel, useMe } from '@/entities/session';
-import { useStaffList } from '@/entities/staff';
+import { canBrowseOrganizations, isAdmin, primaryRole, roleLabel, useMe } from '@/entities/session';
+import { useStaffList, useStaffMember } from '@/entities/staff';
 import { BuildingIcon, HousesIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
 
 import './HomePage.css';
@@ -32,24 +34,24 @@ export function HomePage() {
   const residents = useResidents();
   const incidents = useIncidents();
   const houses = useHouseManagement();
+  const { data: me } = useStaffMember(principal?.actor_type === 'OPERATOR' ? principal.actor_id : '');
+
+  const role = primaryRole(principal);
+  const scopeNote = isAdmin(principal)
+    ? 'Данные по всем городам и организациям'
+    : 'Данные в рамках вашей организации';
 
   return (
     <>
       <section className="dashboard-hero">
         <div className="dashboard-hero__content">
           <div className="dashboard-hero__eyebrow">Операционный центр</div>
-          <h1>
-              {principal && isAdmin(principal)
-                ? 'Обзор платформы'
-                : `Обзор — ${principal ? roleLabel(principal.roles[0] ?? '') : ''}`}
-          </h1>
+          <h1>{me?.display_name ? `Здравствуйте, ${me.display_name}` : 'Обзор'}</h1>
           <p>
-              {principal && isAdmin(principal)
-                ? 'Данные по всем городам и организациям'
-                : 'Данные в рамках вашей организации'}
+            {[role && roleLabel(role), me?.organization_name].filter(Boolean).join(' · ') || scopeNote}
           </p>
+          {me?.organization_name && <p className="dashboard-hero__note">{scopeNote}</p>}
         </div>
-        <div className="dashboard-hero__pulse" aria-hidden="true"><span /></div>
       </section>
 
       <div className="stat-grid">
@@ -64,4 +66,3 @@ export function HomePage() {
     </>
   );
 }
-import type { ReactNode } from 'react';

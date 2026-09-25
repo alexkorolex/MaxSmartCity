@@ -6,9 +6,10 @@ from src.security.settings import SecuritySettings
 class KeycloakAdminError(RuntimeError):
     """Raised when a Keycloak Admin REST API call fails."""
 
-    def __init__(self, message: str, *, conflict: bool = False) -> None:
+    def __init__(self, message: str, *, conflict: bool = False, invalid: bool = False) -> None:
         super().__init__(message)
         self.conflict = conflict
+        self.invalid = invalid
 
 
 async def _admin_token(settings: SecuritySettings, client: httpx.AsyncClient) -> str:
@@ -80,3 +81,39 @@ async def create_staff_user(
             raise KeycloakAdminError(f"Could not assign role {role!r}: {assigned.text}")
 
         return subject
+
+
+async def update_staff_user(
+    settings: SecuritySettings, *, subject: str, display_name: str, email: str | None
+) -> None:
+    """Keep the Keycloak account's name/e-mail in step with the local ``OperatorUser``
+    after the staff member edits their own profile."""
+    first_name, _, last_name = display_name.partition(" ")
+    async with httpx.AsyncClient(timeout=10) as client:
+        headers = {"Authorization": f"Bearer {await _admin_token(settings, client)}"}
+        updated = await client.put(
+            f"{settings.keycloak_admin_users_url}/{subject}",
+            headers=headers,
+            json={"email": email or "", "firstName": first_name, "lastName": last_name or "-"},
+        )
+        if updated.status_code == httpx.codes.CONFLICT:
+            raise KeycloakAdminError("This e-mail is already used by another account", conflict=True)
+        if updated.status_code != httpx.codes.NO_CONTENT:
+            raise KeycloakAdminError(f"Could not update Keycloak user: {updated.text}")
+
+
+async def set_staff_password(settings: SecuritySettings, *, subject: str, password: str) -> None:
+    """Replace the staff member's Keycloak password (permanent, not a temporary one)."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        headers = {"Authorization": f"Bearer {await _admin_token(settings, client)}"}
+        reset = await client.put(
+            f"{settings.keycloak_admin_users_url}/{subject}/reset-password",
+            headers=headers,
+            json={"type": "password", "value": password, "temporary": False},
+        )
+        if reset.status_code == httpx.codes.BAD_REQUEST:
+            # Keycloak's realm password policy rejected it - the message is user-facing.
+            detail = reset.json().get("error_description") or "Password rejected by the password policy"
+            raise KeycloakAdminError(detail, invalid=True)
+        if reset.status_code != httpx.codes.NO_CONTENT:
+            raise KeycloakAdminError(f"Could not set Keycloak password: {reset.text}")

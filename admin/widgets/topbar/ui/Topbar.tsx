@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 
-import { isAdmin, roleLabel, useMe, clearSession } from '@/entities/session';
+import { clearSession, primaryRole, roleLabel, useMe } from '@/entities/session';
 import { ThemeToggle } from '@/features/toggle-theme';
 import { ROUTES } from '@/shared/routes';
 import { LogOutIcon, MenuIcon } from '@/shared/ui';
@@ -34,7 +34,7 @@ export function Topbar({ isMenuOpen, onMenuOpen }: TopbarProps) {
   const { title, subtitle } = resolveTitle(pathname);
   const { data: principal } = useMe();
 
-  const primaryRole = principal ? (isAdmin(principal) ? 'admin' : (principal.roles[0] ?? '')) : '';
+  const role = primaryRole(principal);
 
   return (
     <header className="admin-topbar">
@@ -49,7 +49,7 @@ export function Topbar({ isMenuOpen, onMenuOpen }: TopbarProps) {
       </div>
       <div className="admin-topbar__user">
         <ThemeToggle />
-        {primaryRole && <span className="admin-topbar__role">{roleLabel(primaryRole)}</span>}
+        {role && <span className="admin-topbar__role">{roleLabel(role)}</span>}
         <button
           type="button"
           className="btn btn--ghost btn--small btn--icon"

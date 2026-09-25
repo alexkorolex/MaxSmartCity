@@ -1,1 +1,1 @@
-.take-house { display: flex; width: 100%; max-width: 920px; flex-direction: column; gap: var(--space-4); }
+.take-house { display: flex; width: 100%; flex-direction: column; gap: var(--space-4); }

@@ -1,4 +1,4 @@
-.complete-incident { display: flex; width: 100%; max-width: 820px; flex-direction: column; gap: var(--space-3); }
+.complete-incident { display: flex; width: 100%; flex-direction: column; gap: var(--space-3); }
 
 @media (max-width: 640px) {
   .complete-incident .btn {

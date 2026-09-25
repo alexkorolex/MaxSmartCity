@@ -10,7 +10,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint . && npm run lint:css",
-    "lint:css": "stylelint \"{app,entities,features,pages,shared,widgets}/**/*.css\""
+    "lint:css": "stylelint \"{app,entities,features,pages,shared,widgets}/**/*.css\"",
+    "lint:css:fix": "stylelint --fix \"{app,entities,features,pages,shared,widgets}/**/*.css\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.11",

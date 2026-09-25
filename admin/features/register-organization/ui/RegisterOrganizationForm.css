@@ -1,4 +1,4 @@
-.register-organization { display: flex; width: 100%; max-width: 920px; flex-direction: column; gap: var(--space-4); }
+.register-organization { display: flex; width: 100%; flex-direction: column; gap: var(--space-4); }
 
 .manager-lookup { display: flex; flex-direction: column; gap: var(--space-3); }
 .manager-lookup__candidates { display: flex; flex-direction: column; gap: var(--space-2); }

@@ -5,6 +5,7 @@ import type {
   OrganizationMember,
   OrganizationRegistrationPayload,
   OrganizationRegistrationResult,
+  StaffAccountCreatedResult,
   StaffAccountPayload,
 } from '../model/types';
 
@@ -33,8 +34,8 @@ export function fetchOrganizationMembers(organizationId: string): Promise<Organi
 export function createOrganizationMemberAccount(
   organizationId: string,
   payload: StaffAccountPayload,
-): Promise<OrganizationMember> {
-  return http.post<OrganizationMember>(`/identity/organizations/${organizationId}/members/accounts`, payload);
+): Promise<StaffAccountCreatedResult> {
+  return http.post<StaffAccountCreatedResult>(`/identity/organizations/${organizationId}/members/accounts`, payload);
 }
 
 export function deactivateOrganizationMember(organizationId: string, memberId: string): Promise<OrganizationMember> {

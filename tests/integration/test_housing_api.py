@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from litestar.testing import TestClient
 
+from src.domains.notifications.mailer import MailDeliveryError
 from tests.integration.test_housing_organizations import random_inn, random_ogrn
 from tests.integration.test_resident_api import (  # noqa: F401
     _insert_affected_house,
@@ -237,3 +238,77 @@ def test_housing_worker_works_only_through_their_own_houses(
     found = api_client.get("/geo/houses/", params={"q": "ул. Первая"}, headers=worker_a).json()
     picked = next(item for item in found if item["house_id"] == house_a)
     assert picked["managed_by_organization_name"] == "УК А"
+
+
+def test_new_employees_get_their_sign_in_details_by_email(
+    api_client: TestClient,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, _ = rsa_keypair
+    sent: list[tuple[str, str, str]] = []
+
+    async def fake_create_staff_user(_settings: object, **_kwargs: object) -> str:
+        return str(uuid4())
+
+    async def fake_send_email(to: str, subject: str, body: str) -> None:
+        sent.append((to, subject, body))
+
+    monkeypatch.setattr("src.domains.identity.services.create_staff_user", fake_create_staff_user)
+    monkeypatch.setattr("src.domains.identity.credentials.send_email", fake_send_email)
+    monkeypatch.setenv("ADMIN_PANEL_URL", "https://admin.example")
+    admin = _headers(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]))
+    login = f"uk-{uuid4().hex[:8]}"
+
+    registered = api_client.post(
+        "/identity/organizations/register",
+        json={
+            "code": uuid4().hex,
+            "name": "ООО «Письмо»",
+            "type": "MANAGEMENT_COMPANY",
+            "inn": random_inn(),
+            "ogrn": random_ogrn(),
+            "license_number": "077-000777",
+            "employee": {
+                "login": login,
+                "password": "Temp-pass-123",
+                "display_name": "Иван Диспетчер",
+                "email": "ivan@uk.example",
+            },
+        },
+        headers=admin,
+    )
+    assert registered.status_code == 201, registered.text
+    assert registered.json()["credentials_email"] == {
+        "recipient": "ivan@uk.example",
+        "sent": True,
+        "error": None,
+    }
+    ((to, subject, body),) = sent
+    assert to == "ivan@uk.example"
+    assert "ООО «Письмо»" in subject
+    for fragment in ("https://admin.example", f"Логин: {login}", "Временный пароль: Temp-pass-123"):
+        assert fragment in body
+
+    async def broken_send_email(to: str, subject: str, body: str) -> None:
+        raise MailDeliveryError("SMTP delivery failed: connection refused")
+
+    monkeypatch.setattr("src.domains.identity.credentials.send_email", broken_send_email)
+    organization_id = registered.json()["organization_id"]
+    created = api_client.post(
+        f"/identity/organizations/{organization_id}/members/accounts",
+        json={
+            "login": f"worker-{uuid4().hex[:8]}",
+            "password": "Temp-pass-456",
+            "display_name": "Мастер",
+            "email": "master@uk.example",
+        },
+        headers=admin,
+    )
+    # The account is created all the same - the admin is just told to hand the login over.
+    assert created.status_code == 201, created.text
+    assert created.json()["member"]["display_name"] == "Мастер"
+    email = created.json()["credentials_email"]
+    assert email["sent"] is False
+    assert "connection refused" in email["error"]
+    assert "Temp-pass-456" not in email["error"]

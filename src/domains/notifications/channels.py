@@ -7,14 +7,11 @@ dispatcher never branches on the channel type itself; adding a new channel means
 an enum value and a strategy to ``CHANNEL_STRATEGIES``, nothing else.
 """
 
-import asyncio
 import hashlib
 import hmac
 import json
-import smtplib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from email.message import EmailMessage
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -25,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.models import utc_now
 from src.domains.identity.models import OperatorUser, OrganizationMember
 from src.domains.notifications.enums import OrganizationChannelType
-from src.domains.notifications.settings import SmtpSettings
+from src.domains.notifications.mailer import MailDeliveryError, send_email
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.settings import MaxBotSettings
 
@@ -173,27 +170,9 @@ class EmailStrategy(ChannelStrategy):
     async def send(self, session: AsyncSession, channel: ChannelTarget, message: OrganizationMessage) -> None:
         assert channel.target is not None
         try:
-            settings = SmtpSettings.from_environment()
-        except ValueError as exc:
+            await send_email(channel.target, message.title, message.body)
+        except MailDeliveryError as exc:
             raise ChannelDeliveryError(str(exc)) from exc
-        email = EmailMessage()
-        email["From"] = settings.sender
-        email["To"] = channel.target
-        email["Subject"] = message.title
-        email.set_content(message.body)
-        try:
-            await asyncio.to_thread(self._send_blocking, settings, email)
-        except (smtplib.SMTPException, OSError) as exc:
-            raise ChannelDeliveryError(f"SMTP delivery failed: {exc}") from exc
-
-    @staticmethod
-    def _send_blocking(settings: SmtpSettings, email: EmailMessage) -> None:
-        with smtplib.SMTP(settings.host, settings.port, timeout=10) as smtp:
-            if settings.starttls:
-                smtp.starttls()
-            if settings.username and settings.password:
-                smtp.login(settings.username, settings.password)
-            smtp.send_message(email)
 
 
 class WebhookStrategy(ChannelStrategy):

@@ -51,6 +51,22 @@ class StaffLoginResponse:
     token: str
     refresh_token: str | None
     expires_in: int | None
+    """Seconds until ``token`` (the access token) expires - a few minutes."""
+    refresh_expires_in: int | None = None
+    """Seconds until ``refresh_token`` expires - the Keycloak session, 24 hours."""
+
+
+@dataclass
+class StaffRefreshRequest:
+    """Keeps a staff member signed in: the refresh token from ``/auth/staff/login`` (or
+    the previous refresh) buys a new access token without re-entering the password."""
+
+    refresh_token: str
+
+
+@dataclass
+class StaffLogoutRequest:
+    refresh_token: str
 
 
 @dataclass

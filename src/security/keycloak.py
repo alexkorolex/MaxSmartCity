@@ -20,7 +20,7 @@ class KeycloakClaims:
 
 
 class KeycloakLoginError(RuntimeError):
-    """Raised when the username/password proxied to Keycloak is rejected."""
+    """Raised when the username/password (or refresh token) proxied to Keycloak is rejected."""
 
 
 async def login_staff_with_password(
@@ -48,6 +48,43 @@ async def login_staff_with_password(
     if response.status_code != httpx.codes.OK:
         raise KeycloakLoginError(response.json().get("error_description", "Invalid credentials"))
     return response.json()
+
+
+async def refresh_staff_tokens(settings: SecuritySettings, *, refresh_token: str) -> dict[str, Any]:
+    """Exchange a staff refresh token for a new access token (Keycloak rotates the refresh
+    token too). Valid while the Keycloak session lives - 24 hours, see
+    ``ssoSessionIdleTimeout``/``ssoSessionMaxLifespan`` in ``keycloak/realm-export.json``.
+
+    Raises:
+        KeycloakLoginError: if the refresh token is expired, revoked or malformed.
+    """
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.post(
+            settings.keycloak_token_url,
+            data={
+                "grant_type": "refresh_token",
+                "client_id": settings.keycloak_client_id,
+                "client_secret": settings.keycloak_client_secret,
+                "refresh_token": refresh_token,
+            },
+        )
+    if response.status_code != httpx.codes.OK:
+        raise KeycloakLoginError(response.json().get("error_description", "Session expired"))
+    return response.json()
+
+
+async def logout_staff(settings: SecuritySettings, *, refresh_token: str) -> None:
+    """End the Keycloak session behind ``refresh_token`` - after this neither it nor any
+    token issued from it can be refreshed. Best effort: an already dead session is fine."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        await client.post(
+            settings.keycloak_logout_url,
+            data={
+                "client_id": settings.keycloak_client_id,
+                "client_secret": settings.keycloak_client_secret,
+                "refresh_token": refresh_token,
+            },
+        )
 
 
 @lru_cache(maxsize=1)

@@ -13,6 +13,7 @@ import {
   useOrganizations,
   useRegisterOrganization,
   type HousingOrganizationType,
+  type OrganizationRegistrationResult,
   type StaffAccountPayload,
 } from '@/entities/organization';
 import { apiErrorMessage } from '@/shared/lib';
@@ -48,7 +49,8 @@ const EMPTY_REQUISITES: RequisitesState = {
 const DEFAULT_BASIS = 'Сведения открытых реестров (ГИС ЖКХ) об управлении домом';
 
 interface RegisterOrganizationFormProps {
-  onRegistered: (organizationId: string) => void;
+  /** `registration` carries whether the first employee was e-mailed their credentials. */
+  onRegistered: (organizationId: string, registration: OrganizationRegistrationResult) => void;
   onCancel: () => void;
 }
 
@@ -68,7 +70,7 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
   const [applied, setApplied] = useState<{ key: string; candidate: HouseManagingOrganization } | null>(null);
   const [attachHouse, setAttachHouse] = useState(true);
   const [basis, setBasis] = useState(DEFAULT_BASIS);
-  const [registeredId, setRegisteredId] = useState<string | null>(null);
+  const [registered, setRegistered] = useState<OrganizationRegistrationResult | null>(null);
   const register = useRegisterOrganization();
   const assign = useAssignHouseManagement();
   const organizations = useOrganizations();
@@ -136,15 +138,15 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
       {
         onSuccess: (result) => {
           if (!house || !attachHouse) {
-            onRegistered(result.organization_id);
+            onRegistered(result.organization_id, result);
             return;
           }
           assign.mutate(
             { house_id: house.house_id, organization_id: result.organization_id, basis: basis.trim() },
             {
-              onSuccess: () => onRegistered(result.organization_id),
+              onSuccess: () => onRegistered(result.organization_id, result),
               // The organization exists either way - say what's missing, don't lose it.
-              onError: () => setRegisteredId(result.organization_id),
+              onError: () => setRegistered(result),
             },
           );
         },
@@ -152,7 +154,7 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
     );
   }
 
-  if (registeredId) {
+  if (registered) {
     return (
       <div className="register-organization">
         <div className="form-error">
@@ -160,7 +162,7 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
           на странице «Дома».
         </div>
         <div className="form-actions">
-          <button type="button" className="btn" onClick={() => onRegistered(registeredId)}>
+          <button type="button" className="btn" onClick={() => onRegistered(registered.organization_id, registered)}>
             Перейти к организации
           </button>
         </div>

@@ -44,9 +44,10 @@ function OrganizationsDirectory() {
           <div className="card__body">
             <RegisterOrganizationForm
               onCancel={() => setIsRegistering(false)}
-              onRegistered={(organizationId) => {
+              onRegistered={(organizationId, registration) => {
                 setIsRegistering(false);
-                navigate(ROUTES.organization(organizationId));
+                // The organization card tells the admin whether the credentials e-mail went out.
+                navigate(ROUTES.organization(organizationId), { state: { registration } });
               }}
             />
           </div>

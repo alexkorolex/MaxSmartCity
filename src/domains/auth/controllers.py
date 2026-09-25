@@ -1,3 +1,6 @@
+from typing import Any
+
+import httpx
 from litestar import Controller, Router, post
 from litestar.di import NamedDependency, Provide
 from litestar.exceptions import HTTPException, NotAuthorizedException, NotFoundException
@@ -14,6 +17,8 @@ from src.domains.auth.schemas import (
     StaffLinkMaxIdResponse,
     StaffLoginRequest,
     StaffLoginResponse,
+    StaffLogoutRequest,
+    StaffRefreshRequest,
     StaffRegisterRequest,
     StaffRegisterResponse,
 )
@@ -27,11 +32,25 @@ from src.security.guards import (
     require_bot_secret,
     require_staff,
 )
-from src.security.keycloak import KeycloakLoginError, login_staff_with_password
+from src.security.keycloak import (
+    KeycloakLoginError,
+    login_staff_with_password,
+    logout_staff,
+    refresh_staff_tokens,
+)
 from src.security.keycloak_admin import KeycloakAdminError, create_staff_user
 from src.security.principal import Principal
 from src.security.resident import resident_jwt_auth
 from src.security.settings import SecuritySettings
+
+
+def _staff_tokens(tokens: dict[str, Any]) -> StaffLoginResponse:
+    return StaffLoginResponse(
+        token=tokens["access_token"],
+        refresh_token=tokens.get("refresh_token"),
+        expires_in=tokens.get("expires_in"),
+        refresh_expires_in=tokens.get("refresh_expires_in"),
+    )
 
 
 def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> ResidentService:
@@ -134,11 +153,27 @@ class StaffAuthController(Controller):
             tokens = await login_staff_with_password(settings, username=data.username, password=data.password)
         except KeycloakLoginError as exc:
             raise NotAuthorizedException(str(exc)) from exc
-        return StaffLoginResponse(
-            token=tokens["access_token"],
-            refresh_token=tokens.get("refresh_token"),
-            expires_in=tokens.get("expires_in"),
-        )
+        return _staff_tokens(tokens)
+
+    @post("/refresh", name="auth:Staff:refresh")
+    async def refresh(self, data: StaffRefreshRequest) -> StaffLoginResponse:
+        """New access token for a still valid session (up to 24 hours after login) - no
+        password. 401 once the session expired or was ended by ``/logout``."""
+        settings = SecuritySettings.from_environment()
+        try:
+            tokens = await refresh_staff_tokens(settings, refresh_token=data.refresh_token)
+        except KeycloakLoginError as exc:
+            raise NotAuthorizedException(str(exc)) from exc
+        return _staff_tokens(tokens)
+
+    @post("/logout", status_code=204, name="auth:Staff:logout")
+    async def logout(self, data: StaffLogoutRequest) -> None:
+        """End the session so the refresh token can't be used any more (e.g. on a shared
+        computer) - dropping tokens in the browser alone would leave it valid for 24 hours."""
+        try:
+            await logout_staff(SecuritySettings.from_environment(), refresh_token=data.refresh_token)
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail="Could not reach the identity provider") from exc
 
     @post("/register", name="auth:Staff:register", guards=[require_admin_or_bootstrap_secret()])
     async def register(

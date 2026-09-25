@@ -1,1 +1,12 @@
-export { ApiError, clearAuthToken, getAuthToken, http, isApiError, setAuthToken, subscribeUnauthorized } from './client';
+export {
+  ApiError,
+  clearAuthToken,
+  getAuthToken,
+  getRefreshToken,
+  http,
+  isApiError,
+  registerTokenRefresher,
+  setAuthToken,
+  setRefreshToken,
+  subscribeUnauthorized,
+} from './client';

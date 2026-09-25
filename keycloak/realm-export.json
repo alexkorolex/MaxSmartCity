@@ -2,6 +2,9 @@
   "realm": "maxsmartcity",
   "enabled": true,
   "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 86400,
+  "ssoSessionMaxLifespan": 86400,
   "roles": {
     "realm": [
       {

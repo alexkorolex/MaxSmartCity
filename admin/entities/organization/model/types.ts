@@ -55,9 +55,22 @@ export interface OrganizationMember {
   created_at: string;
 }
 
+/** Whether the new employee was e-mailed their login and temporary password. */
+export interface CredentialsEmailResult {
+  recipient: string | null;
+  sent: boolean;
+  error: string | null;
+}
+
 export interface OrganizationRegistrationResult {
   organization_id: string;
   employee: OrganizationMember;
+  credentials_email: CredentialsEmailResult;
+}
+
+export interface StaffAccountCreatedResult {
+  member: OrganizationMember;
+  credentials_email: CredentialsEmailResult;
 }
 
 export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {

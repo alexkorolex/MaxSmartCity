@@ -17,7 +17,7 @@ export function useStaffLogin() {
     mutationFn: ({ username, password }: { username: string; password: string }) =>
       staffLogin(username, password),
     onSuccess: (response) => {
-      setSession(response.token);
+      setSession(response);
       void queryClient.invalidateQueries({ queryKey: meQueryKey });
     },
   });

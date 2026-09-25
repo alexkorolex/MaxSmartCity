@@ -5,6 +5,7 @@ from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.domains.identity.credentials import CredentialsEmailResult
 from src.domains.identity.enums import OrganizationType
 from src.domains.identity.models import Department, Organization, Resident
 
@@ -175,3 +176,11 @@ class OrganizationMemberSummary:
 class OrganizationRegistrationResult:
     organization_id: UUID
     employee: OrganizationMemberSummary
+    credentials_email: CredentialsEmailResult
+    """Whether the employee was e-mailed their login and temporary password."""
+
+
+@dataclass(slots=True)
+class StaffAccountCreatedResult:
+    member: OrganizationMemberSummary
+    credentials_email: CredentialsEmailResult

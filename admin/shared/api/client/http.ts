@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/shared/config';
 
 import { emitUnauthorized } from './authEvents';
 import { ApiError } from './errors';
+import { refreshAuthToken } from './refresh';
 import { getAuthToken } from './token';
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -9,6 +10,8 @@ type QueryValue = string | number | boolean | undefined | null;
 interface RequestOptions {
   query?: Record<string, QueryValue>;
   signal?: AbortSignal;
+  /** Don't try to renew the session on 401 - for the auth calls themselves. */
+  skipAuthRefresh?: boolean;
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -34,7 +37,7 @@ async function extractErrorMessage(response: Response): Promise<{ message: strin
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+function send(method: string, path: string, body: unknown, options?: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   const token = getAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -42,14 +45,24 @@ async function request<T>(method: string, path: string, body?: unknown, options?
   const isFormData = body instanceof FormData;
   if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
 
-  const response = await fetch(buildUrl(path, options?.query), {
+  return fetch(buildUrl(path, options?.query), {
     method,
     headers,
     body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     signal: options?.signal,
   });
+}
 
-  if (response.status === 401) emitUnauthorized();
+async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  let response = await send(method, path, body, options);
+
+  // The access token lives minutes; on its expiry renew it with the refresh token and
+  // retry once, so staff stay signed in for the whole 24-hour session.
+  if (response.status === 401 && !options?.skipAuthRefresh && getAuthToken() && (await refreshAuthToken())) {
+    response = await send(method, path, body, options);
+  }
+
+  if (response.status === 401 && !options?.skipAuthRefresh) emitUnauthorized();
 
   if (!response.ok) {
     const { message, detail } = await extractErrorMessage(response);

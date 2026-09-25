@@ -1,7 +1,15 @@
+import json
+from pathlib import Path
+
 import httpx
 import pytest
 
-from src.security.keycloak import KeycloakLoginError, login_staff_with_password
+from src.security.keycloak import (
+    KeycloakLoginError,
+    login_staff_with_password,
+    logout_staff,
+    refresh_staff_tokens,
+)
 from src.security.keycloak_admin import KeycloakAdminError, create_staff_user
 from src.security.settings import SecuritySettings
 
@@ -117,3 +125,74 @@ async def test_create_staff_user_raises_on_conflict(
             role="admin",
         )
     assert excinfo.value.conflict is True
+
+
+async def test_refresh_staff_tokens_uses_the_refresh_token_grant(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, object] = {}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: object) -> httpx.Response:
+        seen.update(url=url, data=kwargs["data"])
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "new",
+                "refresh_token": "rotated",
+                "expires_in": 300,
+                "refresh_expires_in": 86400,
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    tokens = await refresh_staff_tokens(settings, refresh_token="old-refresh")
+
+    assert tokens["refresh_token"] == "rotated"
+    assert seen["url"] == settings.keycloak_token_url
+    assert seen["data"] == {
+        "grant_type": "refresh_token",
+        "client_id": "maxsmartcity-backend",
+        "client_secret": "test-client-secret",
+        "refresh_token": "old-refresh",
+    }
+
+
+async def test_expired_session_cannot_be_refreshed(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_post(self: httpx.AsyncClient, url: str, **_kwargs: object) -> httpx.Response:
+        return httpx.Response(400, json={"error": "invalid_grant", "error_description": "Session not active"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    with pytest.raises(KeycloakLoginError, match="Session not active"):
+        await refresh_staff_tokens(settings, refresh_token="expired")
+
+
+async def test_logout_ends_the_keycloak_session(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, object] = {}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: object) -> httpx.Response:
+        seen.update(url=url, data=kwargs["data"])
+        return httpx.Response(204)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    await logout_staff(settings, refresh_token="refresh")
+
+    assert seen["url"] == "http://keycloak:8080/realms/maxsmartcity/protocol/openid-connect/logout"
+    assert seen["data"] == {
+        "client_id": "maxsmartcity-backend",
+        "client_secret": "test-client-secret",
+        "refresh_token": "refresh",
+    }
+
+
+def test_realm_keeps_staff_sessions_for_24_hours() -> None:
+    realm = json.loads(Path("keycloak/realm-export.json").read_text(encoding="utf-8"))
+    assert realm["ssoSessionIdleTimeout"] == 24 * 60 * 60
+    assert realm["ssoSessionMaxLifespan"] == 24 * 60 * 60
+    assert realm["accessTokenLifespan"] <= 15 * 60

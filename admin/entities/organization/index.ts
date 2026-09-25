@@ -16,8 +16,11 @@ export type {
   HousingOrganizationType,
   Organization,
   OrganizationMember,
+  CredentialsEmailResult,
   OrganizationRegistrationPayload,
+  OrganizationRegistrationResult,
   OrganizationType,
   StaffAccountPayload,
 } from './model/types';
+export { CredentialsEmailNotice } from './ui/CredentialsEmailNotice';
 export { StaffAccountFields } from './ui/StaffAccountFields';

@@ -87,6 +87,10 @@ class SecuritySettings:
         return f"{self.keycloak_internal_url}/realms/{self.keycloak_realm}/protocol/openid-connect/token"
 
     @property
+    def keycloak_logout_url(self) -> str:
+        return f"{self.keycloak_internal_url}/realms/{self.keycloak_realm}/protocol/openid-connect/logout"
+
+    @property
     def keycloak_master_token_url(self) -> str:
         return f"{self.keycloak_internal_url}/realms/master/protocol/openid-connect/token"
 

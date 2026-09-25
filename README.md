@@ -304,8 +304,16 @@ retryable `MODEL_UNAVAILABLE`, не изменяя Report или Incident.
 
 1. `POST /auth/staff/login` — логин/пароль проксируются в Keycloak
    (`src/security/keycloak.py:login_staff_with_password`), обратно отдаётся
-   `{token, refresh_token, expires_in}`. Пароль проходит через бэкенд
-   транзитом и нигде не сохраняется.
+   `{token, refresh_token, expires_in, refresh_expires_in}`. Пароль проходит
+   через бэкенд транзитом и нигде не сохраняется.
+   `POST /auth/staff/refresh` `{refresh_token}` выдаёт новую пару токенов без
+   пароля, `POST /auth/staff/logout` `{refresh_token}` закрывает сессию в
+   Keycloak. Access token живёт 5 минут, сессия (и refresh token) — 24 часа
+   (`accessTokenLifespan`, `ssoSessionIdleTimeout`, `ssoSessionMaxLifespan` в
+   realm-конфиге); админка сама обновляет токен при 401, так что заново входить
+   нужно раз в сутки. Realm импортируется только при первом старте Keycloak — в
+   уже существующем realm эти сроки меняются в Admin Console (**Realm settings →
+   Sessions / Tokens**) или через Admin REST API.
 2. `POST /auth/staff/register` — доступно только с ролью `admin`
    (`require_roles("admin")`). Создаёт пользователя сразу в двух местах: в
    Keycloak через Admin REST API (`src/security/keycloak_admin.py`, логин +

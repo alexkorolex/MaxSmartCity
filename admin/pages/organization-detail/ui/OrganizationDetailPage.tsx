@@ -1,7 +1,9 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import {
+  CredentialsEmailNotice,
   ORGANIZATION_TYPE_LABELS,
+  type OrganizationRegistrationResult,
   useDeactivateOrganizationMember,
   useOrganization,
   useOrganizationMembers,
@@ -14,6 +16,8 @@ import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared
 
 export function OrganizationDetailPage() {
   const { organizationId = '' } = useParams();
+  const registration = (useLocation().state as { registration?: OrganizationRegistrationResult } | null)
+    ?.registration;
   const organization = useOrganization(organizationId);
   const members = useOrganizationMembers(organizationId);
   const deactivate = useDeactivateOrganizationMember(organizationId);
@@ -29,6 +33,14 @@ export function OrganizationDetailPage() {
             <ArrowLeftIcon width={16} height={16} />
             К списку организаций
           </Link>
+        </div>
+      )}
+
+      {registration?.organization_id === organizationId && (
+        <div className="card">
+          <div className="card__body">
+            <CredentialsEmailNotice result={registration.credentials_email} login={registration.employee.login} />
+          </div>
         </div>
       )}
 

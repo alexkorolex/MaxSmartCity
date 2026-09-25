@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import is_platform_admin, resolve_organization_scope
+from src.domains.identity.credentials import send_credentials_email
 from src.domains.identity.enums import OrganizationRegistrationStatus
 from src.domains.identity.models import (
     Department,
@@ -39,6 +40,7 @@ from src.domains.identity.schemas import (
     ResidentReadDTO,
     ResidentSelfUpdateRequest,
     ResidentSummary,
+    StaffAccountCreatedResult,
     StaffAccountRequest,
 )
 from src.domains.identity.services import (
@@ -141,10 +143,17 @@ class OrganizationController(Controller):
             except KeycloakAdminError as exc:
                 raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
             await db_session.commit()
-            return OrganizationRegistrationResult(
-                organization_id=organization.id,
-                employee=await OrganizationMemberController.load_summary(db_session, member.id),
-            )
+            employee = await OrganizationMemberController.load_summary(db_session, member.id)
+        credentials_email = await send_credentials_email(
+            email=data.employee.email,
+            display_name=employee.display_name,
+            login=employee.login,
+            password=data.employee.password,
+            organization_name=organization.name,
+        )
+        return OrganizationRegistrationResult(
+            organization_id=organization.id, employee=employee, credentials_email=credentials_email
+        )
 
     @get("/{item_id:uuid}", name="identity:Organization:get", guards=[require_roles(*_STAFF_ADMIN_ROLES)])
     async def get_item(
@@ -371,8 +380,9 @@ class OrganizationMemberController(Controller):
         organization_id: FromPath[UUID],
         data: StaffAccountRequest,
         db_session: NamedDependency[AsyncSession],
-    ) -> OrganizationMemberSummary:
-        """Admin-only: create a new employee login directly inside the organization."""
+    ) -> StaffAccountCreatedResult:
+        """Admin-only: create a new employee login directly inside the organization and
+        e-mail them their sign-in details."""
         with database_action("create", "identity.OrganizationMember"):
             try:
                 member = await OrganizationMemberService(session=db_session).create_account(
@@ -387,7 +397,18 @@ class OrganizationMemberController(Controller):
             except KeycloakAdminError as exc:
                 raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
             await db_session.commit()
-            return await self.load_summary(db_session, member.id)
+            summary = await self.load_summary(db_session, member.id)
+            organization_name = await db_session.scalar(
+                select(Organization.name).where(Organization.id == organization_id)
+            )
+        credentials_email = await send_credentials_email(
+            email=data.email,
+            display_name=summary.display_name,
+            login=summary.login,
+            password=data.password,
+            organization_name=organization_name or "",
+        )
+        return StaffAccountCreatedResult(member=summary, credentials_email=credentials_email)
 
     @post(
         "/{member_id:uuid}/deactivate",

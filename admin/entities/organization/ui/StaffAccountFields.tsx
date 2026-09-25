@@ -37,6 +37,7 @@ export function StaffAccountFields({ idPrefix, value, onChange }: StaffAccountFi
           value={value.email ?? ''}
           onChange={(event) => onChange({ ...value, email: event.target.value })}
         />
+        <div className="form-hint">Сюда придёт письмо со ссылкой на панель, логином и паролем</div>
       </div>
       <div>
         <label className="field-label" htmlFor={`${idPrefix}-login`}>
@@ -64,7 +65,7 @@ export function StaffAccountFields({ idPrefix, value, onChange }: StaffAccountFi
           onChange={(event) => onChange({ ...value, password: event.target.value })}
         />
         <div className={passwordTooShort ? 'form-hint form-hint--error' : 'form-hint'}>
-          Не короче {MIN_PASSWORD_LENGTH} символов. Передайте его сотруднику.
+          Не короче {MIN_PASSWORD_LENGTH} символов. Сотрудник получит его в письме.
         </div>
       </div>
     </div>

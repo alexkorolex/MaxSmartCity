@@ -5,7 +5,7 @@ import { GlobeIcon, ListCard, MailIcon, PhoneIcon, StatusBadge } from '@/shared/
 
 import { formatPhone, websiteLabel } from '../lib/contacts';
 import {
-  MANAGING_ORGANIZATION_TYPE_LABELS,
+  managingOrganizationLabel,
   type HouseDataSource,
   type HouseInfo,
   type HouseManagingOrganization,
@@ -26,7 +26,13 @@ function Requisites({ inn, ogrn }: { inn: string | null; ogrn: string | null }) 
   );
 }
 
-function ManagingOrganizationCard({ organization }: { organization: HouseManagingOrganization }) {
+function ManagingOrganizationCard({
+  organization,
+  managementMethod,
+}: {
+  organization: HouseManagingOrganization;
+  managementMethod: string | null;
+}) {
   const isDemo = organization.sources.some((source) => source.data_kind === 'DEMO');
   const hasContacts = organization.phones.length > 0 || organization.email || organization.website;
 
@@ -34,7 +40,7 @@ function ManagingOrganizationCard({ organization }: { organization: HouseManagin
     <>
       <Flex direction="column" gap="var(--space-2)" className="surface-card house-info__company">
         <Flex gap="var(--space-2)" wrap="wrap">
-          <StatusBadge label={MANAGING_ORGANIZATION_TYPE_LABELS[organization.type] ?? 'Управляющая организация'} tone="info" />
+          <StatusBadge label={managingOrganizationLabel(organization, managementMethod)} tone="info" />
           {organization.is_platform_manager && <StatusBadge label="Принимает заявки в приложении" tone="success" />}
           {isDemo && <StatusBadge label="Демо-данные" tone="warning" />}
         </Flex>
@@ -131,7 +137,11 @@ export function HouseInfoCard({ info }: { info: HouseInfo }) {
   return (
     <Flex direction="column" gap="var(--space-3)" className="house-info">
       {info.managing_organizations.map((organization) => (
-        <ManagingOrganizationCard key={`${organization.name}-${organization.inn ?? ''}`} organization={organization} />
+        <ManagingOrganizationCard
+          key={`${organization.name}-${organization.ogrn ?? organization.inn ?? ''}`}
+          organization={organization}
+          managementMethod={info.management_method}
+        />
       ))}
 
       {platformManager && !platformManagerListed && (
@@ -142,7 +152,7 @@ export function HouseInfoCard({ info }: { info: HouseInfo }) {
           <Typography.Text variant="title" color="primary">
             {platformManager.name}
           </Typography.Text>
-          <Requisites inn={platformManager.inn} ogrn={null} />
+          <Requisites inn={platformManager.inn} ogrn={platformManager.ogrn} />
           <Typography.Text variant="description" color="secondary">
             Обслуживает дом в Smart City — ваши обращения по дому попадают к ней напрямую.
           </Typography.Text>

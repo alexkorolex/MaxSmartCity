@@ -37,6 +37,7 @@ export interface HousePlatformManager {
   name: string;
   type: string;
   inn: string | null;
+  ogrn: string | null;
   effective_from: string | null;
 }
 
@@ -53,3 +54,19 @@ export const MANAGING_ORGANIZATION_TYPE_LABELS: Record<string, string> = {
   MANAGEMENT_COMPANY: 'Управляющая компания',
   HOA: 'ТСЖ',
 };
+
+/**
+ * Open registries (GIS ЖКХ) tag every manager as `MANAGING_COMPANY`, so an HOA is told
+ * apart by the house's management method or by its name.
+ */
+export function managingOrganizationLabel(
+  organization: Pick<HouseManagingOrganization, 'type' | 'name'>,
+  managementMethod: string | null,
+): string {
+  const isHoa =
+    organization.type === 'HOA' ||
+    managementMethod === 'ТСЖ' ||
+    /^(ТСЖ|ТОВАРИЩЕСТВО СОБСТВЕННИКОВ)/.test(organization.name.trim().toUpperCase());
+  if (isHoa) return 'ТСЖ';
+  return MANAGING_ORGANIZATION_TYPE_LABELS[organization.type] ?? 'Управляющая организация';
+}

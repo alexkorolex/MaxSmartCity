@@ -131,11 +131,13 @@ def optional_website(row: dict[str, Any]) -> str | None:
     return value
 
 
-def read_dataset(path: Path) -> tuple[dict[str, Any], str]:
+def read_dataset(path: Path, *, max_bytes: int | None = MAX_FILE_BYTES) -> tuple[dict[str, Any], str]:
+    """``max_bytes=None`` lifts the size guard - only for the batched bulk importer
+    (``src.domains.ingestion.bulk``), which never loads a whole large file in one run."""
     if path.suffix.lower() != ".json":
         raise ValueError("input must be a .json file")
-    if path.stat().st_size > MAX_FILE_BYTES:
-        raise ValueError("input exceeds 5 MiB")
+    if max_bytes is not None and path.stat().st_size > max_bytes:
+        raise ValueError(f"input exceeds {max_bytes // (1024 * 1024)} MiB")
     content = path.read_bytes()
     dataset = json.loads(
         content.decode("utf-8-sig"),
@@ -621,6 +623,14 @@ async def _link(
 
 async def import_file(path: Path, database_url: str | None = None) -> dict[str, int | str]:
     dataset, digest = read_dataset(path)
+    return await import_dataset(dataset, digest, database_url)
+
+
+async def import_dataset(
+    dataset: dict[str, Any], digest: str, database_url: str | None = None
+) -> dict[str, int | str]:
+    """Import an already validated (``read_dataset``) dataset in one transaction, recorded
+    as one ``ingestion.run`` against ``digest`` (the SHA-256 of the file it came from)."""
     retrieved_at = datetime.fromisoformat(dataset["source"]["retrieved_at"])
     engine = create_async_engine(database_url or DatabaseSettings.from_environment().url)
     counts: Counter[str] = Counter()

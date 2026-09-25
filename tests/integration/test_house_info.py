@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from litestar.testing import TestClient
 
+from src.domains.ingestion.bulk import bulk_import
 from src.domains.ingestion.importer import import_file
 from tests.integration.test_housing_organizations import random_inn, random_ogrn
 from tests.integration.test_ingestion import make_dataset, rows, save
@@ -80,3 +81,48 @@ def test_house_info_shows_managing_company_contacts_and_platform_connection(
     assert connected["managing_organizations"][0]["is_platform_manager"] is True
 
     assert api_client.get(f"/geo/houses/{uuid4()}/info").status_code == 404
+
+
+def test_bulk_import_in_batches_and_one_company_from_two_sources_is_one_card(
+    api_client: TestClient, database_url: str, tmp_path: Path
+) -> None:
+    city = f"Город-{uuid4().hex}"
+    ogrn = random_ogrn()
+    contacts = make_dataset(f"contacts-{uuid4()}", city, timestamp="2026-09-23T12:00:00+03:00")
+    contacts["organizations"][0].update({"name": "ООО ДОМ-ПЛЮС", "ogrn": ogrn, "phones": ["+79621403018"]})
+    asyncio.run(import_file(save(tmp_path / "contacts.json", contacts), database_url))
+
+    registry = make_dataset(f"registry-{uuid4()}", city, timestamp="2026-09-20T00:00:00+03:00")
+    registry["houses"].append({"key": "house-2", "city": city, "street": "улица Первая", "house_number": "2"})
+    registry["organizations"][0].update(
+        {"name": 'ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ДОМ-ПЛЮС"', "ogrn": ogrn}
+    )
+    totals = asyncio.run(
+        bulk_import(save(tmp_path / "registry.json", registry), batch_size=1, database_url=database_url)
+    )
+    # house-1 is the contacts source's house (same exact address), house-2 is new.
+    assert totals == {
+        "houses_created": 1,
+        "houses_updated": 1,
+        "organizations_created": 1,
+        "organizations_updated": 0,
+        "links_created": 1,
+        "error_count": 0,
+    }
+
+    (house,) = asyncio.run(
+        rows(
+            database_url,
+            "SELECT h.id FROM geo.house h JOIN geo.address a ON a.id = h.address_id "
+            "WHERE a.city = :city AND a.house_number = '1'",
+            city=city,
+        )
+    )
+    (company,) = api_client.get(f"/geo/houses/{house.id}/info").json()["managing_organizations"]
+    assert company["name"] == "ООО ДОМ-ПЛЮС"
+    assert company["ogrn"] == ogrn
+    assert company["phones"] == ["+79621403018"]
+    assert [source["code"] for source in company["sources"]] == [
+        contacts["source"]["code"],
+        registry["source"]["code"],
+    ]

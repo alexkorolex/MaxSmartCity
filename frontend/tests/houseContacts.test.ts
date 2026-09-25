@@ -13,3 +13,11 @@ test('shortens a website to its host', () => {
   assert.equal(websiteLabel('https://www.domplus.bsr-profi.ru/about'), 'domplus.bsr-profi.ru');
   assert.equal(websiteLabel('not a url'), 'not a url');
 });
+
+test('an HOA is recognised by management method or name, not only by type', async () => {
+  const { managingOrganizationLabel } = await import('../entities/geo/model/types.ts');
+  const company = { type: 'MANAGING_COMPANY', name: 'ООО ДОМ-ПЛЮС' };
+  assert.equal(managingOrganizationLabel(company, 'УО'), 'Управляющая компания');
+  assert.equal(managingOrganizationLabel(company, 'ТСЖ'), 'ТСЖ');
+  assert.equal(managingOrganizationLabel({ type: 'MANAGING_COMPANY', name: 'ТСЖ "ТУХАЧЕВСКИЙ"' }, null), 'ТСЖ');
+});

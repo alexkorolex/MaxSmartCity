@@ -2,7 +2,7 @@ import { Button, CellHeader, CellList, CellSimple, Flex, Radio, Switch, Textarea
 import { useNavigate } from 'react-router-dom';
 
 import { HouseSelector } from '@/features/select-house';
-import { useHouses } from '@/entities/geo';
+import { useHouse } from '@/entities/geo';
 import { PRIORITY_LABELS, PRIORITY_TONES, useProblemCategories, type Priority } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, HouseIcon, ListCard, ToneDot, WarningIcon } from '@/shared/ui';
@@ -15,10 +15,9 @@ const URGENCY_OPTIONS: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 export function ReportForm() {
   const navigate = useNavigate();
   const categories = useProblemCategories();
-  const houses = useHouses();
   const form = useReportForm((reportId) => navigate(ROUTES.myReports, { state: { createdReportId: reportId } }));
 
-  const selectedHouse = houses.data?.find((house) => house.house_id === form.houseId);
+  const selectedHouse = useHouse(form.houseId).data;
 
   if (form.attachmentWarning) {
     return (

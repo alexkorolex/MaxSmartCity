@@ -2,7 +2,7 @@ import { Avatar, Button, CellHeader, CellList, CellSimple, Flex, Input, Typograp
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useHouses } from '@/entities/geo';
+import { useHouse } from '@/entities/geo';
 import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
 import { LogoutButton } from '@/features/logout';
 import { ROUTES } from '@/shared/routes';
@@ -21,7 +21,6 @@ function initialsOf(name: string | null): string {
 export function ProfilePage() {
   const profile = useMyProfile();
   const updateProfile = useUpdateMyProfile();
-  const houses = useHouses();
   const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
@@ -29,7 +28,7 @@ export function ProfilePage() {
   }, [profile.data]);
 
   const hasChanges = profile.data && displayName.trim() !== (profile.data.display_name ?? '');
-  const myHouse = houses.data?.find((house) => house.house_id === profile.data?.house_id);
+  const myHouse = useHouse(profile.data?.house_id).data;
 
   return (
     <PageLayout title="Профиль">

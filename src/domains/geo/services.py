@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from uuid import UUID
 
@@ -156,7 +157,6 @@ class HouseManagementService(SQLAlchemyAsyncRepositoryService[HouseManagement]):
                 )
             current.is_active = False
             current.effective_to = effective_from
-            # Flush before inserting: the partial unique index allows one active row per house.
             await session.flush()
 
         management = HouseManagement(
@@ -241,6 +241,47 @@ class HouseManagementService(SQLAlchemyAsyncRepositoryService[HouseManagement]):
 
 MANAGES_RELATIONSHIP = "MANAGES"
 
+_LEGAL_FORMS = (
+    ("ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ", "ООО"),
+    ("ПУБЛИЧНОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО", "ПАО"),
+    ("АКЦИОНЕРНОЕ ОБЩЕСТВО", "АО"),
+    ("ТОВАРИЩЕСТВО СОБСТВЕННИКОВ ЖИЛЬЯ", "ТСЖ"),
+    ("ТОВАРИЩЕСТВО СОБСТВЕННИКОВ НЕДВИЖИМОСТИ", "ТСН"),
+    ("ЖИЛИЩНО-СТРОИТЕЛЬНЫЙ КООПЕРАТИВ", "ЖСК"),
+    ("ЖИЛИЩНЫЙ КООПЕРАТИВ", "ЖК"),
+    ("МУНИЦИПАЛЬНОЕ УНИТАРНОЕ ПРЕДПРИЯТИЕ", "МУП"),
+    ("УПРАВЛЯЮЩАЯ КОМПАНИЯ", "УК"),
+    ("ИНДИВИДУАЛЬНЫЙ ПРЕДПРИНИМАТЕЛЬ", "ИП"),
+)
+_NAME_NOISE = frozenset({short for _full, short in _LEGAL_FORMS} | {"ЗАО", "ОАО"})
+
+
+def organization_name_key(name: str) -> str:
+    """Comparable core of an organization name: legal form, "УК" and punctuation dropped,
+    so «ООО ДОМ-ПЛЮС» and «ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ДОМ-ПЛЮС"» match."""
+    upper = name.upper().replace("Ё", "Е")
+    for full, short in _LEGAL_FORMS:
+        upper = upper.replace(full, short)
+    words = re.findall(r"[А-ЯA-Z0-9]+", upper)
+    core = [word for word in words if word not in _NAME_NOISE]
+    return " ".join(core or words)
+
+
+def _same_organization(
+    entry: HouseManagingOrganization,
+    entry_name_keys: set[str],
+    ogrn: str | None,
+    inn: str | None,
+    name_key: str,
+) -> bool:
+    """Requisites decide when both sides have them (never merge two different OGRNs just
+    because the names look alike); only without them does the name decide."""
+    if ogrn and entry.ogrn:
+        return ogrn == entry.ogrn
+    if inn and entry.inn:
+        return inn == entry.inn
+    return bool(name_key) and name_key in entry_name_keys
+
 
 async def load_platform_manager(session: AsyncSession, house_id: UUID) -> HousePlatformManager | None:
     row = (
@@ -250,6 +291,7 @@ async def load_platform_manager(session: AsyncSession, house_id: UUID) -> HouseP
                 Organization.name,
                 Organization.type,
                 Organization.inn,
+                Organization.ogrn,
                 HouseManagement.effective_from,
             )
             .join(HouseManagement, HouseManagement.organization_id == Organization.id)
@@ -263,6 +305,7 @@ async def load_platform_manager(session: AsyncSession, house_id: UUID) -> HouseP
         name=row.name,
         type=row.type.value,
         inn=row.inn,
+        ogrn=row.ogrn,
         effective_from=row.effective_from,
     )
 
@@ -282,10 +325,15 @@ async def load_house_reference(session: AsyncSession, house_id: UUID) -> tuple[s
 
 
 async def load_managing_organizations(
-    session: AsyncSession, house_id: UUID, *, platform_inn: str | None
+    session: AsyncSession,
+    house_id: UUID,
+    *,
+    platform_inn: str | None = None,
+    platform_ogrn: str | None = None,
 ) -> list[HouseManagingOrganization]:
-    """Management companies of the house from open sources, one entry per organization
-    with contacts merged across sources (freshest source first)."""
+    """Management companies of the house from open sources, one entry per organization:
+    the same company published by several sources (cian with contacts, GIS ЖКХ with the
+    OGRN, ...) is merged, see ``_same_organization``."""
     today = utc_now().date()
     rows = (
         await session.execute(
@@ -332,7 +380,10 @@ async def load_managing_organizations(
         )
     ).all()
 
-    merged: dict[UUID, HouseManagingOrganization] = {}
+    # Rows are freshest first, so the first spelling of a name (usually the short, human
+    # one from a contacts source) wins over e.g. the full legal name from GIS ЖКХ.
+    merged: list[HouseManagingOrganization] = []
+    name_keys: list[set[str]] = []
     for row in rows:
         provenance = row.provenance if isinstance(row.provenance, dict) else {}
         contact_source = provenance.get("contact_source")
@@ -342,21 +393,35 @@ async def load_managing_organizations(
             data_kind=row.data_kind,
             retrieved_at=row.retrieved_at,
         )
-        entry = merged.get(row.organization_id)
-        if entry is None:
-            entry = merged[row.organization_id] = HouseManagingOrganization(
-                name=row.name,
-                type=row.type,
-                inn=None,
-                ogrn=None,
-                phones=[],
-                email=None,
-                website=None,
-                basis=None,
-                period_from=None,
-                is_platform_manager=False,
-                sources=[],
+        name_key = organization_name_key(row.name)
+        index = next(
+            (
+                position
+                for position, entry in enumerate(merged)
+                if _same_organization(entry, name_keys[position], row.ogrn, row.inn, name_key)
+            ),
+            None,
+        )
+        if index is None:
+            merged.append(
+                HouseManagingOrganization(
+                    name=row.name,
+                    type=row.type,
+                    inn=None,
+                    ogrn=None,
+                    phones=[],
+                    email=None,
+                    website=None,
+                    basis=None,
+                    period_from=None,
+                    is_platform_manager=False,
+                    sources=[],
+                )
             )
+            name_keys.append(set())
+            index = len(merged) - 1
+        entry = merged[index]
+        name_keys[index].add(name_key)
         entry.inn = entry.inn or row.inn
         entry.ogrn = entry.ogrn or row.ogrn
         entry.email = entry.email or row.email
@@ -366,7 +431,10 @@ async def load_managing_organizations(
         for phone in row.phones or []:
             if phone not in entry.phones:
                 entry.phones.append(phone)
-        entry.sources.append(source)
-    for entry in merged.values():
-        entry.is_platform_manager = bool(platform_inn and entry.inn == platform_inn)
-    return list(merged.values())
+        if source not in entry.sources:
+            entry.sources.append(source)
+    for entry in merged:
+        entry.is_platform_manager = bool(
+            (platform_inn and entry.inn == platform_inn) or (platform_ogrn and entry.ogrn == platform_ogrn)
+        )
+    return merged

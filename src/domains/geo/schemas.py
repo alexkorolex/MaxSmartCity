@@ -154,7 +154,7 @@ class HouseManagingOrganization:
     basis: str | None
     period_from: date | None
     is_platform_manager: bool
-    """The same organization (by INN) is connected to Smart City and receives residents'
+    """The same organization (by INN or OGRN) is connected to Smart City and receives residents'
     requests directly."""
     sources: list[HouseDataSource]
 
@@ -167,6 +167,7 @@ class HousePlatformManager:
     name: str
     type: str
     inn: str | None
+    ogrn: str | None
     effective_from: date | None
 
 

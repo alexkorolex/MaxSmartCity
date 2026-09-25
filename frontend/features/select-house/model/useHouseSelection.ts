@@ -1,41 +1,37 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { useHouses } from '@/entities/geo';
+import { useCities, useHouse, useHouseSearch } from '@/entities/geo';
+import { useDebouncedValue } from '@/shared/lib';
 
+/** City + address search for the house picker. Houses are searched on the server (the
+ * registry is far too large to load whole); the city of an already chosen house is
+ * preselected. */
 export function useHouseSelection(initialHouseId?: string | null) {
-  const housesQuery = useHouses();
-  const houses = useMemo(() => housesQuery.data ?? [], [housesQuery.data]);
-
-  const initialCity = useMemo(
-    () => houses.find((house) => house.house_id === initialHouseId)?.city ?? null,
-    [houses, initialHouseId],
-  );
-
+  const citiesQuery = useCities();
+  const initialHouse = useHouse(initialHouseId);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query);
+  const housesQuery = useHouseSearch(selectedCity, debouncedQuery);
 
   useEffect(() => {
-    if (initialCity && selectedCity === null) setSelectedCity(initialCity);
-  }, [initialCity, selectedCity]);
-
-  const cities = useMemo(() => {
-    const unique = new Set(houses.map((house) => house.city).filter((city): city is string => Boolean(city)));
-    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'ru'));
-  }, [houses]);
-
-  const housesInCity = useMemo(
-    () => houses.filter((house) => house.city === selectedCity),
-    [houses, selectedCity],
-  );
+    const city = initialHouse.data?.city;
+    if (city && selectedCity === null) setSelectedCity(city);
+  }, [initialHouse.data?.city, selectedCity]);
 
   const selectCity = (city: string | null) => {
     setSelectedCity(city);
+    setQuery('');
   };
 
   return {
-    housesQuery,
-    cities,
+    citiesQuery,
+    cities: citiesQuery.data ?? [],
     selectedCity,
     selectCity,
-    housesInCity,
+    setQuery,
+    housesQuery,
+    housesInCity: housesQuery.data ?? [],
+    isSearching: housesQuery.isFetching || query !== debouncedQuery,
   };
 }

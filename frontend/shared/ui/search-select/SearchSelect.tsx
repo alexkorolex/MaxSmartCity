@@ -17,6 +17,9 @@ interface SearchSelectProps {
   emptyMessage: string;
   disabled?: boolean;
   onChange: (option: SearchOption | null) => void;
+  /** Server-side search: the typed text is reported here and `options` are shown as
+   * given (already filtered by the server) instead of being filtered locally. */
+  onQueryChange?: (query: string) => void;
 }
 
 interface OptionsListProps {
@@ -52,10 +55,13 @@ function OptionsList({ options, selectedId, emptyMessage, onSelect }: OptionsLis
 }
 
 function useSearchSelect(options: SearchOption[], value: SearchOption | null, disabled: boolean | undefined,
-  onChange: SearchSelectProps['onChange']) {
+  onChange: SearchSelectProps['onChange'], onQueryChange: SearchSelectProps['onQueryChange']) {
   const [query, setQuery] = useState(value?.label ?? '');
   const [isOpen, setIsOpen] = useState(false);
-  const visibleOptions = useMemo(() => filterSearchOptions(options, query).slice(0, 30), [options, query]);
+  const visibleOptions = useMemo(
+    () => (onQueryChange ? options : filterSearchOptions(options, query)).slice(0, 30),
+    [options, query, onQueryChange],
+  );
 
   useEffect(() => {
     if (value) setQuery(value.label);
@@ -71,6 +77,7 @@ function useSearchSelect(options: SearchOption[], value: SearchOption | null, di
   function changeQuery(nextQuery: string): void {
     setQuery(nextQuery);
     setIsOpen(true);
+    onQueryChange?.(nextQuery);
     if (value) onChange(null);
   }
 
@@ -78,10 +85,10 @@ function useSearchSelect(options: SearchOption[], value: SearchOption | null, di
 }
 
 export function SearchSelect(props: SearchSelectProps) {
-  const { label, placeholder, options, value, icon, emptyMessage, disabled, onChange } = props;
+  const { label, placeholder, options, value, icon, emptyMessage, disabled, onChange, onQueryChange } = props;
   const inputId = useId();
   const listId = useId();
-  const state = useSearchSelect(options, value, disabled, onChange);
+  const state = useSearchSelect(options, value, disabled, onChange, onQueryChange);
 
   return (
     <div className={`search-select${disabled ? ' search-select--disabled' : ''}`}>

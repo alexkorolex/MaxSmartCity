@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from typing import Annotated, Any
 from uuid import UUID
@@ -108,6 +109,12 @@ class AddressController(Controller):
             await service.delete(item_id)
 
 
+def _search_words(q: str | None) -> list[str]:
+    """Up to 6 words of an address query, LIKE-escaped."""
+    words = re.findall(r"[\w-]+", q or "")[:6]
+    return [word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") for word in words]
+
+
 def _house_summary_statement() -> Select[Any]:
     """A house with its address and current manager (if any) flattened in."""
     return (
@@ -158,7 +165,8 @@ class HouseController(Controller):
         limit: Annotated[int, Parameter(ge=1, le=200)] = 200,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[HouseSummary]:
-        """``q`` searches the formatted address (case-insensitive substring)."""
+        """``q`` searches the formatted address word by word (every word must occur,
+        case-insensitively), so "Мира 9" finds "ул. Мира, д. 9"."""
         with database_action("list", "geo.House"):
             statement = (
                 _house_summary_statement()
@@ -168,9 +176,8 @@ class HouseController(Controller):
             )
             if city:
                 statement = statement.where(Address.city == city)
-            if q and q.strip():
-                pattern = "%" + q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-                statement = statement.where(Address.formatted.ilike(pattern))
+            for word in _search_words(q):
+                statement = statement.where(Address.formatted.ilike(f"%{word}%"))
             rows = (await db_session.execute(statement)).all()
             return [_to_house_summary(row) for row in rows]
 
@@ -196,7 +203,10 @@ class HouseController(Controller):
             platform_manager = await load_platform_manager(db_session, item_id)
             management_method, official_status = await load_house_reference(db_session, item_id)
             managing_organizations = await load_managing_organizations(
-                db_session, item_id, platform_inn=platform_manager.inn if platform_manager else None
+                db_session,
+                item_id,
+                platform_inn=platform_manager.inn if platform_manager else None,
+                platform_ogrn=platform_manager.ogrn if platform_manager else None,
             )
             return HouseInfo(
                 house=_to_house_summary(row),

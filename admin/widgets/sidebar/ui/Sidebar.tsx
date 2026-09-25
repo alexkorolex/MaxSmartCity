@@ -35,6 +35,7 @@ function navItems(principal: Principal | undefined) {
     { to: ROUTES.residents, label: 'Жители', icon: PersonIcon, end: false },
     { to: ROUTES.incidents, label: 'Инциденты', icon: WarningIcon, end: false },
     { to: ROUTES.news, label: 'Новости', icon: NewsIcon, end: false },
+    { to: ROUTES.profile, label: 'Мой профиль', icon: PersonIcon, end: false },
   ];
 }
 

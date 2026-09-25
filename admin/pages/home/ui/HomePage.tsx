@@ -4,8 +4,8 @@ import { useHouseManagement } from '@/entities/geo';
 import { useIncidents } from '@/entities/incident';
 import { useOrganizations } from '@/entities/organization';
 import { useResidents } from '@/entities/resident';
-import { canBrowseOrganizations, isAdmin, primaryRole, roleLabel, useMe } from '@/entities/session';
-import { useStaffList, useStaffMember } from '@/entities/staff';
+import { canBrowseOrganizations, isAdmin, primaryRole, roleLabel, useMe, useProfile } from '@/entities/session';
+import { useStaffList } from '@/entities/staff';
 import { BuildingIcon, HousesIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
 
 import './HomePage.css';
@@ -34,7 +34,7 @@ export function HomePage() {
   const residents = useResidents();
   const incidents = useIncidents();
   const houses = useHouseManagement();
-  const { data: me } = useStaffMember(principal?.actor_type === 'OPERATOR' ? principal.actor_id : '');
+  const { data: me } = useProfile();
 
   const role = primaryRole(principal);
   const scopeNote = isAdmin(principal)

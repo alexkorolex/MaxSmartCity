@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from litestar.testing import TestClient
 
 from src.max_bot.dedup import create_login_code
+from src.security.keycloak import KeycloakLoginError
 
 ISSUER = "http://localhost:8080/realms/maxsmartcity"
 AUDIENCE = "maxsmartcity-backend"
@@ -205,3 +206,78 @@ async def test_resident_web_login_redeems_bot_issued_code(api_client: TestClient
     me = api_client.get("/identity/me", headers={"Authorization": f"Bearer {logged_in.json()['token']}"})
     assert me.status_code == 200
     assert me.json()["actor_id"] == resident_id
+
+
+def test_staff_member_edits_own_profile_password_and_max_link(
+    api_client: TestClient, rsa_keypair: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    private_pem, _ = rsa_keypair
+    subject = str(uuid4())
+    # Keycloak also puts its technical default role into every token.
+    token = _staff_token(private_pem, subject=subject, roles=["default-roles-maxsmartcity", "housing_worker"])
+    headers = {"Authorization": f"Bearer {token}"}
+    keycloak_calls: list[tuple[str, dict[str, object]]] = []
+
+    async def fake_update(_settings: object, **kwargs: object) -> None:
+        keycloak_calls.append(("update", kwargs))
+
+    async def fake_set_password(_settings: object, **kwargs: object) -> None:
+        keycloak_calls.append(("password", kwargs))
+
+    async def fake_login(_settings: object, *, username: str, password: str) -> dict[str, object]:
+        if password != "old-password":
+            raise KeycloakLoginError("Invalid user credentials")
+        return {"access_token": "token"}
+
+    monkeypatch.setattr("src.domains.auth.controllers.update_staff_user", fake_update)
+    monkeypatch.setattr("src.domains.auth.controllers.set_staff_password", fake_set_password)
+    monkeypatch.setattr("src.domains.auth.controllers.login_staff_with_password", fake_login)
+
+    profile = api_client.get("/auth/staff/profile", headers=headers)
+    assert profile.status_code == 200, profile.text
+    assert profile.json()["role_code"] == "housing_worker"
+    assert profile.json()["email"] is None
+
+    invalid = api_client.patch(
+        "/auth/staff/profile", json={"display_name": "Иван Петров", "email": "not-an-email"}, headers=headers
+    )
+    assert invalid.status_code == 400
+    updated = api_client.patch(
+        "/auth/staff/profile", json={"display_name": " Иван Петров ", "email": "ivan@uk.ru"}, headers=headers
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["display_name"] == "Иван Петров"
+    assert updated.json()["email"] == "ivan@uk.ru"
+    assert keycloak_calls[-1] == (
+        "update",
+        {"subject": subject, "display_name": "Иван Петров", "email": "ivan@uk.ru"},
+    )
+
+    wrong_current = api_client.post(
+        "/auth/staff/password",
+        json={"current_password": "guess", "new_password": "brand-new-pass"},
+        headers=headers,
+    )
+    # 400, never 401 - a 401 would sign the staff member out of the panel.
+    assert wrong_current.status_code == 400
+    too_short = api_client.post(
+        "/auth/staff/password",
+        json={"current_password": "old-password", "new_password": "short"},
+        headers=headers,
+    )
+    assert too_short.status_code == 400
+    changed = api_client.post(
+        "/auth/staff/password",
+        json={"current_password": "old-password", "new_password": "brand-new-pass"},
+        headers=headers,
+    )
+    assert changed.status_code == 204, changed.text
+    assert keycloak_calls[-1] == ("password", {"subject": subject, "password": "brand-new-pass"})
+
+    assert (
+        api_client.post("/auth/staff/max-id", json={"max_user_id": 777001}, headers=headers).status_code
+        == 201
+    )
+    assert api_client.get("/auth/staff/profile", headers=headers).json()["max_user_id"] == 777001
+    assert api_client.delete("/auth/staff/max-id", headers=headers).status_code == 204
+    assert api_client.get("/auth/staff/profile", headers=headers).json()["max_user_id"] is None

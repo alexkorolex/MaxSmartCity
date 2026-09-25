@@ -1,9 +1,16 @@
+import re
 from typing import Any
 
 import httpx
-from litestar import Controller, Router, post
+from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
-from litestar.exceptions import HTTPException, NotAuthorizedException, NotFoundException
+from litestar.exceptions import (
+    ClientException,
+    HTTPException,
+    NotAuthorizedException,
+    NotFoundException,
+)
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
@@ -18,12 +25,15 @@ from src.domains.auth.schemas import (
     StaffLoginRequest,
     StaffLoginResponse,
     StaffLogoutRequest,
+    StaffPasswordChangeRequest,
+    StaffProfileRead,
+    StaffProfileUpdateRequest,
     StaffRefreshRequest,
     StaffRegisterRequest,
     StaffRegisterResponse,
 )
-from src.domains.identity.models import OperatorUser
-from src.domains.identity.services import OperatorUserService, ResidentService
+from src.domains.identity.models import Department, OperatorUser, Organization, OrganizationMember
+from src.domains.identity.services import MIN_PASSWORD_LENGTH, OperatorUserService, ResidentService
 from src.max_bot.dedup import consume_login_code
 from src.security.dependency import provide_principal
 from src.security.guards import (
@@ -38,7 +48,12 @@ from src.security.keycloak import (
     logout_staff,
     refresh_staff_tokens,
 )
-from src.security.keycloak_admin import KeycloakAdminError, create_staff_user
+from src.security.keycloak_admin import (
+    KeycloakAdminError,
+    create_staff_user,
+    set_staff_password,
+    update_staff_user,
+)
 from src.security.principal import Principal
 from src.security.resident import resident_jwt_auth
 from src.security.settings import SecuritySettings
@@ -51,6 +66,19 @@ def _staff_tokens(tokens: dict[str, Any]) -> StaffLoginResponse:
         expires_in=tokens.get("expires_in"),
         refresh_expires_in=tokens.get("refresh_expires_in"),
     )
+
+
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Highest first - the one role a profile shows; Keycloak's technical roles
+# (``default-roles-<realm>``, ``offline_access``) are never it.
+_STAFF_ROLE_PRIORITY = ("admin", "district_admin", "housing_worker")
+
+
+def _keycloak_admin_failure(exc: KeycloakAdminError) -> HTTPException:
+    if exc.invalid:
+        return ClientException(str(exc))
+    return HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc))
 
 
 def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> ResidentService:
@@ -190,7 +218,7 @@ class StaffAuthController(Controller):
                 role=data.role,
             )
         except KeycloakAdminError as exc:
-            raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
+            raise _keycloak_admin_failure(exc) from exc
 
         with database_action("create", "identity.OperatorUser"):
             operator = await operator_service.create(
@@ -220,3 +248,113 @@ class StaffAuthController(Controller):
                 {"max_user_id": data.max_user_id}, item_id=principal.actor_id
             )
         return StaffLinkMaxIdResponse(operator_id=str(operator.id), max_user_id=data.max_user_id)
+
+    @delete("/max-id", status_code=204, name="auth:Staff:unlink-max-id", guards=[require_staff()])
+    async def unlink_max_id(
+        self, principal: NamedDependency[Principal], operator_service: NamedDependency[OperatorUserService]
+    ) -> None:
+        with database_action("update", "identity.OperatorUser"):
+            await operator_service.update({"max_user_id": None}, item_id=principal.actor_id)
+
+    @get("/profile", name="auth:Staff:profile", guards=[require_staff()])
+    async def get_profile(
+        self, principal: NamedDependency[Principal], db_session: NamedDependency[AsyncSession]
+    ) -> StaffProfileRead:
+        return await _read_profile(db_session, principal)
+
+    @patch("/profile", name="auth:Staff:profile-update", guards=[require_staff()])
+    async def update_profile(
+        self,
+        data: StaffProfileUpdateRequest,
+        principal: NamedDependency[Principal],
+        db_session: NamedDependency[AsyncSession],
+    ) -> StaffProfileRead:
+        display_name = data.display_name.strip()
+        email = (data.email or "").strip() or None
+        if not display_name:
+            raise ClientException("Name is required")
+        if email is not None and not _EMAIL_PATTERN.match(email):
+            raise ClientException("E-mail address is invalid")
+
+        operator = await _own_operator(db_session, principal)
+        if operator.keycloak_subject:
+            try:
+                await update_staff_user(
+                    SecuritySettings.from_environment(),
+                    subject=operator.keycloak_subject,
+                    display_name=display_name,
+                    email=email,
+                )
+            except KeycloakAdminError as exc:
+                raise _keycloak_admin_failure(exc) from exc
+
+        with database_action("update", "identity.OperatorUser"):
+            operator.display_name = display_name
+            operator.email = email
+            await db_session.commit()
+        return await _read_profile(db_session, principal)
+
+    @post("/password", status_code=204, name="auth:Staff:password", guards=[require_staff()])
+    async def change_password(
+        self,
+        data: StaffPasswordChangeRequest,
+        principal: NamedDependency[Principal],
+        db_session: NamedDependency[AsyncSession],
+    ) -> None:
+        if len(data.new_password) < MIN_PASSWORD_LENGTH:
+            raise ClientException(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        operator = await _own_operator(db_session, principal)
+        if not operator.keycloak_subject:
+            raise ClientException("This account has no password to change")
+
+        settings = SecuritySettings.from_environment()
+        try:
+            await login_staff_with_password(settings, username=operator.login, password=data.current_password)
+        except KeycloakLoginError as exc:
+            # 400, not 401: the session itself is fine, only the typed password is wrong -
+            # a 401 would make the panel sign the user out.
+            raise ClientException("Current password is incorrect") from exc
+        try:
+            await set_staff_password(settings, subject=operator.keycloak_subject, password=data.new_password)
+        except KeycloakAdminError as exc:
+            raise _keycloak_admin_failure(exc) from exc
+
+
+async def _own_operator(db_session: AsyncSession, principal: Principal) -> OperatorUser:
+    operator = await db_session.get(OperatorUser, principal.actor_id)
+    if operator is None:
+        raise NotFoundException("Staff account was not found")
+    return operator
+
+
+async def _read_profile(db_session: AsyncSession, principal: Principal) -> StaffProfileRead:
+    row = (
+        await db_session.execute(
+            select(
+                OperatorUser,
+                Organization.name.label("organization_name"),
+                Department.name.label("department_name"),
+            )
+            .select_from(OperatorUser)
+            .outerjoin(
+                OrganizationMember,
+                (OrganizationMember.user_id == OperatorUser.id) & OrganizationMember.is_active.is_(True),
+            )
+            .outerjoin(Organization, Organization.id == OrganizationMember.organization_id)
+            .outerjoin(Department, Department.id == OrganizationMember.department_id)
+            .where(OperatorUser.id == principal.actor_id)
+        )
+    ).first()
+    if row is None:
+        raise NotFoundException("Staff account was not found")
+    operator: OperatorUser = row[0]
+    return StaffProfileRead(
+        id=str(operator.id),
+        login=operator.login,
+        display_name=operator.display_name,
+        email=operator.email,
+        max_user_id=operator.max_user_id,
+        organization_name=row.organization_name,
+        department_name=row.department_name,
+        role_code=next((role for role in _STAFF_ROLE_PRIORITY if role in principal.roles), None),
+    )

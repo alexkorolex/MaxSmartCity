@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { clearSession, primaryRole, roleLabel, useMe } from '@/entities/session';
 import { ThemeToggle } from '@/features/toggle-theme';
@@ -16,6 +16,7 @@ const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: ROUTES.reports, title: 'Обращение', subtitle: 'Карточка обращения и переписка с жителем' },
   { prefix: ROUTES.incidents, title: 'Инциденты', subtitle: 'Инциденты и обсуждения по ним' },
   { prefix: ROUTES.news, title: 'Новости', subtitle: 'Публикации для жителей' },
+  { prefix: ROUTES.profile, title: 'Мой профиль', subtitle: 'Личные данные, пароль и уведомления' },
 ];
 
 function resolveTitle(pathname: string): { title: string; subtitle: string } {
@@ -49,7 +50,11 @@ export function Topbar({ isMenuOpen, onMenuOpen }: TopbarProps) {
       </div>
       <div className="admin-topbar__user">
         <ThemeToggle />
-        {role && <span className="admin-topbar__role">{roleLabel(role)}</span>}
+        {role && (
+          <Link to={ROUTES.profile} className="admin-topbar__role" title="Мой профиль">
+            {roleLabel(role)}
+          </Link>
+        )}
         <button
           type="button"
           className="btn btn--ghost btn--small btn--icon"

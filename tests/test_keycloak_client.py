@@ -10,7 +10,12 @@ from src.security.keycloak import (
     logout_staff,
     refresh_staff_tokens,
 )
-from src.security.keycloak_admin import KeycloakAdminError, create_staff_user
+from src.security.keycloak_admin import (
+    KeycloakAdminError,
+    create_staff_user,
+    set_staff_password,
+    update_staff_user,
+)
 from src.security.settings import SecuritySettings
 
 pytestmark = pytest.mark.anyio
@@ -196,3 +201,77 @@ def test_realm_keeps_staff_sessions_for_24_hours() -> None:
     assert realm["ssoSessionIdleTimeout"] == 24 * 60 * 60
     assert realm["ssoSessionMaxLifespan"] == 24 * 60 * 60
     assert realm["accessTokenLifespan"] <= 15 * 60
+
+
+async def _admin_token_post(self: httpx.AsyncClient, url: str, **_kwargs: object) -> httpx.Response:
+    return httpx.Response(200, json={"access_token": "admin-token"})
+
+
+async def test_update_staff_user_sends_name_and_email(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, object] = {}
+
+    async def fake_put(self: httpx.AsyncClient, url: str, **kwargs: object) -> httpx.Response:
+        seen.update(url=url, json=kwargs["json"])
+        return httpx.Response(204)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _admin_token_post)
+    monkeypatch.setattr(httpx.AsyncClient, "put", fake_put)
+
+    await update_staff_user(settings, subject="sub-1", display_name="Petr Ivanov", email="p@example.com")
+
+    assert seen["url"] == f"{settings.keycloak_admin_users_url}/sub-1"
+    assert seen["json"] == {"email": "p@example.com", "firstName": "Petr", "lastName": "Ivanov"}
+
+
+async def test_update_staff_user_reports_a_taken_email_as_conflict(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_put(self: httpx.AsyncClient, url: str, **_kwargs: object) -> httpx.Response:
+        return httpx.Response(409, json={"errorMessage": "User exists with same email"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _admin_token_post)
+    monkeypatch.setattr(httpx.AsyncClient, "put", fake_put)
+
+    with pytest.raises(KeycloakAdminError) as excinfo:
+        await update_staff_user(settings, subject="sub-1", display_name="Petr", email="taken@example.com")
+    assert excinfo.value.conflict is True
+
+
+async def test_set_staff_password_sets_a_permanent_password(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, object] = {}
+
+    async def fake_put(self: httpx.AsyncClient, url: str, **kwargs: object) -> httpx.Response:
+        seen.update(url=url, json=kwargs["json"])
+        return httpx.Response(204)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _admin_token_post)
+    monkeypatch.setattr(httpx.AsyncClient, "put", fake_put)
+
+    await set_staff_password(settings, subject="sub-1", password="N3wPassword!")
+
+    assert seen["url"] == f"{settings.keycloak_admin_users_url}/sub-1/reset-password"
+    assert seen["json"] == {"type": "password", "value": "N3wPassword!", "temporary": False}
+
+
+async def test_set_staff_password_surfaces_the_password_policy(
+    settings: SecuritySettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_put(self: httpx.AsyncClient, url: str, **_kwargs: object) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": "invalidPasswordMinDigitsMessage",
+                "error_description": "Invalid password: must contain at least 1 numerical digits.",
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _admin_token_post)
+    monkeypatch.setattr(httpx.AsyncClient, "put", fake_put)
+
+    with pytest.raises(KeycloakAdminError, match="numerical digits") as excinfo:
+        await set_staff_password(settings, subject="sub-1", password="onlyletters")
+    assert excinfo.value.invalid is True

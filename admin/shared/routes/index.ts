@@ -13,4 +13,5 @@ export const ROUTES = {
   incidents: '/incidents',
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   news: '/news',
+  profile: '/profile',
 } as const;

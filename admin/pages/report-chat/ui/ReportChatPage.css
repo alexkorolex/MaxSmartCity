@@ -16,11 +16,16 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
+  padding: 0;
 }
 
 .admin-shell:has(.report-chat-page) .admin-content__inner {
+  width: 100%;
+  max-width: none;
   min-height: 0;
   flex: 1;
+  gap: 0;
+  margin: 0;
 }
 
 .report-chat-page {
@@ -28,7 +33,6 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-3);
 }
 
 .report-chat-page .report-chat-card {

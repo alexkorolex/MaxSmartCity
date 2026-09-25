@@ -6,6 +6,7 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+  background: var(--surface-raised);
 }
 
 .report-chat-card > .state-block {
@@ -18,9 +19,32 @@
   min-width: 0;
   align-items: center;
   gap: 14px;
-  padding: 18px 20px;
+  padding-block: 16px;
+  padding-inline: max(20px, calc((100% - 1040px) / 2));
   background: linear-gradient(120deg, color-mix(in srgb, var(--blue-soft) 72%, var(--surface)) 0%, var(--surface) 58%);
   border-bottom: 1px solid var(--border-soft);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+
+.report-chat-card__back {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: 13px;
+  transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.report-chat-card__back:hover {
+  color: var(--blue-strong);
+  background: var(--surface-hover);
+}
+
+.report-chat-card__back:active {
+  transform: scale(0.94);
 }
 
 .report-chat-card__avatar {
@@ -39,6 +63,7 @@
 
 .report-chat-card__heading {
   min-width: 0;
+  flex: 1;
 }
 
 .report-chat-card__eyebrow {
@@ -106,7 +131,8 @@
   gap: 10px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 20px clamp(18px, 3vw, 42px) 24px;
+  padding-block: 20px 26px;
+  padding-inline: max(20px, calc((100% - 1040px) / 2));
   scrollbar-gutter: stable;
 }
 
@@ -185,7 +211,7 @@
 .admin-chat-row__content {
   display: flex;
   width: fit-content;
-  max-width: min(68%, 660px);
+  max-width: min(72%, 640px);
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
@@ -283,9 +309,11 @@
 
 .admin-chat-composer {
   flex: 0 0 auto;
-  padding: 14px clamp(18px, 3vw, 42px) 12px;
+  padding-block: 13px max(12px, env(safe-area-inset-bottom, 0px));
+  padding-inline: max(20px, calc((100% - 1040px) / 2));
   background: var(--surface-raised);
   border-top: 1px solid var(--border-soft);
+  box-shadow: 0 -5px 20px color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
 
 .admin-chat-composer__field {
@@ -317,7 +345,7 @@
   font: inherit;
   font-size: 13px;
   line-height: 1.4;
-  resize: vertical;
+  resize: none;
 }
 
 .admin-chat-composer textarea::placeholder {
@@ -368,7 +396,13 @@
 
 @media (max-width: 720px) {
   .report-chat-card__header {
-    padding: 15px 16px;
+    gap: 10px;
+    padding: 13px 14px;
+  }
+
+  .report-chat-card__back {
+    width: 36px;
+    height: 36px;
   }
 
   .report-chat-card__messages {
@@ -410,5 +444,28 @@
 
   .admin-chat-composer__footer {
     justify-content: flex-end;
+  }
+}
+
+@media (max-height: 680px) {
+  .report-chat-card__header {
+    padding-block: 10px;
+  }
+
+  .report-chat-card__eyebrow,
+  .report-chat-card__subject {
+    display: none;
+  }
+
+  .report-chat-card__presence {
+    margin-top: 3px;
+  }
+
+  .admin-chat-composer {
+    padding-block: 9px;
+  }
+
+  .admin-chat-composer__footer {
+    display: none;
   }
 }

@@ -1,8 +1,7 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import { ReportChatCard } from '@/features/report-chat';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon } from '@/shared/ui';
 
 import './ReportChatPage.css';
 
@@ -12,13 +11,7 @@ export function ReportChatPage() {
 
   return (
     <div className="report-chat-page">
-      <div className="page-back">
-        <Link to={ROUTES.report(reportId)} className="btn btn--ghost btn--small">
-          <ArrowLeftIcon width={16} height={16} />
-          К обращению
-        </Link>
-      </div>
-      <ReportChatCard reportId={reportId} />
+      <ReportChatCard reportId={reportId} backTo={ROUTES.report(reportId)} />
     </div>
   );
 }

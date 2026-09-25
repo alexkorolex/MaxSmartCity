@@ -85,3 +85,14 @@ test('page and feature UI avoids inline style objects', () => {
     assert.doesNotMatch(read(sourcePath), /style=\{\{/);
   }
 });
+
+test('report chat uses an edge-to-edge workspace instead of a nested card', () => {
+  const page = read('pages/report-chat/ui/ReportChatPage.tsx');
+  const pageStyles = read('pages/report-chat/ui/ReportChatPage.css');
+  const chat = read('features/report-chat/ui/ReportChatCard.tsx');
+
+  assert.doesNotMatch(page, /className="page-back"/);
+  assert.match(pageStyles, /max-width:\s*none/);
+  assert.doesNotMatch(chat, /className="card report-chat-card"/);
+  assert.match(chat, /report-chat-card__back/);
+});

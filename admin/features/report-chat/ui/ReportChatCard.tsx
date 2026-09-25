@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { Link } from 'react-router-dom';
 
 import { useChatLiveUpdates, useChatThread, useSendChatMessage, type ChatMessage } from '@/entities/chat';
 import { apiErrorMessage } from '@/shared/lib';
-import { AsyncState, SendIcon } from '@/shared/ui';
+import { ArrowLeftIcon, AsyncState, SendIcon } from '@/shared/ui';
 
 import './ReportChatCard.css';
 
@@ -86,9 +87,18 @@ function Timeline({ messages, endRef }: { messages: ChatMessage[]; endRef: RefOb
   );
 }
 
-function ChatHeader({ counterpart, subject }: { counterpart: string; subject?: string }) {
+interface ChatHeaderProps {
+  counterpart: string;
+  subject?: string;
+  backTo: string;
+}
+
+function ChatHeader({ counterpart, subject, backTo }: ChatHeaderProps) {
   return (
     <header className="report-chat-card__header">
+      <Link className="report-chat-card__back" to={backTo} aria-label="Вернуться к обращению">
+        <ArrowLeftIcon width={22} height={22} />
+      </Link>
       <span className="report-chat-card__avatar" aria-hidden="true">{initials(counterpart)}</span>
       <div className="report-chat-card__heading">
         <span className="report-chat-card__eyebrow">Диалог по обращению</span>
@@ -109,11 +119,21 @@ interface ComposerProps {
 }
 
 function Composer({ text, pending, error, onTextChange, onSubmit }: ComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+  }, [text]);
+
   return (
     <form className="admin-chat-composer" onSubmit={onSubmit}>
       <label className="sr-only" htmlFor="report-chat-message">Сообщение жителю</label>
       <div className="admin-chat-composer__field">
         <textarea
+          ref={textareaRef}
           id="report-chat-message"
           placeholder="Напишите ответ жителю…"
           rows={1}
@@ -121,7 +141,10 @@ function Composer({ text, pending, error, onTextChange, onSubmit }: ComposerProp
           value={text}
           onChange={(event) => onTextChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) event.currentTarget.form?.requestSubmit();
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
           }}
         />
         <button type="submit" aria-label="Отправить сообщение" disabled={!text.trim() || pending}>
@@ -140,7 +163,7 @@ function Composer({ text, pending, error, onTextChange, onSubmit }: ComposerProp
  * The organization's side of the chat with the resident who filed the report. Fills its
  * parent's height: only the message list scrolls, never the card or the page around it.
  */
-export function ReportChatCard({ reportId }: { reportId: string }) {
+export function ReportChatCard({ reportId, backTo }: { reportId: string; backTo: string }) {
   const chat = useChatThread(reportId);
   useChatLiveUpdates(reportId, chat.isSuccess);
   const send = useSendChatMessage(reportId);
@@ -182,11 +205,15 @@ export function ReportChatCard({ reportId }: { reportId: string }) {
   }
 
   return (
-    <section className="card report-chat-card">
+    <section className="report-chat-card">
       <AsyncState isLoading={chat.isLoading} error={chat.error} onRetry={() => void chat.refetch()}>
         {chat.data && (
           <>
-            <ChatHeader counterpart={chat.data.counterparts.join(', ') || 'Житель'} subject={chat.data.report_text ?? undefined} />
+            <ChatHeader
+              counterpart={chat.data.counterparts.join(', ') || 'Житель'}
+              subject={chat.data.report_text ?? undefined}
+              backTo={backTo}
+            />
             {count > 0 ? <Timeline messages={chat.data.messages} endRef={endRef} /> : <div className="report-chat-card__empty"><strong>Диалог пока пуст</strong><span>Напишите жителю первым — уведомление придёт ему в MAX.</span></div>}
             {chat.data.can_write && <Composer text={text} pending={send.isPending} error={send.isError ? send.error : null} onTextChange={setText} onSubmit={handleSubmit} />}
           </>

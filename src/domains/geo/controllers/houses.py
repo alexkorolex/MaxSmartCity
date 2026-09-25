@@ -1,7 +1,9 @@
-"""Houses: the address search residents and staff pick a house from, and a house's reference card."""
+"""Поиск домов, карточка дома и данные для городской карты."""
 
+import json
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -15,8 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House, HouseManagement
 from src.domains.geo.schemas import (
+    GeoJSONPoint,
     HouseInfo,
     HouseManagementSummary,
+    HouseMapFeature,
+    HouseMapFeatureCollection,
+    HouseMapMetadata,
+    HouseMapProperties,
     HouseSummary,
 )
 from src.domains.geo.services import (
@@ -27,6 +34,34 @@ from src.domains.geo.services import (
     to_house_management_summary,
 )
 from src.domains.identity.models import Organization
+from src.domains.incidents.enums import IncidentStatus
+from src.domains.incidents.models import Incident, IncidentAffectedHouse
+from src.domains.reports.enums import ReportStatus
+from src.domains.reports.models import Report
+
+_INACTIVE_REPORT_STATUSES = (
+    ReportStatus.REJECTED,
+    ReportStatus.WITHDRAWN,
+    ReportStatus.CLOSED,
+)
+_INACTIVE_INCIDENT_STATUSES = (
+    IncidentStatus.CLOSED,
+    IncidentStatus.REJECTED,
+    IncidentStatus.CANCELLED,
+    IncidentStatus.MERGED,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _HouseMapRowData:
+    id: UUID
+    city: str | None
+    street: str | None
+    house_number: str | None
+    formatted: str
+    point_geojson: str | None
+    active_reports: int
+    active_incidents: int
 
 
 def _search_words(q: str | None) -> list[str]:
@@ -68,6 +103,77 @@ def _to_house_summary(row: Row[Any]) -> HouseSummary:
     )
 
 
+def _house_map_statement() -> Select[Any]:
+    report_counts = (
+        select(Report.house_id.label("house_id"), func.count(Report.id).label("active_reports"))
+        .where(Report.house_id.is_not(None), Report.status.not_in(_INACTIVE_REPORT_STATUSES))
+        .group_by(Report.house_id)
+        .subquery()
+    )
+    incident_counts = (
+        select(
+            IncidentAffectedHouse.house_id.label("house_id"),
+            func.count(IncidentAffectedHouse.incident_id).label("active_incidents"),
+        )
+        .join(Incident, Incident.id == IncidentAffectedHouse.incident_id)
+        .where(Incident.status.not_in(_INACTIVE_INCIDENT_STATUSES))
+        .group_by(IncidentAffectedHouse.house_id)
+        .subquery()
+    )
+    point = func.coalesce(House.point, Address.point)
+    return (
+        select(
+            House.id,
+            Address.city,
+            Address.street,
+            Address.house_number,
+            Address.formatted,
+            func.ST_AsGeoJSON(point).label("point_geojson"),
+            func.coalesce(report_counts.c.active_reports, 0).label("active_reports"),
+            func.coalesce(incident_counts.c.active_incidents, 0).label("active_incidents"),
+        )
+        .join(Address, Address.id == House.address_id)
+        .outerjoin(report_counts, report_counts.c.house_id == House.id)
+        .outerjoin(incident_counts, incident_counts.c.house_id == House.id)
+    )
+
+
+def _house_map_row_data(row: Row[Any]) -> _HouseMapRowData:
+    return _HouseMapRowData(
+        id=row.id,
+        city=row.city,
+        street=row.street,
+        house_number=row.house_number,
+        formatted=row.formatted,
+        point_geojson=row.point_geojson,
+        active_reports=row.active_reports,
+        active_incidents=row.active_incidents,
+    )
+
+
+def _to_house_map_feature(row: _HouseMapRowData) -> HouseMapFeature:
+    point = None
+    if row.point_geojson is not None:
+        geometry = json.loads(row.point_geojson)
+        coordinates = geometry.get("coordinates")
+        if geometry.get("type") != "Point" or not isinstance(coordinates, list) or len(coordinates) != 2:
+            raise ValueError("House coordinate is not a GeoJSON Point")
+        point = GeoJSONPoint(coordinates=(float(coordinates[0]), float(coordinates[1])))
+    return HouseMapFeature(
+        id=str(row.id),
+        geometry=point,
+        properties=HouseMapProperties(
+            house_id=row.id,
+            formatted=row.formatted,
+            city=row.city,
+            street=row.street,
+            house_number=row.house_number,
+            active_reports=int(row.active_reports),
+            active_incidents=int(row.active_incidents),
+        ),
+    )
+
+
 class HouseController(Controller):
     """Read-only: what a resident (or the "Сообщить о проблеме" flow) picks a home from.
     Houses are seeded by the ingestion pipeline, not created through this API."""
@@ -75,6 +181,41 @@ class HouseController(Controller):
     path = "/geo/houses"
     tags = ("geo",)
     return_dto = None
+
+    @get("/geojson", name="geo:House:geojson")
+    async def geojson(
+        self,
+        db_session: NamedDependency[AsyncSession],
+        city: Annotated[str, Parameter(min_length=1, max_length=255)],
+        limit: Annotated[int, Parameter(ge=1, le=5000)] = 1000,
+        offset: Annotated[int, Parameter(ge=0)] = 0,
+    ) -> HouseMapFeatureCollection:
+        """Точки домов и текущая нагрузка для слоёв карты на фронтенде."""
+        with database_action("list", "geo.HouseMap"):
+            rows = (
+                await db_session.execute(
+                    _house_map_statement()
+                    .where(Address.city == city)
+                    .order_by(House.id)
+                    .limit(limit + 1)
+                    .offset(offset)
+                )
+            ).all()
+            has_more = len(rows) > limit
+            features = [_to_house_map_feature(_house_map_row_data(row)) for row in rows[:limit]]
+            located = sum(feature.geometry is not None for feature in features)
+            return HouseMapFeatureCollection(
+                features=features,
+                metadata=HouseMapMetadata(
+                    city=city,
+                    returned=len(features),
+                    limit=limit,
+                    offset=offset,
+                    has_more=has_more,
+                    located=located,
+                    unlocated=len(features) - located,
+                ),
+            )
 
     @get("/", name="geo:House:list")
     async def list_items(

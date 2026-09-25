@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maxsmartcity.local/ml/backend/v2/semantic-grouping-request.json",
+  "title": "Semantic grouping recommendation request v2 draft",
+  "type": "object",
+  "required": ["contract_version", "request_id", "report", "candidate_incidents"],
+  "properties": {
+    "contract_version": {"const": "2.0.0-draft"},
+    "request_id": {"type": "string", "minLength": 1},
+    "deadline_ms": {"type": "integer", "minimum": 1},
+    "report": {
+      "type": "object",
+      "required": ["text", "occurred_at"],
+      "properties": {
+        "text": {"type": "string", "maxLength": 4000},
+        "occurred_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "candidate_incidents": {
+      "type": "array",
+      "maxItems": 128,
+      "description": "Backend-filtered candidates from the same allowed geo/time scope.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "representative_texts", "last_activity_at"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "title": {"type": "string"},
+          "representative_texts": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {"type": "string"}
+          },
+          "last_activity_at": {"type": "string", "format": "date-time"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

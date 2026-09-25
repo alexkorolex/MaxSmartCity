@@ -34,3 +34,13 @@ class MLController(Controller):
     ) -> Response[dict[str, Any]]:
         result = await client.decide(data)
         return Response(content=result.body, status_code=result.status_code)
+
+    @post("/grouping/recommend", name="ml:grouping:recommend", status_code=200)
+    async def recommend_grouping(
+        self,
+        data: dict[str, Any],
+        client: NamedDependency[MLDecisionClient],
+    ) -> Response[dict[str, Any]]:
+        """Проксирует необязательную ML-рекомендацию, не изменяя Incident Core."""
+        result = await client.recommend_grouping(data)
+        return Response(content=result.body, status_code=result.status_code)

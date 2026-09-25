@@ -219,6 +219,19 @@ JOIN ingestion.organization_source os
 WHERE ho.house_id = :house_id;
 ```
 
+Для карты фронтенд получает готовый GeoJSON без зависимости от Python-библиотек:
+
+```http
+GET /geo/houses/geojson?city=Брянск&limit=1000&offset=0
+```
+
+В ответе есть адреса, доступные реальные координаты, число активных обращений и число
+активных инцидентов. Дом без координаты остаётся в выдаче с `geometry=null`. Контуры и
+площади не подменяются прямоугольниками: пока источник
+их не предоставляет, соответствующие поля равны `null`, а
+`footprint_area_available=false`. Подробный контракт и правила слоёв описаны в
+`docs/frontend-map-contract.md`.
+
 Пилотный набор содержит четыре реальных адреса и три УК по открытым справочным
 страницам: [Брянск, Евдокимова 8](https://nashdom.info/building/d-288432),
 [Брянск, Евдокимова 10](https://www.cian.ru/dom/bryanskaya-oblast-bryansk-ulica-evdokimova-dom-10-1754812/),
@@ -262,10 +275,10 @@ n-граммам. Неоднозначное совпадение перевод
 в `RESOLUTION_DISPUTED`. Все ключевые изменения записывают outbox-события в той же
 транзакции.
 
-Текущие ограничения MVP: доставка outbox-событий и уведомлений в MAX ещё не
-реализована; ingestion-организации не назначаются автоматически, потому что их
-справочник намеренно отделён от операторских `identity.organization`; классификация ML
-не является обязательной зависимостью intake — категорию подтверждает пользователь.
+Текущие ограничения MVP: справочные ingestion-организации не назначаются автоматически,
+потому что они намеренно отделены от операторских `identity.organization`; доставка
+уведомлений требует настроенного MAX-бота или канала организации; классификация ML не
+является обязательной зависимостью intake — категорию подтверждает пользователь.
 
 ## ML decision layer
 
@@ -282,12 +295,15 @@ n-граммам. Неоднозначное совпадение перевод
 - `GET http://localhost:${ML_PORT}/ready`;
 - `GET http://localhost:${ML_PORT}/v1/models`;
 - `POST http://localhost:${ML_PORT}/v1/classify`;
-- `POST http://localhost:${ML_PORT}/v1/decide`.
+- `POST http://localhost:${ML_PORT}/v1/decide`;
+- `POST http://localhost:${ML_PORT}/v1/grouping:recommend`.
 
 Версионированные контракты и OpenAPI находятся в `ml/contracts/backend/v2`.
 Backend обращается к сервису через `ML_SERVICE_URL` и предоставляет gateway-методы
-`GET /ml/health` и `POST /ml/decide`. При сетевой ошибке gateway возвращает контролируемый
-retryable `MODEL_UNAVAILABLE`, не изменяя Report или Incident.
+`GET /ml/health`, `POST /ml/decide` и `POST /ml/grouping/recommend`. Семантическая
+рекомендация используется только для категории «Другое» и не меняет Incident Core.
+При сетевой ошибке gateway возвращает контролируемый retryable `MODEL_UNAVAILABLE`,
+не изменяя Report или Incident.
 
 ## Авторизация
 

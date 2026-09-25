@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +10,7 @@ from maxsmartcity.ml.application.decision_service import DecisionService
 from maxsmartcity.ml.data.config import load_rule_baseline
 from maxsmartcity.ml.inference.category import CategoryArtifact
 from maxsmartcity.ml.inference.decision import ArtifactDecisionModel
+from maxsmartcity.ml.inference.semantic_grouping import SemanticGroupingService
 from maxsmartcity.ml.service import create_app
 from maxsmartcity.ml.service.runtime import MLRuntime
 
@@ -16,6 +18,14 @@ from maxsmartcity.ml.service.runtime import MLRuntime
 class FixedPipeline:
     def predict_proba(self, texts: list[str]) -> np.ndarray:
         return np.array([[0.9, 0.1] for _ in texts])
+
+
+class FixedEmbeddingProvider:
+    model_name = "fixed-semantic-test"
+
+    def embed(self, texts: Sequence[str]) -> np.ndarray:
+        assert len(texts) == 2
+        return np.array([[1.0, 0.0], [0.99, 0.01]], dtype=np.float32)
 
 
 def _runtime() -> MLRuntime:
@@ -39,6 +49,7 @@ def _runtime() -> MLRuntime:
         decision_service=DecisionService(primary, fallback),
         model_metadata=(primary.metadata,),
         max_input_characters=20,
+        semantic_grouping=SemanticGroupingService(FixedEmbeddingProvider()),
     )
 
 
@@ -173,3 +184,78 @@ def test_missing_artifact_reports_not_ready_and_decide_uses_rule_fallback(
     assert fallback.status_code == 200
     assert fallback.json()["category"]["label_id"] == "water"
     assert fallback.json()["requires_manual_review"] is True
+
+
+def test_semantic_grouping_endpoint_returns_advisory_match() -> None:
+    payload = {
+        "contract_version": "2.0.0-draft",
+        "request_id": "REQ-GROUP-1",
+        "deadline_ms": 1000,
+        "report": {
+            "text": "глубокая яма",
+            "occurred_at": "2026-09-25T12:00:00+03:00",
+        },
+        "candidate_incidents": [
+            {
+                "id": "INC-ROAD",
+                "title": "Разбитый асфальт",
+                "representative_texts": ["яма у детской площадки"],
+                "last_activity_at": "2026-09-25T11:30:00+03:00",
+            }
+        ],
+    }
+
+    with TestClient(create_app(_runtime())) as client:
+        response = client.post("/v1/grouping:recommend", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["action"] == "ATTACH"
+    assert body["selected_incident_id"] == "INC-ROAD"
+    assert body["model_name"] == "fixed-semantic-test"
+
+
+def test_disabled_semantic_model_abstains_with_http_200() -> None:
+    runtime = MLRuntime.load(
+        artifact_dir=Path("ml/artifacts/category-tfidf-logreg-v2"),
+        rule_config_path=Path("ml/configs/rule-baseline.v1.json"),
+        extraction_config_path=Path("ml/configs/extraction-rules.v1.json"),
+    )
+    payload = {
+        "contract_version": "2.0.0-draft",
+        "request_id": "REQ-GROUP-OFF",
+        "report": {"text": "яма во дворе", "occurred_at": "2026-09-25T12:00:00+03:00"},
+        "candidate_incidents": [
+            {
+                "id": "INC-ROAD",
+                "title": "Разбитый асфальт",
+                "representative_texts": [],
+                "last_activity_at": "2026-09-25T11:30:00+03:00",
+            }
+        ],
+    }
+
+    with TestClient(create_app(runtime)) as client:
+        response = client.post("/v1/grouping:recommend", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["action"] == "ABSTAIN"
+    assert response.json()["reason_codes"] == ["SEMANTIC_MODEL_DISABLED"]
+
+
+def test_semantic_grouping_rejects_text_above_runtime_limit() -> None:
+    payload = {
+        "contract_version": "2.0.0-draft",
+        "request_id": "REQ-GROUP-LONG",
+        "report": {
+            "text": "x" * 21,
+            "occurred_at": "2026-09-25T12:00:00+03:00",
+        },
+        "candidate_incidents": [],
+    }
+
+    with TestClient(create_app(_runtime())) as client:
+        response = client.post("/v1/grouping:recommend", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "INVALID_INPUT"

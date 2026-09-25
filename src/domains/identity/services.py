@@ -4,7 +4,7 @@ from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.identity.enums import OrganizationRegistrationStatus
+from src.domains.identity.enums import OrganizationRegistrationStatus, OrganizationType
 from src.domains.identity.models import (
     Department,
     OperatorUser,
@@ -31,6 +31,18 @@ from src.security.keycloak_admin import create_staff_user
 from src.security.settings import SecuritySettings
 
 HOUSING_WORKER_ROLE = "housing_worker"
+DISTRICT_ADMIN_ROLE = "district_admin"
+
+
+def staff_role_for(organization_type: OrganizationType) -> str:
+    """The staff role a new employee of this organization gets - both the Keycloak realm
+    role (what guards check) and the local membership role: the district administration's
+    people are ``district_admin`` (Управа), everyone else ``housing_worker``."""
+    if organization_type is OrganizationType.ADMINISTRATION:
+        return DISTRICT_ADMIN_ROLE
+    return HOUSING_WORKER_ROLE
+
+
 MIN_PASSWORD_LENGTH = 8
 
 
@@ -80,7 +92,7 @@ class OrganizationService(SQLAlchemyAsyncRepositoryService[Organization]):
         if await session.scalar(select(Organization.id).where(Organization.inn == inn)) is not None:
             raise IdentityConflictError(f"An organization with INN {inn} is already registered")
         await _ensure_account_available(session, data.employee)
-        role_id = await _housing_worker_role_id(session)
+        role_id = await _role_id(session, HOUSING_WORKER_ROLE)
 
         organization = Organization(
             code=code,
@@ -96,7 +108,9 @@ class OrganizationService(SQLAlchemyAsyncRepositoryService[Organization]):
         )
         session.add(organization)
         await session.flush()
-        member = await _create_member_account(session, organization.id, role_id, data.employee)
+        member = await _create_member_account(
+            session, organization.id, role_id, HOUSING_WORKER_ROLE, data.employee
+        )
         session.add(
             OutboxEvent(
                 aggregate_type="ORGANIZATION",
@@ -115,10 +129,10 @@ class OrganizationService(SQLAlchemyAsyncRepositoryService[Organization]):
         return organization, member
 
 
-async def _housing_worker_role_id(session: AsyncSession) -> UUID:
-    role_id = await session.scalar(select(Role.id).where(Role.code == HOUSING_WORKER_ROLE))
+async def _role_id(session: AsyncSession, code: str) -> UUID:
+    role_id = await session.scalar(select(Role.id).where(Role.code == code))
     if role_id is None:
-        raise IdentityNotFoundError(f"Role {HOUSING_WORKER_ROLE!r} is not seeded")
+        raise IdentityNotFoundError(f"Role {code!r} is not seeded")
     return role_id
 
 
@@ -133,7 +147,11 @@ async def _ensure_account_available(session: AsyncSession, account: StaffAccount
 
 
 async def _create_member_account(
-    session: AsyncSession, organization_id: UUID, role_id: UUID, account: StaffAccountRequest
+    session: AsyncSession,
+    organization_id: UUID,
+    role_id: UUID,
+    role_code: str,
+    account: StaffAccountRequest,
 ) -> OrganizationMember:
     """Create the Keycloak login (last, after every local check) and attach it to the
     organization as an active member."""
@@ -146,7 +164,7 @@ async def _create_member_account(
         password=account.password,
         email=email,
         display_name=display_name,
-        role=HOUSING_WORKER_ROLE,
+        role=role_code,
     )
     operator = OperatorUser(login=login, display_name=display_name, email=email, keycloak_subject=subject)
     session.add(operator)
@@ -217,14 +235,19 @@ class OrganizationMemberService(SQLAlchemyAsyncRepositoryService[OrganizationMem
         return member
 
     async def create_account(self, organization_id: UUID, account: StaffAccountRequest) -> OrganizationMember:
-        """Admin-only: a brand-new employee login attached straight to the organization."""
+        """A brand-new employee login attached straight to the organization - by an admin,
+        or by a colleague registering them (the caller's scope is checked by the
+        controller). The role follows the organization, see ``staff_role_for``."""
         session = self.repository.session
         organization = await session.get(Organization, organization_id)
         if organization is None:
             raise IdentityNotFoundError(f"Organization {organization_id} was not found")
+        if not organization.enabled:
+            raise IdentityConflictError("The organization is disabled")
         await _ensure_account_available(session, account)
-        role_id = await _housing_worker_role_id(session)
-        return await _create_member_account(session, organization.id, role_id, account)
+        role_code = staff_role_for(organization.type)
+        role_id = await _role_id(session, role_code)
+        return await _create_member_account(session, organization.id, role_id, role_code, account)
 
     async def deactivate(self, organization_id: UUID, member_id: UUID) -> OrganizationMember:
         member = await self.repository.session.scalar(

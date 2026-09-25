@@ -373,16 +373,20 @@ class OrganizationMemberController(Controller):
     @post(
         "/accounts",
         name="identity:OrganizationMember:create-account",
-        guards=[require_roles("admin")],
+        guards=[require_roles(*_STAFF_ADMIN_ROLES)],
     )
     async def create_account(
         self,
         organization_id: FromPath[UUID],
         data: StaffAccountRequest,
         db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
     ) -> StaffAccountCreatedResult:
-        """Admin-only: create a new employee login directly inside the organization and
-        e-mail them their sign-in details."""
+        """Create a new employee login directly inside the organization and e-mail them
+        their sign-in details - by an ``admin`` for any organization, or by staff for
+        their own one (registering a colleague)."""
+        if resolve_organization_scope(principal, organization_id).sees_nothing:
+            raise PermissionDeniedException("No active organization membership")
         with database_action("create", "identity.OrganizationMember"):
             try:
                 member = await OrganizationMemberService(session=db_session).create_account(
@@ -425,6 +429,13 @@ class OrganizationMemberController(Controller):
     ) -> OrganizationMemberSummary:
         resolve_organization_scope(principal, organization_id)
         with database_action("update", "identity.OrganizationMember"):
+            own_membership = await db_session.scalar(
+                select(OrganizationMember.id).where(
+                    OrganizationMember.id == member_id, OrganizationMember.user_id == principal.actor_id
+                )
+            )
+            if own_membership is not None:
+                raise ClientException(status_code=409, detail="You cannot deactivate your own membership")
             try:
                 await OrganizationMemberService(session=db_session).deactivate(organization_id, member_id)
             except IdentityNotFoundError as exc:

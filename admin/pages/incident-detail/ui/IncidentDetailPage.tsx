@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { useCreateIncidentComment, useIncidentComments } from '@/entities/comment';
 import { INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES, useIncident } from '@/entities/incident';
+import { CompleteIncidentCard } from '@/features/complete-incident';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, CommentIcon, EmptyState, Pill } from '@/shared/ui';
@@ -50,6 +51,8 @@ export function IncidentDetailPage() {
           </div>
         )}
       </AsyncState>
+
+      {incident.data && <CompleteIncidentCard incident={incident.data} />}
 
       <div className="card">
         <div className="card__header">

@@ -12,10 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.common.models import utc_now
+from src.common.state_machine import transition_path
 from src.domains.collaboration.enums import AssignmentStatus
-from src.domains.collaboration.models import Assignment
+from src.domains.collaboration.models import Assignment, AssignmentStatusHistory
+from src.domains.collaboration.state_machine import ASSIGNMENT_TRANSITIONS
 from src.domains.geo.models import Address, House, HouseManagement
 from src.domains.geo.services import active_house_manager_id
+from src.domains.identity.models import Organization
 from src.domains.incidents.enums import (
     AffectedHouseSource,
     GroupingMode,
@@ -44,6 +47,9 @@ from src.domains.incidents.models import (
 )
 from src.domains.incidents.repositories import IncidentRepository, ResolutionDisputeRepository
 from src.domains.incidents.schemas import (
+    CloseReportCommand,
+    CloseReportResult,
+    CompleteIncidentCommand,
     GroupReportCommand,
     GroupReportResult,
     IncidentAssignmentSummary,
@@ -57,7 +63,7 @@ from src.domains.incidents.schemas import (
     TransitionIncidentCommand,
     TransitionIncidentResult,
 )
-from src.domains.incidents.state_machine import ensure_incident_transition
+from src.domains.incidents.state_machine import INCIDENT_TRANSITIONS, ensure_incident_transition
 from src.domains.infrastructure.models import OutboxEvent
 from src.domains.notifications.dispatcher import OrganizationMessage, enqueue_organization_notification
 from src.domains.notifications.enums import NotificationType
@@ -79,6 +85,28 @@ ACTIVE_INCIDENT_STATUSES = frozenset(
         IncidentStatus.REOPENED,
     }
 )
+
+STAFF_COMPLETABLE_STATUSES = frozenset(
+    {
+        IncidentStatus.NEW,
+        IncidentStatus.TRIAGE,
+        IncidentStatus.CONFIRMED,
+        IncidentStatus.ASSIGNED,
+        IncidentStatus.IN_PROGRESS,
+        IncidentStatus.REOPENED,
+        IncidentStatus.RESOLUTION_DISPUTED,
+    }
+)
+OPEN_ASSIGNMENT_STATUSES = frozenset(
+    {
+        AssignmentStatus.PROPOSED,
+        AssignmentStatus.ACCEPTED,
+        AssignmentStatus.IN_PROGRESS,
+        AssignmentStatus.BLOCKED,
+        AssignmentStatus.MONITORING,
+    }
+)
+FINAL_REPORT_STATUSES = frozenset({ReportStatus.CLOSED, ReportStatus.REJECTED, ReportStatus.WITHDRAWN})
 
 DISPUTE_ESCALATION_THRESHOLD = 3
 DISPUTE_ESCALATION_WINDOW = timedelta(minutes=30)
@@ -266,6 +294,208 @@ class IncidentCoreService:
             )
         await self.session.flush()
         return len(incidents)
+
+    async def complete_by_staff(
+        self,
+        incident_id: UUID,
+        command: CompleteIncidentCommand,
+        *,
+        changed_by: UUID,
+        organization_id: UUID | None,
+    ) -> TransitionIncidentResult:
+        """A staff member reports the work as done: their organization's own assignments are
+        completed, and the incident goes through the normal intermediate statuses to
+        ``RESOLVED`` - residents are then asked to confirm (and the incident auto-closes
+        after ``RESOLUTION_CONFIRMATION_WINDOW``). Refused while another organization's
+        required assignment is still open. With no resident behind the incident there is
+        nobody to confirm, so it is closed right away."""
+        incident = await self.session.scalar(
+            select(Incident).where(Incident.id == incident_id).with_for_update()
+        )
+        if incident is None:
+            raise IncidentCoreNotFoundError(f"Incident {incident_id} was not found")
+        if incident.status not in STAFF_COMPLETABLE_STATUSES:
+            raise IncidentCoreConflictError(f"Incident in status {incident.status.value} cannot be completed")
+        reason = (command.comment or "").strip() or "Работы выполнены"
+
+        if organization_id is not None:
+            own_assignments = (
+                await self.session.scalars(
+                    select(Assignment)
+                    .where(
+                        Assignment.incident_id == incident.id,
+                        Assignment.organization_id == organization_id,
+                        Assignment.status.in_(OPEN_ASSIGNMENT_STATUSES),
+                    )
+                    .with_for_update()
+                )
+            ).all()
+            for assignment in own_assignments:
+                self._complete_assignment(assignment, changed_by=changed_by, reason=reason)
+            await self.session.flush()
+
+        open_elsewhere = (
+            await self.session.scalars(
+                select(Organization.name)
+                .join(Assignment, Assignment.organization_id == Organization.id)
+                .where(
+                    Assignment.incident_id == incident.id,
+                    Assignment.required.is_(True),
+                    Assignment.status.in_(OPEN_ASSIGNMENT_STATUSES),
+                )
+                .distinct()
+            )
+        ).all()
+        if open_elsewhere:
+            raise IncidentCoreConflictError(
+                "Other required assignments are still open: " + ", ".join(sorted(open_elsewhere))
+            )
+
+        for step in transition_path(incident.status, IncidentStatus.RESOLVED, INCIDENT_TRANSITIONS):
+            await self._apply_transition(
+                incident,
+                step,
+                actor_type=ActorType.OPERATOR,
+                actor_id=changed_by,
+                reason=reason if step is IncidentStatus.RESOLVED else "Пройдено при завершении работ",
+            )
+        has_resident_reports = any(report.resident_id for report in await self._linked_reports(incident))
+        if not has_resident_reports:
+            await self._apply_transition(
+                incident,
+                IncidentStatus.CLOSED,
+                actor_type=ActorType.OPERATOR,
+                actor_id=changed_by,
+                reason="Нет заявителей-жителей для подтверждения - закрыто сразу",
+            )
+        await self.session.flush()
+        return TransitionIncidentResult(
+            incident_id=incident.id, status=incident.status, version=incident.version
+        )
+
+    async def close_by_resident(
+        self, report_id: UUID, command: CloseReportCommand, *, resident_id: UUID
+    ) -> CloseReportResult:
+        """A resident closes their own report because the problem went away.
+
+        - Awaiting their confirmation of a fix: it *is* that confirmation - the incident
+          closes (with every resident's report on it).
+        - Nobody else is still waiting on the incident and work hasn't started (``NEW``/
+          ``TRIAGE``): the incident is cancelled.
+        - Otherwise the organizations on the incident are told, so they can wrap it up.
+        """
+        report = await self.session.scalar(
+            select(Report).where(Report.id == report_id, Report.resident_id == resident_id).with_for_update()
+        )
+        if report is None:
+            raise IncidentCoreNotFoundError(f"Report {report_id} was not found")
+        if report.status in FINAL_REPORT_STATUSES:
+            raise IncidentCoreConflictError(f"Report in status {report.status.value} is already closed")
+        comment = (command.comment or "").strip() or None
+        incident = await self.session.scalar(
+            select(Incident)
+            .join(IncidentReportLink, IncidentReportLink.incident_id == Incident.id)
+            .where(IncidentReportLink.report_id == report.id, IncidentReportLink.is_active.is_(True))
+            .with_for_update(of=Incident)
+        )
+
+        if incident is not None and incident.status in _AWAITING_RESIDENT_STATUSES:
+            await self.record_resolution_feedback(
+                incident.id,
+                ResolutionFeedbackCommand(
+                    report_id=report.id, feedback=ResolutionFeedback.CONFIRMED, comment=comment
+                ),
+                resident_id=resident_id,
+            )
+            # Closing the incident moves its LINKED reports; the closer's own report is
+            # closed whatever stage it was at.
+            if report.status not in FINAL_REPORT_STATUSES:
+                self._transition_report(
+                    report,
+                    ReportStatus.CLOSED,
+                    comment or "Житель подтвердил, что проблема решена",
+                    actor_type=ActorType.RESIDENT,
+                    actor_id=resident_id,
+                )
+        else:
+            report.problem_continues = False
+            self._transition_report(
+                report,
+                ReportStatus.CLOSED,
+                comment or "Житель сообщил, что проблема решилась",
+                actor_type=ActorType.RESIDENT,
+                actor_id=resident_id,
+            )
+            if incident is not None and incident.status in ACTIVE_INCIDENT_STATUSES:
+                others_open = any(
+                    other.id != report.id and other.status not in FINAL_REPORT_STATUSES
+                    for other in await self._linked_reports(incident)
+                )
+                if not others_open and incident.status in {IncidentStatus.NEW, IncidentStatus.TRIAGE}:
+                    await self._apply_transition(
+                        incident,
+                        IncidentStatus.CANCELLED,
+                        actor_type=ActorType.RESIDENT,
+                        actor_id=resident_id,
+                        reason="Все заявители сообщили, что проблема решилась",
+                    )
+                else:
+                    body = f"«{incident.title}»: заявитель закрыл обращение."
+                    if not others_open:
+                        body += "\nДругих открытых обращений нет - проверьте и завершите заявку."
+                    if comment:
+                        body += f"\n\n{comment}"
+                    await self._notify_organizations(
+                        incident, "RESIDENT_CLOSED_REPORT", "Житель сообщил, что проблема решилась", body
+                    )
+        self._emit(
+            report.id,
+            "REPORT_CLOSED_BY_RESIDENT",
+            {
+                "report_id": str(report.id),
+                "resident_id": str(resident_id),
+                "incident_id": str(incident.id) if incident else None,
+            },
+            aggregate_type="REPORT",
+        )
+        await self.session.flush()
+        return CloseReportResult(
+            report_id=report.id,
+            report_status=report.status.value,
+            incident_id=incident.id if incident else None,
+            incident_status=incident.status if incident else None,
+        )
+
+    def _complete_assignment(self, assignment: Assignment, *, changed_by: UUID, reason: str) -> None:
+        now = utc_now()
+        for step in transition_path(assignment.status, AssignmentStatus.COMPLETED, ASSIGNMENT_TRANSITIONS):
+            previous = assignment.status
+            assignment.status = step
+            if step is AssignmentStatus.ACCEPTED:
+                assignment.accepted_at = now
+            elif step is AssignmentStatus.IN_PROGRESS:
+                assignment.started_at = assignment.started_at or now
+            elif step is AssignmentStatus.COMPLETED:
+                assignment.completed_at = now
+            self.session.add(
+                AssignmentStatusHistory(
+                    assignment_id=assignment.id,
+                    from_status=previous,
+                    to_status=step,
+                    changed_by=changed_by,
+                    reason=reason,
+                )
+            )
+        self._emit(
+            assignment.id,
+            "ASSIGNMENT_STATUS_CHANGED",
+            {
+                "assignment_id": str(assignment.id),
+                "incident_id": str(assignment.incident_id),
+                "to_status": AssignmentStatus.COMPLETED.value,
+            },
+            aggregate_type="ASSIGNMENT",
+        )
 
     async def get_card(self, incident_id: UUID) -> IncidentCardResult:
         incident = await self.session.get(Incident, incident_id)
@@ -675,7 +905,15 @@ class IncidentCoreService:
         elif report.status is not ReportStatus.LINKED:
             raise IncidentCoreConflictError(f"Report in status {report.status.value} cannot be linked")
 
-    def _transition_report(self, report: Report, target: ReportStatus, reason: str) -> None:
+    def _transition_report(
+        self,
+        report: Report,
+        target: ReportStatus,
+        reason: str,
+        *,
+        actor_type: ActorType = ActorType.SYSTEM,
+        actor_id: UUID | None = None,
+    ) -> None:
         previous = report.status
         ensure_report_transition(previous, target)
         report.status = target
@@ -684,7 +922,8 @@ class IncidentCoreService:
                 report_id=report.id,
                 from_status=previous,
                 to_status=target,
-                changed_by_type=ActorType.SYSTEM,
+                changed_by_type=actor_type,
+                changed_by_id=actor_id,
                 reason=reason,
             )
         )

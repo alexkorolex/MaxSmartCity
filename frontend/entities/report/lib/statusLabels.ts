@@ -10,6 +10,7 @@ export const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   NEEDS_CLARIFICATION: 'Нужны уточнения',
   REJECTED: 'Отклонено',
   WITHDRAWN: 'Отозвано',
+  CLOSED: 'Закрыто',
 };
 
 export const REPORT_STATUS_TONES: Record<ReportStatus, StatusTone> = {
@@ -20,6 +21,7 @@ export const REPORT_STATUS_TONES: Record<ReportStatus, StatusTone> = {
   NEEDS_CLARIFICATION: 'warning',
   REJECTED: 'error',
   WITHDRAWN: 'neutral',
+  CLOSED: 'success',
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {

@@ -1,6 +1,12 @@
 import { http } from '@/shared/api';
 
-import type { ProblemCategory, Report, ReportAttachment, ReportCreatePayload } from '../model/types';
+import type {
+  CloseReportResult,
+  ProblemCategory,
+  Report,
+  ReportAttachment,
+  ReportCreatePayload,
+} from '../model/types';
 
 export function fetchMyReports(): Promise<Report[]> {
   return http.get<Report[]>('/reports/mine');
@@ -26,4 +32,9 @@ export function uploadReportAttachment(reportId: string, file: File): Promise<Re
 
 export function fetchReportAttachments(reportId: string): Promise<ReportAttachment[]> {
   return http.get<ReportAttachment[]>(`/reports/${reportId}/attachments`);
+}
+
+/** The resident closes their own report - the problem went away. */
+export function closeReport(reportId: string, comment: string | null): Promise<CloseReportResult> {
+  return http.post<CloseReportResult>(`/reports/${reportId}/close`, { comment });
 }

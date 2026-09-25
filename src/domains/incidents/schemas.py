@@ -89,6 +89,28 @@ class TransitionIncidentResult:
 
 
 @dataclass(slots=True)
+class CompleteIncidentCommand:
+    """A staff member reports the work as done - see ``IncidentCoreService.complete_by_staff``."""
+
+    comment: str | None = None
+
+
+@dataclass(slots=True)
+class CloseReportCommand:
+    """A resident closes their own report because the problem went away."""
+
+    comment: str | None = None
+
+
+@dataclass(slots=True)
+class CloseReportResult:
+    report_id: UUID
+    report_status: str
+    incident_id: UUID | None
+    incident_status: IncidentStatus | None
+
+
+@dataclass(slots=True)
 class ResolutionFeedbackCommand:
     report_id: UUID
     feedback: ResolutionFeedback

@@ -528,3 +528,6 @@ a.surface-card:active { transform: scale(0.98); background: var(--surface-hover)
 .house-info__company { padding: 16px; }
 .house-info__source { padding: 0 4px; line-height: 1.45; }
 .house-info__source a { color: var(--blue); text-decoration: none; }
+
+.close-report { padding: 16px; }
+.close-report__error { color: var(--error) !important; }

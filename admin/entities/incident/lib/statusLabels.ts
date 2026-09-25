@@ -33,3 +33,15 @@ export const INCIDENT_STATUS_TONES: Record<IncidentStatus, PillTone> = {
   RESOLUTION_DISPUTED: 'error',
   REOPENED: 'warning',
 };
+
+/** Statuses in which staff can report the work as done (mirrors the backend's
+ * `STAFF_COMPLETABLE_STATUSES`). */
+export const COMPLETABLE_INCIDENT_STATUSES: ReadonlySet<IncidentStatus> = new Set<IncidentStatus>([
+  'NEW',
+  'TRIAGE',
+  'CONFIRMED',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'REOPENED',
+  'RESOLUTION_DISPUTED',
+]);

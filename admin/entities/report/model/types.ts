@@ -5,7 +5,8 @@ export type ReportStatus =
   | 'LINKED'
   | 'NEEDS_CLARIFICATION'
   | 'REJECTED'
-  | 'WITHDRAWN';
+  | 'WITHDRAWN'
+  | 'CLOSED';
 
 export type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
 

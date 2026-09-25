@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  closeReport,
   createReport,
   fetchMyReports,
   fetchProblemCategories,
@@ -51,6 +52,19 @@ export function useCreateReport() {
     mutationFn: (payload: ReportCreatePayload) => createReport(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: myReportsQueryKey });
+    },
+  });
+}
+
+export function useCloseReport(reportId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (comment: string | null) => closeReport(reportId, comment),
+    onSuccess: () => {
+      // The incident (my house) and notifications can change along with the report.
+      for (const key of [['reports'], ['incidents'], ['notifications']]) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }

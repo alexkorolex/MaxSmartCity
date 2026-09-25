@@ -22,6 +22,7 @@ from src.domains.incidents.models import (
     ResolutionDispute,
 )
 from src.domains.incidents.schemas import (
+    CompleteIncidentCommand,
     GroupReportCommand,
     GroupReportResult,
     IncidentCardResult,
@@ -69,6 +70,23 @@ async def _require_resident_link(
     if report_id is None:
         raise PermissionDeniedException("Resident is not linked to this incident")
     return report_id
+
+
+async def _ensure_incident_in_scope(
+    db_session: AsyncSession, principal: Principal, incident_id: UUID
+) -> None:
+    """404 unless the caller may work on this incident: an admin always, other staff only
+    within their organization's houses and assignments (``organization_incident_ids``)."""
+    scope = resolve_organization_scope(principal)
+    if scope.is_admin:
+        return
+    in_scope = scope.organization_id is not None and await db_session.scalar(
+        select(Incident.id).where(
+            Incident.id == incident_id, Incident.id.in_(organization_incident_ids(scope.organization_id))
+        )
+    )
+    if not in_scope:
+        raise NotFoundException(f"Incident {incident_id} was not found")
 
 
 class IncidentController(Controller):
@@ -285,15 +303,50 @@ class IncidentController(Controller):
         db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
     ) -> TransitionIncidentResult:
+        await _ensure_incident_in_scope(db_session, principal, item_id)
         try:
-            async with db_session.begin():
-                return await IncidentCoreService(db_session).transition_incident(
-                    item_id, data, changed_by_id=principal.actor_id
+            result = await IncidentCoreService(db_session).transition_incident(
+                item_id, data, changed_by_id=principal.actor_id
+            )
+        except IncidentCoreNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (IncidentCoreConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
+        await db_session.commit()
+        return result
+
+    @post(
+        "/{item_id:uuid}/complete",
+        status_code=200,
+        return_dto=None,
+        name="incidents:Incident:complete",
+        guards=[require_roles(*_STAFF_ROLES)],
+    )
+    async def complete(
+        self,
+        item_id: FromPath[UUID],
+        data: CompleteIncidentCommand,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> TransitionIncidentResult:
+        """ "Работы выполнены": the caller's organization finished its part - the incident
+        moves to ``RESOLVED`` and residents are asked to confirm (see
+        ``IncidentCoreService.complete_by_staff``)."""
+        await _ensure_incident_in_scope(db_session, principal, item_id)
+        try:
+            with database_action("update", "incidents.Incident"):
+                result = await IncidentCoreService(db_session).complete_by_staff(
+                    item_id,
+                    data,
+                    changed_by=principal.actor_id,
+                    organization_id=principal.organization_id,
                 )
         except IncidentCoreNotFoundError as exc:
             raise NotFoundException(str(exc)) from exc
         except (IncidentCoreConflictError, InvalidStateTransition) as exc:
             raise ClientException(status_code=409, detail=str(exc)) from exc
+        await db_session.commit()
+        return result
 
     @get(
         "/{item_id:uuid}/card",
@@ -307,15 +360,7 @@ class IncidentController(Controller):
         db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
     ) -> IncidentCardResult:
-        scope = resolve_organization_scope(principal)
-        if not scope.is_admin:
-            in_scope = scope.organization_id is not None and await db_session.scalar(
-                select(Incident.id).where(
-                    Incident.id == item_id, Incident.id.in_(organization_incident_ids(scope.organization_id))
-                )
-            )
-            if not in_scope:
-                raise NotFoundException(f"Incident {item_id} was not found")
+        await _ensure_incident_in_scope(db_session, principal, item_id)
         try:
             with database_action("get", "incidents.Incident"):
                 return await IncidentCoreService(db_session).get_card(item_id)

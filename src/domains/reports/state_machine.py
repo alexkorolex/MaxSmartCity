@@ -4,6 +4,7 @@ from src.domains.reports.enums import ReportStatus
 REPORT_TRANSITIONS: dict[ReportStatus, frozenset[ReportStatus]] = {
     ReportStatus.RECEIVED: frozenset(
         {
+            ReportStatus.CLOSED,
             ReportStatus.PROCESSING,
             ReportStatus.NEEDS_CLARIFICATION,
             ReportStatus.REJECTED,
@@ -12,6 +13,7 @@ REPORT_TRANSITIONS: dict[ReportStatus, frozenset[ReportStatus]] = {
     ),
     ReportStatus.PROCESSING: frozenset(
         {
+            ReportStatus.CLOSED,
             ReportStatus.READY_FOR_TRIAGE,
             ReportStatus.LINKED,
             ReportStatus.NEEDS_CLARIFICATION,
@@ -21,6 +23,7 @@ REPORT_TRANSITIONS: dict[ReportStatus, frozenset[ReportStatus]] = {
     ),
     ReportStatus.READY_FOR_TRIAGE: frozenset(
         {
+            ReportStatus.CLOSED,
             ReportStatus.LINKED,
             ReportStatus.NEEDS_CLARIFICATION,
             ReportStatus.REJECTED,
@@ -29,6 +32,7 @@ REPORT_TRANSITIONS: dict[ReportStatus, frozenset[ReportStatus]] = {
     ),
     ReportStatus.NEEDS_CLARIFICATION: frozenset(
         {
+            ReportStatus.CLOSED,
             ReportStatus.PROCESSING,
             ReportStatus.READY_FOR_TRIAGE,
             ReportStatus.LINKED,

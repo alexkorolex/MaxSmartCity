@@ -10,6 +10,7 @@ import {
   useReport,
   useReportAttachments,
 } from '@/entities/report';
+import { CloseReportCard } from '@/features/close-report';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
@@ -76,6 +77,8 @@ export function ReportCardPage() {
                 )}
               </CellList>
             </ListCard>
+
+            <CloseReportCard report={report.data} />
 
             {(attachments.isLoading || (attachments.data && attachments.data.length > 0)) && (
               <ListCard>

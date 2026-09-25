@@ -1,3 +1,4 @@
+from collections import deque
 from collections.abc import Mapping
 from enum import StrEnum
 
@@ -16,3 +17,32 @@ def ensure_transition[StateT: StrEnum](
 ) -> None:
     if target not in transitions.get(current, frozenset()):
         raise InvalidStateTransition(current, target)
+
+
+def transition_path[StateT: StrEnum](
+    current: StateT,
+    target: StateT,
+    transitions: Mapping[StateT, frozenset[StateT]],
+) -> list[StateT]:
+    """Shortest chain of allowed transitions from ``current`` to ``target`` (excluding
+    ``current``), for commands that jump ahead through the normal intermediate states -
+    each step still goes through the state machine and its history. Raises
+    ``InvalidStateTransition`` when ``target`` is unreachable."""
+    previous: dict[StateT, StateT | None] = {current: None}
+    queue = deque([current])
+    while queue:
+        state = queue.popleft()
+        if state == target:
+            break
+        for following in sorted(transitions.get(state, frozenset())):
+            if following not in previous:
+                previous[following] = state
+                queue.append(following)
+    if target not in previous or target == current:
+        raise InvalidStateTransition(current, target)
+    path: list[StateT] = []
+    step: StateT | None = target
+    while step is not None and step != current:
+        path.append(step)
+        step = previous[step]
+    return path[::-1]

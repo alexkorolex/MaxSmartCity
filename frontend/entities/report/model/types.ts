@@ -5,7 +5,8 @@ export type ReportStatus =
   | 'LINKED'
   | 'NEEDS_CLARIFICATION'
   | 'REJECTED'
-  | 'WITHDRAWN';
+  | 'WITHDRAWN'
+  | 'CLOSED';
 
 export type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
 
@@ -49,3 +50,17 @@ export interface ReportAttachment {
   created_at: string;
   download_url: string;
 }
+
+export interface CloseReportResult {
+  report_id: string;
+  report_status: ReportStatus;
+  incident_id: string | null;
+  incident_status: string | null;
+}
+
+/** A report the resident can no longer close - it already is closed or was turned down. */
+export const FINAL_REPORT_STATUSES: ReadonlySet<ReportStatus> = new Set<ReportStatus>([
+  'CLOSED',
+  'REJECTED',
+  'WITHDRAWN',
+]);

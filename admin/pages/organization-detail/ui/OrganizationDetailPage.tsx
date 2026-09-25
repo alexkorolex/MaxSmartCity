@@ -22,7 +22,8 @@ export function OrganizationDetailPage() {
   const members = useOrganizationMembers(organizationId);
   const deactivate = useDeactivateOrganizationMember(organizationId);
   const { data: principal } = useMe();
-  const canManage = isAdmin(principal);
+  // The admin manages every roster; staff manage their own organization's colleagues.
+  const canManage = isAdmin(principal) || principal?.organization_id === organizationId;
   const org = organization.data;
 
   return (
@@ -141,7 +142,7 @@ export function OrganizationDetailPage() {
                         </td>
                         {canManage && (
                           <td data-label="Действия">
-                            {member.is_active && (
+                            {member.is_active && member.user_id !== principal?.actor_id && (
                               <button
                                 type="button"
                                 className="btn btn--ghost btn--small"
@@ -172,7 +173,10 @@ export function OrganizationDetailPage() {
           <div className="card__header">
             <div>
               <div className="card__title">Новый сотрудник</div>
-              <div className="card__meta">Создаёт учётную запись с ролью «Жилищник» сразу в этой организации</div>
+              <div className="card__meta">
+                Учётная запись создаётся сразу в этой организации, логин и временный пароль придут коллеге на
+                почту
+              </div>
             </div>
           </div>
           <div className="card__body">

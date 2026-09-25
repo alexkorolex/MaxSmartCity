@@ -106,8 +106,11 @@ def test_only_housing_organizations_self_register() -> None:
 def test_resident_request_closes_and_reopens_with_its_incident() -> None:
     ensure_report_transition(ReportStatus.LINKED, ReportStatus.CLOSED)
     ensure_report_transition(ReportStatus.CLOSED, ReportStatus.LINKED)
+    # A resident may close their own report at any open stage...
+    ensure_report_transition(ReportStatus.RECEIVED, ReportStatus.CLOSED)
+    # ...but not one that was already turned down.
     with pytest.raises(InvalidStateTransition):
-        ensure_report_transition(ReportStatus.RECEIVED, ReportStatus.CLOSED)
+        ensure_report_transition(ReportStatus.REJECTED, ReportStatus.CLOSED)
 
 
 def test_every_channel_type_has_a_strategy() -> None:

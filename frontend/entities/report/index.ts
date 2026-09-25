@@ -5,6 +5,7 @@ export {
   problemCategoriesQueryKey,
   reportAttachmentsQueryKey,
   reportQueryKey,
+  useCloseReport,
   useCreateReport,
   useMyReports,
   useProblemCategories,
@@ -12,7 +13,9 @@ export {
   useReportAttachments,
   useUploadReportAttachment,
 } from './model/queries';
+export { FINAL_REPORT_STATUSES } from './model/types';
 export type {
+  CloseReportResult,
   Priority,
   ProblemCategory,
   Report,

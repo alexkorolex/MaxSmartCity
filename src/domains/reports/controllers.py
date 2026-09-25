@@ -19,6 +19,7 @@ from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import resolve_organization_scope
+from src.domains.incidents.schemas import CloseReportCommand, CloseReportResult
 from src.domains.incidents.scope import organization_report_ids
 from src.domains.incidents.services import (
     GroupingMode,
@@ -275,6 +276,34 @@ class ReportController(Controller):
             return await service.get_many(
                 LimitOffset(limit=limit, offset=offset), *criteria, order_by=("received_at", True)
             )
+
+    @post(
+        "/{item_id:uuid}/close",
+        status_code=200,
+        return_dto=None,
+        name="reports:Report:close",
+        guards=[require_resident()],
+    )
+    async def close(
+        self,
+        item_id: FromPath[UUID],
+        data: CloseReportCommand,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> CloseReportResult:
+        """The resident closes their own report because the problem went away (see
+        ``IncidentCoreService.close_by_resident`` for what happens to the incident)."""
+        try:
+            with database_action("update", "reports.Report"):
+                result = await IncidentCoreService(db_session).close_by_resident(
+                    item_id, data, resident_id=principal.actor_id
+                )
+        except IncidentCoreNotFoundError as exc:
+            raise NotFoundException(str(exc)) from exc
+        except (IncidentCoreConflictError, InvalidStateTransition) as exc:
+            raise ClientException(status_code=409, detail=str(exc)) from exc
+        await db_session.commit()
+        return result
 
     @get("/{item_id:uuid}", name="reports:Report:get")
     async def get_item(

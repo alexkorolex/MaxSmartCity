@@ -32,3 +32,18 @@ export interface IncidentTransitionResult {
 export function completeIncident(incidentId: string, comment: string | null): Promise<IncidentTransitionResult> {
   return http.post<IncidentTransitionResult>(`/incidents/${incidentId}/complete`, { comment });
 }
+
+export interface IncidentReportSummary {
+  report_id: string;
+  text: string | null;
+  status: string;
+  received_at: string;
+  problem_continues: boolean | null;
+}
+
+/** The staff card of an incident - here only the residents' reports behind it are used. */
+export function fetchIncidentReports(incidentId: string): Promise<IncidentReportSummary[]> {
+  return http
+    .get<{ reports: IncidentReportSummary[] }>(`/incidents/${incidentId}/card`)
+    .then((card) => card.reports);
+}

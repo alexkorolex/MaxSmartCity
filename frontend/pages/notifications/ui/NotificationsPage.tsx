@@ -13,7 +13,11 @@ import { AsyncState, BellIcon, EmptyState, ListCard, PageLayout } from '@/shared
 
 function NotificationRow({ notification }: { notification: AppNotification }) {
   const markRead = useMarkNotificationRead();
-  const target = notification.incident_id ? ROUTES.incident(notification.incident_id) : undefined;
+  const target = notification.incident_id
+    ? ROUTES.incident(notification.incident_id)
+    : notification.report_id
+      ? ROUTES.report(notification.report_id)
+      : undefined;
 
   const cellProps = {
     title: notification.title,

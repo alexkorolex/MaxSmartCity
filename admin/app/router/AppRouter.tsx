@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import { HomePage } from '@/pages/home';
 import { HousesPage } from '@/pages/houses';
+import { MessagesPage } from '@/pages/messages';
 import { IncidentDetailPage } from '@/pages/incident-detail';
 import { IncidentsPage } from '@/pages/incidents';
 import { NewsPage } from '@/pages/news';
@@ -25,6 +26,7 @@ export function AppRouter() {
           <Route path={ROUTES.organizations} element={<OrganizationsPage />} />
           <Route path="/organizations/:organizationId" element={<OrganizationDetailPage />} />
           <Route path={ROUTES.houses} element={<HousesPage />} />
+          <Route path={ROUTES.messages} element={<MessagesPage />} />
           <Route path={ROUTES.staff} element={<StaffPage />} />
           <Route path={ROUTES.residents} element={<ResidentsPage />} />
           <Route path="/residents/:residentId" element={<ResidentDetailPage />} />

@@ -20,7 +20,9 @@ test('global stylesheet delegates styles to FSD layers', () => {
 test('responsive table cells provide mobile labels', () => {
   const tablePages = [
     'pages/houses/ui/HousesPage.tsx',
+    'pages/incident-detail/ui/IncidentDetailPage.tsx',
     'pages/incidents/ui/IncidentsPage.tsx',
+    'pages/messages/ui/MessagesPage.tsx',
     'pages/news/ui/NewsPage.tsx',
     'pages/organization-detail/ui/OrganizationDetailPage.tsx',
     'pages/organizations/ui/OrganizationsPage.tsx',
@@ -49,6 +51,8 @@ test('page and feature UI avoids inline style objects', () => {
     'features/take-house/ui/TakeHouseForm.tsx',
     'features/organization-channels/ui/OrganizationChannelsCard.tsx',
     'features/complete-incident/ui/CompleteIncidentCard.tsx',
+    'features/report-chat/ui/ReportChatCard.tsx',
+    'pages/messages/ui/MessagesPage.tsx',
     'pages/houses/ui/HousesPage.tsx',
   ];
 

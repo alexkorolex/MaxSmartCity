@@ -79,7 +79,8 @@ class MaxClient:
     ) -> dict[str, Any] | None:
         if not user_id and not chat_id:
             raise ValueError("Either user_id or chat_id is required")
-        params = {"user_id": user_id} if user_id else {"chat_id": chat_id}
+        # A known dialog wins: it is exactly where the user talks to the bot.
+        params = {"chat_id": chat_id} if chat_id else {"user_id": user_id}
         body: dict[str, Any] = {"text": text}
         if link:
             body["link"] = link

@@ -25,6 +25,9 @@ class Resident(Entity):
     __table_args__ = ({"schema": "identity"},)
 
     max_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    max_chat_id: Mapped[int | None] = mapped_column(BigInteger)
+    """The resident's dialog with the bot - saved from their ``/start`` (or first message)
+    and used to message them (``src.max_bot.notify``)."""
     username: Mapped[str | None] = mapped_column(String(255))
     display_name: Mapped[str | None] = mapped_column(String(255))
     bot_status: Mapped[BotStatus] = mapped_column(

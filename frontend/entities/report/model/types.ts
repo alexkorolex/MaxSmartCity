@@ -64,3 +64,23 @@ export const FINAL_REPORT_STATUSES: ReadonlySet<ReportStatus> = new Set<ReportSt
   'REJECTED',
   'WITHDRAWN',
 ]);
+
+export interface ChatMessage {
+  id: string;
+  author_type: 'RESIDENT' | 'OPERATOR';
+  author_name: string;
+  organization_name: string | null;
+  text: string;
+  created_at: string;
+  read_at: string | null;
+  is_mine: boolean;
+}
+
+/** The chat between the resident and the organizations working on their report. */
+export interface ReportChatThread {
+  report_id: string;
+  report_text: string | null;
+  counterparts: string[];
+  can_write: boolean;
+  messages: ChatMessage[];
+}

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, false, true
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Text, false, text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.models import Entity
@@ -10,7 +10,10 @@ from src.domains.notifications.enums import NotificationType, OrganizationChanne
 
 class Notification(Entity):
     __tablename__ = "notification"
-    __table_args__ = ({"schema": "notifications"},)
+    __table_args__ = (
+        Index("ix_notification_pending_push", "created_at", postgresql_where=text("pushed_at IS NULL")),
+        {"schema": "notifications"},
+    )
 
     resident_id: Mapped[UUID] = mapped_column(ForeignKey("identity.resident.id"), index=True)
     type: Mapped[NotificationType] = mapped_column(
@@ -22,6 +25,9 @@ class Notification(Entity):
     report_id: Mapped[UUID | None] = mapped_column(ForeignKey("reports.report.id"))
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    """When the push job (``src.domains.notifications.resident_push``) handled it - sent to
+    MAX, or skipped because the resident turned MAX notifications off."""
 
 
 class OrganizationChannel(Entity):

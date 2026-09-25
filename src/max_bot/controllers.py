@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.identity.services import ResidentService
 from src.max_bot.dedup import is_duplicate_event, mark_event_processed
 from src.max_bot.guards import require_max_webhook_secret
-from src.max_bot.handlers import handle_bot_started, handle_message_created
+from src.max_bot.handlers import handle_bot_started, handle_bot_stopped, handle_message_created
 from src.max_bot.settings import MaxBotSettings
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,8 @@ class MaxWebhookController(Controller):
                     await handle_bot_started(data, resident_service, settings)
                 case "message_created":
                     await handle_message_created(data, resident_service, settings)
+                case "bot_stopped":
+                    await handle_bot_stopped(data, resident_service)
                 case _:
                     logger.info("Unhandled MAX update type", extra={"update_type": update_type})
         except Exception:

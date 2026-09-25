@@ -11,6 +11,7 @@ import {
   useReportAttachments,
 } from '@/entities/report';
 import { CloseReportCard } from '@/features/close-report';
+import { ReportChat } from '@/features/report-chat';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
@@ -77,6 +78,8 @@ export function ReportCardPage() {
                 )}
               </CellList>
             </ListCard>
+
+            <ReportChat reportId={report.data.id} />
 
             <CloseReportCard report={report.data} />
 

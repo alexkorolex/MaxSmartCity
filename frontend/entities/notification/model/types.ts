@@ -3,6 +3,7 @@ export type NotificationType =
   | 'INCIDENT_STATUS_CHANGED'
   | 'RESOLUTION_REQUESTED'
   | 'NEWS'
+  | 'CHAT_MESSAGE'
   | 'GENERIC';
 
 export interface AppNotification {

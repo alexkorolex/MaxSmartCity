@@ -1,6 +1,8 @@
 export interface ResidentProfile {
   id: string;
   max_user_id: number | null;
+  /** The resident's dialog with the bot - saved on /start; notifications go there. */
+  max_chat_id: number | null;
   username: string | null;
   display_name: string | null;
   notifications_enabled: boolean;

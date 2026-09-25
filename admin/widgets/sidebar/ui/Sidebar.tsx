@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { useChatConversations } from '@/entities/chat';
 import { canBrowseOrganizations, useMe, type Principal } from '@/entities/session';
 import {
   BuildingIcon,
   CityIcon,
+  CommentIcon,
   CloseIcon,
   HomeIcon,
   HousesIcon,
@@ -28,6 +30,7 @@ function navItems(principal: Principal | undefined) {
     { to: ROUTES.home, label: 'Обзор', icon: HomeIcon, end: true },
     ...(organizationItem ? [organizationItem] : []),
     { to: ROUTES.houses, label: 'Дома', icon: HousesIcon, end: false },
+    { to: ROUTES.messages, label: 'Сообщения', icon: CommentIcon, end: false },
     { to: ROUTES.staff, label: 'Сотрудники', icon: StaffIcon, end: false },
     { to: ROUTES.residents, label: 'Жители', icon: PersonIcon, end: false },
     { to: ROUTES.incidents, label: 'Инциденты', icon: WarningIcon, end: false },
@@ -43,6 +46,8 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { data: principal } = useMe();
+  const conversations = useChatConversations();
+  const unread = conversations.data?.reduce((total, item) => total + item.unread_count, 0) ?? 0;
 
   useEffect(() => {
     if (isOpen) closeButtonRef.current?.focus();
@@ -74,6 +79,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <ItemIcon />
             </span>
             <span>{label}</span>
+            {to === ROUTES.messages && unread > 0 && <span className="admin-nav__badge">{unread}</span>}
           </NavLink>
         ))}
       </nav>

@@ -113,3 +113,38 @@ class ReportStatusHistory(Record):
     )
     changed_by_id: Mapped[UUID | None] = mapped_column()
     reason: Mapped[str | None] = mapped_column(Text)
+
+
+class ReportMessage(Record):
+    """A message in the chat between the resident who filed a report and the organization
+    working on it (its house's УК/ТСЖ or an assigned one). ``read_at`` is set when the other
+    side opens the chat; a message left unread is announced to them out of the app
+    (``notified_at``) - see ``src.domains.reports.chat``."""
+
+    __tablename__ = "report_message"
+    __table_args__ = (
+        CheckConstraint(
+            "(author_type = 'RESIDENT' AND author_resident_id IS NOT NULL) "
+            "OR (author_type = 'OPERATOR' AND author_operator_id IS NOT NULL)",
+            name="author_present",
+        ),
+        Index("ix_report_message_report_created", "report_id", "created_at"),
+        Index(
+            "ix_report_message_pending_notification",
+            "created_at",
+            postgresql_where=text("read_at IS NULL AND notified_at IS NULL"),
+        ),
+        {"schema": "reports"},
+    )
+
+    report_id: Mapped[UUID] = mapped_column(ForeignKey("reports.report.id"))
+    author_type: Mapped[ActorType] = mapped_column(
+        Enum(ActorType, native_enum=False, create_constraint=True, name="report_message_author_type")
+    )
+    author_resident_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.resident.id"))
+    author_operator_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.operator_user.id"))
+    organization_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.organization.id"))
+    """The organization a staff member wrote on behalf of (``None`` for the platform admin)."""
+    text: Mapped[str] = mapped_column(Text)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

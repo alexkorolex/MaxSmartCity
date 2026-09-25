@@ -10,6 +10,7 @@ import {
   useReportAttachments,
 } from '@/entities/report';
 import { useResident } from '@/entities/resident';
+import { ReportChatCard } from '@/features/report-chat';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
@@ -130,6 +131,8 @@ export function ReportDetailPage() {
           </AsyncState>
         </div>
       </div>
+
+      {report.data?.resident_id && <ReportChatCard reportId={report.data.id} />}
     </>
   );
 }

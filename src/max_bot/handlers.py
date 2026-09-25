@@ -49,7 +49,7 @@ def _display_name(first_name: str | None, last_name: str | None) -> str | None:
     return " ".join(part for part in (first_name, last_name) if part) or None
 
 
-async def _login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
+async def login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
     """Inline-keyboard attachment that lets the resident finish login in the web app.
 
     Prefers MAX's native ``open_app`` button, which opens the app embedded inside MAX
@@ -83,25 +83,28 @@ async def _issue_login_button(
     client: MaxClient,
     settings: MaxBotSettings,
     text: str,
+    chat_id: int | None,
 ) -> None:
     with database_action("upsert", "identity.Resident"):
         resident = await resident_service.upsert_by_max_user_id(
-            max_user_id=max_user_id, username=username, display_name=display_name
+            max_user_id=max_user_id, username=username, display_name=display_name, chat_id=chat_id
         )
 
     code = await create_login_code(resident.id)
     await client.send_message(
         user_id=max_user_id,
+        chat_id=chat_id,
         text=text,
-        attachments=await _login_button(code, settings),
+        attachments=await login_button(code, settings),
     )
 
 
 async def handle_bot_started(
     update: dict[str, Any], resident_service: ResidentService, settings: MaxBotSettings
 ) -> None:
-    """User pressed Start - register them as a resident, greet them, and hand out a
-    button that logs them into the web app (no code to type in by hand)."""
+    """User pressed Start - register them as a resident (saving the dialog's ``chat_id``,
+    where their notifications go), greet them, and hand out a button that logs them into
+    the web app (no code to type in by hand)."""
     user = update["user"]
     client = MaxClient(settings)
     await _issue_login_button(
@@ -112,7 +115,14 @@ async def handle_bot_started(
         client=client,
         settings=settings,
         text=WELCOME_TEXT,
+        chat_id=update.get("chat_id"),
     )
+
+
+async def handle_bot_stopped(update: dict[str, Any], resident_service: ResidentService) -> None:
+    """The resident stopped/blocked the bot - stop messaging them until the next /start."""
+    with database_action("update", "identity.Resident"):
+        await resident_service.mark_bot_stopped(max_user_id=update["user"]["user_id"])
 
 
 async def handle_message_created(
@@ -143,6 +153,7 @@ async def handle_message_created(
         await client.send_message(user_id=user_id, text=MY_ID_TEXT.format(user_id=user_id))
         return
 
+    chat_id = recipient.get("chat_id")
     if text in START_COMMANDS or text in LOGIN_COMMANDS:
         await _issue_login_button(
             max_user_id=sender["user_id"],
@@ -152,7 +163,12 @@ async def handle_message_created(
             client=client,
             settings=settings,
             text=WELCOME_TEXT if text in START_COMMANDS else LOGIN_TEXT,
+            chat_id=chat_id,
         )
         return
+
+    if chat_id:
+        with database_action("update", "identity.Resident"):
+            await resident_service.remember_chat(max_user_id=sender["user_id"], chat_id=chat_id)
 
     await client.send_message(user_id=sender["user_id"], text=LOGIN_PROMPT_TEXT)

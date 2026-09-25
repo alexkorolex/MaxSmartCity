@@ -10,6 +10,7 @@ import './Topbar.css';
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: ROUTES.organizations, title: 'Организации', subtitle: 'Управы, УК и ТСЖ' },
   { prefix: ROUTES.houses, title: 'Дома', subtitle: 'Дома в управлении УК и ТСЖ' },
+  { prefix: ROUTES.messages, title: 'Сообщения', subtitle: 'Переписка с жителями по обращениям' },
   { prefix: ROUTES.staff, title: 'Сотрудники', subtitle: 'Управы, жилищники и администраторы' },
   { prefix: ROUTES.residents, title: 'Жители', subtitle: 'Жители и их заявки' },
   { prefix: ROUTES.incidents, title: 'Инциденты', subtitle: 'Инциденты и обсуждения по ним' },

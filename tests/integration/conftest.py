@@ -22,8 +22,25 @@ def database_url() -> str:
     return url
 
 
+# `src.main` loads the developer's `.env`, which may hold real credentials - tests must never
+# talk to the real MAX bot or mail server, nor run the background delivery loop (it would
+# race the tests and deliver notifications about test data).
+_OFFLINE_ENVIRONMENT = {
+    "BACKGROUND_JOBS_INTERVAL_SECONDS": "0",
+    "MAX_WEBHOOK_PUBLIC_URL": "",
+    "MAX_BOT_TOKEN": "",
+    "SMTP_HOST": "",
+}
+
+
+@pytest.fixture(autouse=True)
+def offline_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, value in _OFFLINE_ENVIRONMENT.items():
+        monkeypatch.setenv(name, value)
+
+
 @pytest.fixture
-def api_client(database_url: str) -> Iterator[TestClient]:
+def api_client(database_url: str, offline_environment: None) -> Iterator[TestClient]:
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     with TestClient(create_app(database_url, redis_url)) as client:
         yield client

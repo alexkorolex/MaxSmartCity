@@ -45,3 +45,5 @@
     .admin-sidebar .admin-sidebar__close { display: inline-flex; }
     .admin-nav__link { min-height: 48px; font-size: 14px; }
 }
+
+.admin-nav__badge { min-width: 20px; margin-left: auto; padding: 2px 7px; color: white; background: var(--blue-strong); border-radius: var(--radius-full); font-size: 11px; font-weight: 760; text-align: center; }

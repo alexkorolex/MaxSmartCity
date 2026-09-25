@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useCreateIncidentComment, useIncidentComments } from '@/entities/comment';
-import { INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES, useIncident } from '@/entities/incident';
+import { INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES, useIncident, useIncidentReports } from '@/entities/incident';
+import { REPORT_STATUS_LABELS, REPORT_STATUS_TONES, type ReportStatus } from '@/entities/report';
 import { CompleteIncidentCard } from '@/features/complete-incident';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
@@ -13,6 +14,7 @@ import './IncidentDetailPage.css';
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams();
   const incident = useIncident(incidentId);
+  const reports = useIncidentReports(incidentId);
   const comments = useIncidentComments(incidentId);
   const createComment = useCreateIncidentComment(incidentId);
   const [text, setText] = useState('');
@@ -53,6 +55,41 @@ export function IncidentDetailPage() {
       </AsyncState>
 
       {incident.data && <CompleteIncidentCard incident={incident.data} />}
+
+      {reports.data && reports.data.length > 0 && (
+        <div className="card">
+          <div className="card__header">
+            <div>
+              <div className="card__title">Обращения жителей</div>
+              <div className="card__meta">Откройте обращение, чтобы ответить жителю в чате</div>
+            </div>
+          </div>
+          <div className="card__body card__body--flush">
+            <div className="table-wrap">
+              <table className="data-table">
+                <tbody>
+                  {reports.data.map((item) => (
+                    <tr key={item.report_id}>
+                      <td data-label="Обращение">
+                        <Link className="cell-primary" to={ROUTES.report(item.report_id)}>
+                          {item.text ?? 'Без описания'}
+                        </Link>
+                        <div className="cell-muted">{formatDateTime(item.received_at)}</div>
+                      </td>
+                      <td data-label="Статус">
+                        <Pill
+                          tone={REPORT_STATUS_TONES[item.status as ReportStatus] ?? 'neutral'}
+                          label={REPORT_STATUS_LABELS[item.status as ReportStatus] ?? item.status}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card__header">

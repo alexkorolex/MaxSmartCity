@@ -1,9 +1,19 @@
 import { CellHeader, CellList, CellSimple, Switch } from '@maxhub/max-ui';
 
 import { ThemeSwitch } from '@/features/change-theme';
-import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
+import { useMyProfile, useUpdateMyProfile, type ResidentProfile } from '@/entities/user';
 import { AsyncState, ListCard, PageLayout } from '@/shared/ui';
 import { ROUTES } from '@/shared/routes';
+
+function maxNotificationsHint(profile: ResidentProfile): string {
+  if (profile.bot_status === 'STOPPED') {
+    return 'Бот остановлен — откройте чат с ботом в MAX и нажмите «Старт», чтобы снова получать сообщения';
+  }
+  if (!profile.max_chat_id) {
+    return 'Чтобы сообщения приходили, откройте чат с ботом в MAX и отправьте /start';
+  }
+  return 'Бот пришлёт в MAX изменения статуса обращений и новые сообщения от управляющей компании';
+}
 
 export function SettingsPage() {
   const profile = useMyProfile();
@@ -19,7 +29,7 @@ export function SettingsPage() {
           <CellList mode="full-width" header={<CellHeader>Уведомления</CellHeader>}>
             <CellSimple
               title="Push-уведомления в MAX"
-              subtitle="Получать сообщения от бота об изменении статуса обращений"
+              subtitle={maxNotificationsHint(profile.data)}
               subtitleMode="tertiary"
               after={
                 <Switch

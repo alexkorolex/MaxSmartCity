@@ -112,12 +112,27 @@ class _FakeResident:
 class _FakeResidentService:
     def __init__(self) -> None:
         self.upserts: list[dict[str, Any]] = []
+        self.remembered_chats: list[tuple[int, int]] = []
+        self.stopped: list[int] = []
 
     async def upsert_by_max_user_id(
-        self, *, max_user_id: int, username: str | None, display_name: str | None
+        self, *, max_user_id: int, username: str | None, display_name: str | None, chat_id: int | None = None
     ) -> _FakeResident:
-        self.upserts.append({"max_user_id": max_user_id, "username": username, "display_name": display_name})
+        self.upserts.append(
+            {
+                "max_user_id": max_user_id,
+                "username": username,
+                "display_name": display_name,
+                "chat_id": chat_id,
+            }
+        )
         return _FakeResident(id=UUID(int=max_user_id))
+
+    async def remember_chat(self, *, max_user_id: int, chat_id: int) -> None:
+        self.remembered_chats.append((max_user_id, chat_id))
+
+    async def mark_bot_stopped(self, *, max_user_id: int) -> None:
+        self.stopped.append(max_user_id)
 
 
 async def test_handle_bot_started_registers_resident_and_sends_welcome(
@@ -140,9 +155,12 @@ async def test_handle_bot_started_registers_resident_and_sends_welcome(
 
     await handlers.handle_bot_started(update, cast(ResidentService, service), settings)
 
-    assert service.upserts == [{"max_user_id": 42, "username": "alex", "display_name": "Alex"}]
+    # The dialog's chat_id is stored - that's where the resident's notifications go.
+    assert service.upserts == [
+        {"max_user_id": 42, "username": "alex", "display_name": "Alex", "chat_id": 5551234}
+    ]
     assert len(sent) == 1
-    assert sent[0]["user_id"] == 42
+    assert sent[0]["chat_id"] == 5551234
     assert "Добро пожаловать" in sent[0]["text"]
     open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
     assert open_app_button["type"] == "open_app"
@@ -167,14 +185,14 @@ async def test_handle_message_created_start_command_sends_welcome(
         "update_type": "message_created",
         "message": {
             "sender": {"user_id": 7, "is_bot": False, "username": "res", "first_name": "Res"},
-            "recipient": {"chat_type": "dialog"},
+            "recipient": {"chat_type": "dialog", "chat_id": 7007},
             "body": {"mid": "m0", "text": "/start"},
         },
     }
 
     await handlers.handle_message_created(update, cast(ResidentService, service), settings)
 
-    assert service.upserts == [{"max_user_id": 7, "username": "res", "display_name": "Res"}]
+    assert service.upserts == [{"max_user_id": 7, "username": "res", "display_name": "Res", "chat_id": 7007}]
     assert len(sent) == 1
     assert "Добро пожаловать" in sent[0]["text"]
     assert sent[0]["attachments"][0]["type"] == "inline_keyboard"
@@ -228,12 +246,49 @@ async def test_handle_message_created_login_command_issues_login_link(
 
     await handlers.handle_message_created(update, cast(ResidentService, service), settings)
 
-    assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res"}]
+    assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res", "chat_id": None}]
     assert len(sent) == 1
     assert "ссылка" in sent[0]["text"].lower()
     open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
     assert open_app_button["type"] == "open_app"
     assert link_button["url"].startswith("https://app.example.com/auth/max?code=")
+
+
+async def test_any_dialog_message_remembers_the_chat_without_registering(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+
+    service = _FakeResidentService()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 55, "is_bot": False},
+            "recipient": {"chat_type": "dialog", "chat_id": 5055},
+            "body": {"mid": "m9", "text": "привет"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, service), settings)
+
+    assert service.upserts == []
+    assert service.remembered_chats == [(55, 5055)]
+    assert len(sent) == 1
+
+
+async def test_bot_stopped_marks_the_resident(settings: MaxBotSettings) -> None:
+    service = _FakeResidentService()
+
+    await handlers.handle_bot_stopped(
+        {"update_type": "bot_stopped", "chat_id": 1, "user": {"user_id": 77}}, cast(ResidentService, service)
+    )
+
+    assert service.stopped == [77]
 
 
 def test_webhook_secret_is_compared_constant_time(settings: MaxBotSettings) -> None:

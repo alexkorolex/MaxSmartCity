@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   closeReport,
+  fetchReportChat,
+  sendReportChatMessage,
   createReport,
   fetchMyReports,
   fetchProblemCategories,
@@ -66,5 +68,28 @@ export function useCloseReport(reportId: string) {
         void queryClient.invalidateQueries({ queryKey: key });
       }
     },
+  });
+}
+
+export const reportChatQueryKey = (reportId: string) => ['reports', reportId, 'chat'] as const;
+const CHAT_POLL_MS = 30_000; // safety net - live updates come from useChatLiveUpdates
+
+/** Polls while the chat is on screen - that's also what marks new messages as read, so the
+ * resident isn't pinged in MAX about messages they've already seen here. */
+export function useReportChat(reportId: string) {
+  return useQuery({
+    queryKey: reportChatQueryKey(reportId),
+    queryFn: () => fetchReportChat(reportId),
+    enabled: Boolean(reportId),
+    refetchInterval: CHAT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useSendReportChatMessage(reportId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => sendReportChatMessage(reportId, text),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: reportChatQueryKey(reportId) }),
   });
 }

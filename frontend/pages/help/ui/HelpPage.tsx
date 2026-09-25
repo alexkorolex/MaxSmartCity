@@ -3,6 +3,8 @@ import { Flex, Typography } from '@maxhub/max-ui';
 import { ROUTES } from '@/shared/routes';
 import { HelpIcon, PageLayout } from '@/shared/ui';
 
+import './HelpPage.css';
+
 const FAQ = [
   {
     question: 'Как сообщить о проблеме?',

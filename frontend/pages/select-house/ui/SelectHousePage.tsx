@@ -8,6 +8,8 @@ import { ROUTES } from '@/shared/routes';
 import { AsyncState, PageLayout } from '@/shared/ui';
 import { HouseInfoSection } from '@/widgets/house-info';
 
+import './SelectHousePage.css';
+
 interface SelectHouseLocationState {
   mode?: 'onboarding';
 }
@@ -71,8 +73,8 @@ export function SelectHousePage() {
           </Flex>
 
           {updateProfile.isError && (
-            <div className="house-selection-error">
-              <Typography.Text variant="description" style={{ color: 'var(--error)' }}>
+            <div className="house-selection-error" role="alert">
+              <Typography.Text variant="description" color="inherit">
                 Не удалось сохранить адрес. Проверьте соединение и попробуйте ещё раз.
               </Typography.Text>
             </div>

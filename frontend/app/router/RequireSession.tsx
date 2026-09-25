@@ -4,21 +4,23 @@ import { Outlet } from 'react-router-dom';
 import { useSession } from '@/entities/session';
 import { CityIcon, PageLayout } from '@/shared/ui';
 
+import './RequireSession.css';
+
 const MAX_BOT_URL = import.meta.env.VITE_MAX_BOT_URL;
 
 function OpenBotPrompt() {
   return (
     <PageLayout withNavSpacing={false}>
       <Flex
-        className="auth-stage"
+        className="session-prompt"
         direction="column"
         align="center"
         justify="center"
       >
-        <Flex className="surface-card auth-card" direction="column" align="center" gap="var(--space-3)">
-          <span className="brand-mark"><CityIcon width={28} height={28} /></span>
+        <Flex className="surface-card session-prompt__card" direction="column" align="center" gap="var(--space-3)">
+          <span className="session-prompt__brand"><CityIcon width={28} height={28} /></span>
           <Typography.Text asChild variant="title" color="primary"><h1>Smart City</h1></Typography.Text>
-          <Typography.Text variant="description" color="secondary" style={{ maxWidth: 320 }}>
+          <Typography.Text className="session-prompt__description" variant="description" color="secondary">
             {
             MAX_BOT_URL
               ? 'Откройте городского бота в MAX и нажмите «Начать», чтобы безопасно войти.'

@@ -10,6 +10,8 @@ import { useMyProfile } from '@/entities/user';
 import { ROUTES } from '@/shared/routes';
 import { HouseIcon, ListCard, PageLayout, PlusIcon, ReportsIcon } from '@/shared/ui';
 
+import './HomePage.css';
+
 function initialsOf(name: string | null | undefined): string {
   if (!name) return '?';
   return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
@@ -24,7 +26,7 @@ interface StatTileProps {
 
 function StatTile({ to, icon, value, label }: StatTileProps) {
   return (
-    <Link to={to} className="surface-card stat-tile" style={{ textDecoration: 'none' }}>
+    <Link to={to} className="surface-card stat-tile">
       <div className="stat-tile__top">
         <span className="stat-tile__icon">{icon}</span>
         <span className="stat-tile__value">{value}</span>

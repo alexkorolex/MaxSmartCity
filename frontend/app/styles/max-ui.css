@@ -1,0 +1,8 @@
+/* Stable semantic MAX UI tokens, customized once at the application boundary. */
+.app-page {
+    --button-primary: var(--action-primary);
+    --states-button-primary-hover: var(--action-primary-hover);
+    --states-button-primary-pressed: var(--action-primary-pressed);
+    --controls-active: var(--action-primary);
+    --text-themed: var(--blue-strong);
+}

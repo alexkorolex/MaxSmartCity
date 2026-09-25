@@ -1,0 +1,8 @@
+.auth-max-page__stage {
+    min-height: calc(100dvh - 32px);
+    justify-content: center;
+}
+
+.auth-max-page__stage .empty-state {
+    width: 100%;
+}

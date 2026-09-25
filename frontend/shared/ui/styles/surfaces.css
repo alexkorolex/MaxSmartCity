@@ -1,0 +1,49 @@
+.surface-card,
+.content-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+a.surface-card {
+    text-decoration: none;
+    transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+a.surface-card:active {
+    transform: scale(0.985);
+    background: var(--surface-hover);
+}
+
+.detail-hero {
+    min-width: 0;
+    padding: clamp(16px, 4vw, 20px);
+}
+
+.detail-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+.detail-meta__item {
+    min-width: 0;
+    padding: var(--space-3);
+    background: var(--background-secondary);
+    border-radius: var(--radius-md);
+}
+
+@media (hover: hover) {
+    a.surface-card:hover {
+        transform: translateY(-2px);
+        background: var(--surface-hover);
+        box-shadow: var(--shadow-md);
+    }
+}
+
+@media (max-width: 370px) {
+    .detail-meta {
+        grid-template-columns: 1fr;
+    }
+}

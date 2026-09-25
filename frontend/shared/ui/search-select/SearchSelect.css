@@ -1,0 +1,124 @@
+.search-select {
+    position: relative;
+    min-width: 0;
+}
+
+.search-select--disabled {
+    opacity: 0.62;
+}
+
+.search-select__label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 2px var(--space-2);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.search-select__label-icon {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    place-items: center;
+    color: var(--blue-strong);
+    background: var(--blue-soft);
+    border-radius: 9px;
+}
+
+.search-select__input,
+.search-select__input > * {
+    width: 100%;
+}
+
+.search-select__popover {
+    position: relative;
+    z-index: 4;
+    overflow: hidden;
+    margin-top: var(--space-2);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.search-select__options {
+    max-height: min(300px, 42dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 5px;
+    scrollbar-gutter: stable;
+}
+
+.search-select__option {
+    display: flex;
+    width: 100%;
+    min-height: 56px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    color: var(--text-primary);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.search-select__option + .search-select__option {
+    border-top: 1px solid var(--border-soft);
+}
+
+.search-select__option:active,
+.search-select__option[aria-selected='true'] {
+    color: var(--blue-strong);
+    background: var(--blue-soft);
+}
+
+.search-select__option > svg {
+    flex: none;
+    margin-left: auto;
+    color: var(--blue-strong);
+}
+
+.search-select__option-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.search-select__option-copy strong,
+.search-select__option-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-select__option-copy strong {
+    font-size: 14px;
+}
+
+.search-select__option-copy small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.search-select__empty {
+    padding: var(--space-5) var(--space-4);
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-align: center;
+}
+
+@media (hover: hover) {
+    .search-select__option:hover {
+        background: var(--surface-hover);
+    }
+}

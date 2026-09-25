@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 import { isApiError } from '@/shared/api';
 
+import './AsyncState.css';
+
 interface AsyncStateProps {
   isLoading: boolean;
   error: unknown;
@@ -19,7 +21,7 @@ function errorMessage(error: unknown): string {
 export function AsyncState({ isLoading, error, children, onRetry }: AsyncStateProps) {
   if (isLoading) {
     return (
-      <Flex justify="center" align="center" style={{ padding: '48px 0' }}>
+      <Flex className="async-state async-state--loading" justify="center" align="center">
         <Spinner size={24} appearance="primary" />
       </Flex>
     );
@@ -27,7 +29,7 @@ export function AsyncState({ isLoading, error, children, onRetry }: AsyncStatePr
 
   if (error) {
     return (
-      <Flex direction="column" align="center" gap={12} style={{ padding: '40px 24px', textAlign: 'center' }}>
+      <Flex className="async-state async-state--error" direction="column" align="center" gap={12}>
         <Typography.Text variant="body" color="secondary">
           {errorMessage(error)}
         </Typography.Text>

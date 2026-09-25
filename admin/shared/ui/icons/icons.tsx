@@ -84,6 +84,15 @@ export function CommentIcon(props: IconProps) {
   );
 }
 
+export function SendIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m4 4 17 8-17 8 3-8-3-8Z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 12h14" strokeLinecap="round" />
+    </Icon>
+  );
+}
+
 export function LogOutIcon(props: IconProps) {
   return (
     <Icon {...props}>

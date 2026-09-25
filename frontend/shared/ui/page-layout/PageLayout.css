@@ -1,0 +1,77 @@
+.app-page {
+    width: min(100%, 820px);
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: max(14px, env(safe-area-inset-top, 0px)) var(--page-gutter) var(--space-6);
+    background:
+        radial-gradient(circle at 100% 0, color-mix(in srgb, var(--blue) 8%, transparent) 0, transparent 32rem),
+        var(--background);
+}
+
+.app-page--with-nav {
+    padding-bottom: calc(var(--bottom-nav-height) + max(26px, env(safe-area-inset-bottom, 0px)));
+}
+
+.page-content {
+    width: 100%;
+    min-width: 0;
+    align-items: stretch !important;
+}
+
+.page-heading {
+    display: flex;
+    min-width: 0;
+    min-height: 46px;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.page-heading__copy {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.page-heading__copy > :is(h1, h2, h3, span) {
+    overflow-wrap: anywhere;
+}
+
+.page-heading__copy h1 {
+    margin: 0;
+}
+
+.page-heading__eyebrow {
+    color: var(--blue-strong);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.page-heading__action {
+    flex: none;
+}
+
+@media (min-width: 700px) {
+    .app-page {
+        padding-top: var(--space-8);
+    }
+
+    .page-content {
+        gap: var(--space-5) !important;
+    }
+}
+
+@media (max-width: 370px) {
+    :root {
+        --page-gutter: 12px;
+    }
+
+    .page-heading {
+        gap: 6px;
+    }
+}

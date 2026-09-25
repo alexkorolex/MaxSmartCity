@@ -14,6 +14,7 @@ export {
   NewsIcon,
   PersonIcon,
   SearchIcon,
+  SendIcon,
   StaffIcon,
   SunIcon,
   WarningIcon,

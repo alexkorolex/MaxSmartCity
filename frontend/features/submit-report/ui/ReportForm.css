@@ -1,0 +1,10 @@
+.report-form__success {
+    min-height: 320px;
+    justify-content: center;
+    padding: var(--space-8) 0;
+    text-align: center;
+}
+
+.report-form__critical-icon {
+    color: var(--error);
+}

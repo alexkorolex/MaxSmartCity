@@ -1,0 +1,23 @@
+.house-info {
+    width: 100%;
+    min-width: 0;
+    align-items: stretch !important;
+}
+
+.house-info__company {
+    min-width: 0;
+    padding: clamp(15px, 4vw, 20px);
+}
+
+.house-info__source {
+    padding: 0 4px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.house-info__source a {
+    color: var(--blue-strong);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--blue) 30%, transparent);
+    text-underline-offset: 2px;
+}

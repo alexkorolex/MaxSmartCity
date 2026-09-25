@@ -10,6 +10,8 @@ import { AsyncState, HouseIcon, ListCard, ToneDot, WarningIcon } from '@/shared/
 import { useReportForm } from '../model/useReportForm';
 import { PhotoPicker } from './PhotoPicker';
 
+import './ReportForm.css';
+
 const URGENCY_OPTIONS: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 
 export function ReportForm() {
@@ -21,7 +23,7 @@ export function ReportForm() {
 
   if (form.attachmentWarning) {
     return (
-      <Flex direction="column" gap="var(--space-4)" align="center" style={{ padding: '32px 0', textAlign: 'center' }}>
+      <Flex className="report-form__success" direction="column" gap="var(--space-4)" align="center">
         <Typography.Text variant="body-strong" color="primary">
           Обращение отправлено
         </Typography.Text>
@@ -46,7 +48,7 @@ export function ReportForm() {
                 title={category.name}
                 before={
                   category.is_critical ? (
-                    <WarningIcon width={18} height={18} style={{ color: 'var(--error)' }} />
+                    <WarningIcon className="report-form__critical-icon" width={18} height={18} />
                   ) : undefined
                 }
                 after={
@@ -161,11 +163,8 @@ export function ReportForm() {
       </ListCard>
 
       {(form.validationError || form.submitError) && (
-        <Flex
-          className="surface-card"
-          style={{ padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--error)' }}
-        >
-          <Typography.Text variant="description" style={{ color: 'var(--error)' }}>
+        <Flex className="form-feedback" role="alert">
+          <Typography.Text variant="description" color="inherit">
             {form.validationError ?? 'Не удалось отправить обращение. Попробуйте ещё раз.'}
           </Typography.Text>
         </Flex>

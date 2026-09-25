@@ -11,6 +11,8 @@ import {
   type HouseManagingOrganization,
 } from '../model/types';
 
+import './HouseInfoCard.css';
+
 function sourceLabel(source: HouseDataSource): string {
   const host = source.url ? websiteLabel(source.url) : source.code;
   return `${host} · ${formatCalendarDate(source.retrieved_at, { year: true })}`;

@@ -7,6 +7,8 @@ import type { SearchOption } from '@/shared/ui';
 
 import { useHouseSelection } from '../model/useHouseSelection';
 
+import './HouseSelector.css';
+
 interface HouseSelectorProps {
   value: string | null;
   onChange: (houseId: string | null) => void;

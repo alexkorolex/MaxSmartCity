@@ -1,0 +1,38 @@
+.form-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.field-card {
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.field-card__body {
+    padding: 10px var(--space-4) var(--space-4);
+}
+
+.sticky-submit {
+    position: sticky;
+    z-index: 5;
+    bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+    padding: var(--space-2);
+    background: color-mix(in srgb, var(--background) 88%, transparent);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(14px);
+}
+
+.form-feedback {
+    padding: var(--space-3) var(--space-4);
+    color: var(--error);
+    background: color-mix(in srgb, var(--error) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--error) 26%, var(--border));
+    border-radius: var(--radius-md);
+}

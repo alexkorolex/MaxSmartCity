@@ -1,0 +1,15 @@
+.async-state {
+    width: 100%;
+    text-align: center;
+}
+
+.async-state--loading {
+    min-height: 120px;
+    padding: 48px 0;
+}
+
+.async-state--error {
+    min-height: 160px;
+    justify-content: center;
+    padding: 40px 24px;
+}

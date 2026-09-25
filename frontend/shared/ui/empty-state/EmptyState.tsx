@@ -1,6 +1,8 @@
 import { Flex, Typography } from '@maxhub/max-ui';
 import type { ReactNode } from 'react';
 
+import './EmptyState.css';
+
 interface EmptyStateProps {
   title: string;
   description?: string;
@@ -10,7 +12,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, icon, action }: EmptyStateProps) {
   return (
-    <Flex className="empty-state" direction="column" align="center" gap={12} style={{ textAlign: 'center' }}>
+    <Flex className="empty-state" direction="column" align="center" gap={12}>
       {icon && (
         <Flex
           align="center"
@@ -25,7 +27,7 @@ export function EmptyState({ title, description, icon, action }: EmptyStateProps
           {title}
         </Typography.Text>
         {description && (
-          <Typography.Text variant="description" color="secondary" style={{ maxWidth: 300 }}>
+          <Typography.Text className="empty-state__description" variant="description" color="secondary">
             {description}
           </Typography.Text>
         )}

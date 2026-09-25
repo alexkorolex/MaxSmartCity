@@ -1,0 +1,24 @@
+.profile-hero {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: clamp(16px, 4vw, 20px);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--blue-soft) 80%, var(--surface)) 0%, var(--surface) 76%);
+}
+
+.profile-hero__copy {
+    min-width: 0;
+}
+
+.profile-hero__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 370px) {
+    .profile-hero {
+        gap: var(--space-3);
+        padding: 15px;
+    }
+}

@@ -1,0 +1,10 @@
+.close-report {
+    width: 100%;
+    min-width: 0;
+    padding: clamp(15px, 4vw, 20px);
+    align-items: stretch !important;
+}
+
+.close-report__error {
+    color: var(--error) !important;
+}

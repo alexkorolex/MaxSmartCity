@@ -16,6 +16,7 @@ export {
   SearchIcon,
   ProfileIcon,
   ReportsIcon,
+  SendIcon,
   SettingsIcon,
   WarningIcon,
 } from './icons';

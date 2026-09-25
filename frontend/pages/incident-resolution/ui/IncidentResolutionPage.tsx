@@ -11,6 +11,8 @@ import {
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CheckCircleIcon, EmptyState, PageLayout } from '@/shared/ui';
 
+import './IncidentResolutionPage.css';
+
 export function IncidentResolutionPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
   const navigate = useNavigate();
@@ -50,20 +52,9 @@ export function IncidentResolutionPage() {
               direction="column"
               align="center"
               gap="var(--space-3)"
-              className="surface-card"
-              style={{ padding: 'var(--space-6) var(--space-4)', textAlign: 'center' }}
+              className="surface-card incident-resolution-summary"
             >
-              <Flex
-                align="center"
-                justify="center"
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 'var(--radius-full)',
-                  background: 'color-mix(in srgb, var(--success) 16%, transparent)',
-                  color: 'var(--success)',
-                }}
-              >
+              <Flex className="incident-resolution-summary__icon" align="center" justify="center">
                 <CheckCircleIcon width={26} height={26} />
               </Flex>
               <Typography.Text variant="body-strong" color="primary">

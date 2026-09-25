@@ -16,6 +16,8 @@ import { formatCalendarDate, formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
 
+import './ReportCardPage.css';
+
 export function ReportCardPage() {
   const { reportId = '' } = useParams<{ reportId: string }>();
   const report = useReport(reportId);
@@ -91,11 +93,11 @@ export function ReportCardPage() {
                     error={attachments.error}
                     onRetry={() => attachments.refetch()}
                   >
-                    <div className="photo-picker__grid" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+                    <div className="report-attachments">
                       {attachments.data?.map((attachment) => (
                         <a
                           key={attachment.id}
-                          className="photo-picker__thumb"
+                          className="report-attachments__item"
                           href={attachment.download_url}
                           target="_blank"
                           rel="noreferrer"

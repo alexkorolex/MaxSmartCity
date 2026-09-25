@@ -5,6 +5,8 @@ import { PlusIcon } from '@/shared/ui';
 
 import type { PendingPhoto } from '../model/usePhotoPicker';
 
+import './PhotoPicker.css';
+
 interface PhotoPickerProps {
   photos: PendingPhoto[];
   canAddMore: boolean;
@@ -58,7 +60,7 @@ export function PhotoPicker({ photos, canAddMore, error, onAdd, onRemove }: Phot
       />
 
       {error ? (
-        <Typography.Text variant="note" style={{ color: 'var(--error)' }}>
+        <Typography.Text className="photo-picker__error" variant="note" color="inherit">
           {error}
         </Typography.Text>
       ) : (

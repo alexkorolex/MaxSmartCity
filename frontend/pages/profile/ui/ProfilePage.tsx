@@ -8,6 +8,8 @@ import { LogoutButton } from '@/features/logout';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, HelpIcon, HouseIcon, ListCard, PageLayout, SettingsIcon } from '@/shared/ui';
 
+import './ProfilePage.css';
+
 function initialsOf(name: string | null): string {
   if (!name) return '?';
   return name

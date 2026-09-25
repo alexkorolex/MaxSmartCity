@@ -1,0 +1,21 @@
+.house-selection-page,
+.house-selection-actions {
+    width: 100%;
+    min-width: 0;
+}
+
+.house-selection-actions > button:first-child:not(:disabled) {
+    background: var(--blue-strong);
+}
+
+.house-selection-actions > button:first-child:not(:disabled):active {
+    background: color-mix(in srgb, var(--blue-strong) 85%, #000);
+}
+
+.house-selection-error {
+    padding: var(--space-3) var(--space-4);
+    color: var(--error);
+    background: color-mix(in srgb, var(--error) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--error) 25%, var(--border));
+    border-radius: var(--radius-md);
+}

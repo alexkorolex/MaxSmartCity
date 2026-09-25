@@ -6,6 +6,8 @@ import { filterSearchOptions } from '@/shared/lib';
 import type { SearchableOption } from '@/shared/lib';
 import { CheckCircleIcon, SearchIcon } from '@/shared/ui/icons';
 
+import './SearchSelect.css';
+
 export type SearchOption = SearchableOption;
 
 interface SearchSelectProps {

@@ -12,6 +12,8 @@ import { ROUTES } from '@/shared/routes';
 import { formatCalendarDate } from '@/shared/lib';
 import { AsyncState, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
 
+import './IncidentCardPage.css';
+
 export function IncidentCardPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
   const incident = useIncident(incidentId);
@@ -60,8 +62,7 @@ export function IncidentCardPage() {
               <Flex
                 direction="column"
                 gap="var(--space-3)"
-                className="surface-card"
-                style={{ padding: 'var(--space-4)', borderColor: 'var(--warning)' }}
+                className="surface-card incident-resolution-callout"
               >
                 <Typography.Text variant="body-strong" color="primary">
                   Проблема отмечена как решённая
@@ -70,7 +71,7 @@ export function IncidentCardPage() {
                   Подтвердите, что всё в порядке, или сообщите, если проблема осталась.
                 </Typography.Text>
                 <Button asChild variant="primary" size="large" stretched>
-                  <Link to={ROUTES.incidentResolution(incident.data.id)}>Подтвердить или оспорить решение</Link>
+                  <Link to={ROUTES.incidentResolution(incident.data.id)}>Проверить решение</Link>
                 </Button>
               </Flex>
             )}

@@ -11,6 +11,8 @@ import { ROUTES } from '@/shared/routes';
 import { formatDateTime } from '@/shared/lib';
 import { AsyncState, BellIcon, EmptyState, ListCard, PageLayout } from '@/shared/ui';
 
+import './NotificationsPage.css';
+
 function NotificationRow({ notification }: { notification: AppNotification }) {
   const markRead = useMarkNotificationRead();
   const target = notification.incident_id
@@ -25,15 +27,7 @@ function NotificationRow({ notification }: { notification: AppNotification }) {
     subtitleMode: 'tertiary' as const,
     separator: true,
     before: !notification.is_read ? (
-      <span
-        style={{
-          display: 'block',
-          width: 9,
-          height: 9,
-          borderRadius: 'var(--radius-full)',
-          background: 'var(--blue)',
-        }}
-      />
+      <span className="notification-unread-dot" role="img" aria-label="Новое уведомление" />
     ) : undefined,
     onClick: () => {
       if (!notification.is_read) markRead.mutate(notification.id);
@@ -62,7 +56,7 @@ export function NotificationsPage() {
       subtitle="Изменения по вашим обращениям"
       action={
         hasUnread ? (
-          <Button variant="ghost" size="small" onClick={() => markAllRead.mutate()} loading={markAllRead.isPending}>
+          <Button className="notifications-page__read-all" variant="ghost" size="small" onClick={() => markAllRead.mutate()} loading={markAllRead.isPending}>
             Прочитать всё
           </Button>
         ) : undefined

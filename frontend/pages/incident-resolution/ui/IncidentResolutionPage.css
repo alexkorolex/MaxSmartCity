@@ -1,0 +1,13 @@
+.incident-resolution-summary {
+    padding: clamp(22px, 6vw, 32px) var(--space-4);
+    text-align: center;
+}
+
+.incident-resolution-summary__icon {
+    width: 56px;
+    height: 56px;
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 14%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--success) 24%, var(--border));
+    border-radius: var(--radius-full);
+}

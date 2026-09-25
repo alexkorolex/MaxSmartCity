@@ -1,0 +1,40 @@
+.house-search-card {
+    position: relative;
+    min-width: 0;
+    padding: clamp(15px, 4vw, 20px);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--blue-soft) 48%, var(--surface)) 0%, var(--surface) 44%);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.house-search-card__connector {
+    width: 2px;
+    height: 18px;
+    margin: 5px 0 5px 15px;
+    background: linear-gradient(var(--blue), var(--border));
+    border-radius: var(--radius-full);
+}
+
+.house-selection-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 9%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--success) 25%, var(--border));
+    border-radius: var(--radius-md);
+}
+
+.house-selection-summary > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.house-selection-summary svg {
+    flex: none;
+}

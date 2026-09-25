@@ -1,0 +1,5 @@
+.incident-resolution-callout {
+    padding: var(--space-4);
+    background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+    border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}

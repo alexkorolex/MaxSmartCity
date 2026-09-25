@@ -1,0 +1,15 @@
+.notification-unread-dot {
+    display: block;
+    width: 10px;
+    height: 10px;
+    background: var(--blue-strong);
+    border: 2px solid var(--blue-soft);
+    border-radius: var(--radius-full);
+}
+
+@media (max-width: 390px) {
+    .notifications-page__read-all {
+        max-width: 112px;
+        white-space: normal;
+    }
+}

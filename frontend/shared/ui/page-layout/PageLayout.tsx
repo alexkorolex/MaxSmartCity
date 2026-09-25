@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 
 import { ArrowLeftIcon } from '@/shared/ui/icons';
 
+import './PageLayout.css';
+
 interface PageLayoutProps {
   title?: string;
   subtitle?: string;

@@ -8,3 +8,12 @@ datasources:
     url: http://loki:3100
     isDefault: true
     editable: false
+    jsonData:
+      # Every backend log line written during a request carries its trace id - as the JSON
+      # field, or as "trace_id=..." once a dashboard panel reformats the line.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '(?:"trace_id":"|trace_id=)([0-9a-f]{32})'
+          url: "$${__value.raw}"
+          datasourceUid: tempo
+          urlDisplayLabel: Open trace in Tempo

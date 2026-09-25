@@ -64,8 +64,15 @@ class MaxWebhookController(Controller):
                     await handle_bot_stopped(data, resident_service)
                 case _:
                     logger.info("Unhandled MAX update type", extra={"update_type": update_type})
+        # The webhook's boundary, so deliberately broad. MAX redelivers an update until it
+        # gets a 200: re-raising would turn one update we can't handle (malformed payload,
+        # MAX/Redis/database down, a bug) into an endless retry loop. It is logged with its
+        # traceback and left unmarked in the dedup store instead.
         except Exception:
-            logger.exception("Failed to process MAX update", extra={"update_type": update_type})
+            logger.exception(
+                "Failed to process MAX update",
+                extra={"update_type": update_type, "delivery_key": delivery_key},
+            )
             return
 
         if delivery_key:

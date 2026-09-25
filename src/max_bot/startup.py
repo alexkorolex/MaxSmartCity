@@ -10,9 +10,11 @@ logger = logging.getLogger(__name__)
 async def auto_subscribe_max_webhook() -> None:
     try:
         settings = MaxBotSettings.from_environment()
-    except ValueError:
+    except ValueError as exc:
+        logger.info("MAX bot is not configured, webhook subscription skipped", extra={"reason": str(exc)})
         return
     if not settings.webhook_public_url:
+        logger.info("MAX_WEBHOOK_PUBLIC_URL is not set, webhook subscription skipped")
         return
 
     client = MaxClient(settings)

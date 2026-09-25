@@ -18,14 +18,14 @@ from src.domains.reports.chat import (
     MAX_WAIT_SECONDS,
     ChatConflictError,
     ChatConversationSummary,
+    ChatEventBus,
     ChatMessageView,
     ChatNotFoundError,
-    ChatSubscription,
     ChatThread,
     ChatUpdates,
     ReportChatService,
     SendChatMessageCommand,
-    publish_chat_event,
+    provide_chat_events,
 )
 from src.domains.reports.chat.participants import resident_report, staff_report
 from src.security.dependency import provide_principal
@@ -57,7 +57,10 @@ class ReportChatController(Controller):
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
-        self.dependencies = {"principal": Provide(provide_principal)}
+        self.dependencies = {
+            "principal": Provide(provide_principal),
+            "chat_events": Provide(provide_chat_events, sync_to_thread=False),
+        }
 
     @get("/", name="reports:ReportChat:thread")
     async def thread(
@@ -65,6 +68,7 @@ class ReportChatController(Controller):
         report_id: FromPath[UUID],
         db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
+        chat_events: NamedDependency[ChatEventBus],
     ) -> ChatThread:
         service = ReportChatService(db_session)
         try:
@@ -78,7 +82,7 @@ class ReportChatController(Controller):
             raise NotFoundException(str(exc)) from exc
         await db_session.commit()
         if service.marked_read:
-            await publish_chat_event(report_id)  # the writer's "прочитано" appears right away
+            await chat_events.publish(report_id)  # the writer's "прочитано" appears right away
         return thread
 
     @get("/updates", name="reports:ReportChat:updates")
@@ -87,6 +91,7 @@ class ReportChatController(Controller):
         report_id: FromPath[UUID],
         db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
+        chat_events: NamedDependency[ChatEventBus],
         since: Annotated[datetime | None, Parameter()] = None,
     ) -> ChatUpdates:
         """Long poll: answers as soon as the chat changes after ``since`` (the latest
@@ -100,7 +105,7 @@ class ReportChatController(Controller):
                 await staff_report(db_session, report_id, _staff_organization(principal))
         except ChatNotFoundError as exc:
             raise NotFoundException(str(exc)) from exc
-        async with ChatSubscription(report_id) as subscription:
+        async with chat_events.subscribe(report_id) as subscription:
             changed = await ReportChatService(db_session).has_changes_since(report_id, since)
             await db_session.commit()
             if not changed:
@@ -114,6 +119,7 @@ class ReportChatController(Controller):
         data: SendChatMessageCommand,
         db_session: NamedDependency[AsyncSession],
         principal: NamedDependency[Principal],
+        chat_events: NamedDependency[ChatEventBus],
     ) -> ChatMessageView:
         service = ReportChatService(db_session)
         try:
@@ -134,7 +140,7 @@ class ReportChatController(Controller):
         except ChatConflictError as exc:
             raise ClientException(status_code=409, detail=str(exc)) from exc
         await db_session.commit()
-        await publish_chat_event(report_id)
+        await chat_events.publish(report_id)
         return message
 
 
@@ -147,7 +153,10 @@ class ChatInboxController(Controller):
 
     def __init__(self, owner: Router) -> None:
         super().__init__(owner)
-        self.dependencies = {"principal": Provide(provide_principal)}
+        self.dependencies = {
+            "principal": Provide(provide_principal),
+            "chat_events": Provide(provide_chat_events, sync_to_thread=False),
+        }
 
     @get("/conversations", name="reports:ReportChat:conversations", guards=[require_roles(*STAFF_ROLES)])
     async def conversations(

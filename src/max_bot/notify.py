@@ -2,6 +2,7 @@
 that logs them straight into the web app."""
 
 import logging
+from dataclasses import dataclass
 
 from redis.exceptions import RedisError
 
@@ -26,14 +27,28 @@ def reachable_in_max(resident: Resident) -> bool:
     )
 
 
-async def send_to_resident(resident: Resident, text: str) -> bool:
+@dataclass(frozen=True, slots=True)
+class MaxBot:
+    """The bot's settings and a client to talk to MAX with - one per batch of messages."""
+
+    settings: MaxBotSettings
+    client: MaxClient
+
+
+def max_bot_from_environment() -> MaxBot | None:
+    """``None`` when the bot is not configured - then there's simply nothing to send."""
     try:
         settings = MaxBotSettings.from_environment()
-    except ValueError:
-        return False
+    except ValueError as exc:
+        logger.debug("MAX bot is not configured, not messaging residents", extra={"reason": str(exc)})
+        return None
+    return MaxBot(settings=settings, client=MaxClient(settings))
+
+
+async def send_to_resident(resident: Resident, text: str, bot: MaxBot) -> bool:
     try:
-        attachments = await login_button(await create_login_code(resident.id), settings)
-        await MaxClient(settings).send_message(
+        attachments = await login_button(await create_login_code(resident.id), bot.settings, bot.client)
+        await bot.client.send_message(
             chat_id=resident.max_chat_id,
             user_id=resident.max_user_id,
             text=text + RELOGIN_HINT,

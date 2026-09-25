@@ -14,7 +14,7 @@ from litestar.handlers.base import BaseRouteHandler
 from litestar.stores.redis import RedisStore
 
 from src.domains.identity.services import ResidentService
-from src.max_bot import certs, dedup, handlers, identity, startup
+from src.max_bot import certs, dedup, handlers, startup
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.guards import require_max_webhook_secret
 from src.max_bot.settings import MaxBotSettings
@@ -57,9 +57,8 @@ def fake_redis(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def fake_bot_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock MAX's ``/me`` bot-info call and reset the process-lifetime username cache, so
-    every test resolves the same fixed username independent of test order or network."""
-    monkeypatch.setattr(identity, "_cached_username", None)
+    """Mock MAX's ``/me`` bot-info call, so every test resolves the same fixed username
+    without the network."""
 
     async def fake_get_me(_self: MaxClient) -> dict[str, Any]:
         return {"user_id": 1, "first_name": "Smart City", "is_bot": True, "username": FAKE_BOT_USERNAME}
@@ -470,3 +469,39 @@ async def test_id_command_in_a_dialog_replies_with_the_max_id_without_registerin
 
     assert sent == [{"user_id": 4242, "text": handlers.MY_ID_TEXT.format(user_id=4242)}]
     assert service.upserts == []
+
+
+async def test_bot_username_is_looked_up_once_per_client(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = 0
+
+    async def counting_get_me(_self: MaxClient) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return {"username": FAKE_BOT_USERNAME}
+
+    monkeypatch.setattr(MaxClient, "get_me", counting_get_me)
+    client = MaxClient(settings)
+
+    assert await client.bot_username() == FAKE_BOT_USERNAME
+    assert await client.bot_username() == FAKE_BOT_USERNAME
+    assert calls == 1
+    # Nothing is shared between clients (no process-wide cache to reset between tests).
+    assert await MaxClient(settings).bot_username() == FAKE_BOT_USERNAME
+    assert calls == 2
+
+
+async def test_login_button_leaves_out_open_in_max_when_the_username_is_unknown(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def failing_get_me(_self: MaxClient) -> dict[str, Any]:
+        raise MaxApiError(503, "unavailable")
+
+    monkeypatch.setattr(MaxClient, "get_me", failing_get_me)
+
+    buttons = await handlers.login_button("code", settings, MaxClient(settings))
+
+    row = buttons[0]["payload"]["buttons"][0]
+    assert [button["type"] for button in row] == ["link"]
+    assert any(record.exc_info for record in caplog.records if "username" in record.getMessage())

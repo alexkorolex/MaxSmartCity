@@ -12,7 +12,6 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager, suppres
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
 from litestar import Litestar
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.incidents.services import IncidentCoreService
@@ -48,12 +47,18 @@ async def run_jobs_once(db_config: SQLAlchemyAsyncConfig) -> None:
             try:
                 processed = await job(session)
                 await session.commit()
-            except SQLAlchemyError:
+            # The loop's isolation boundary, so deliberately broad: one job's failure - a
+            # database error, an unreachable MAX/SMTP, a bug - must neither stop the others
+            # nor kill the loop (the task would die silently, and every job with it, until
+            # the next restart). Cancellation is a ``BaseException`` and still stops it.
+            except Exception:
                 await session.rollback()
                 logger.exception("Background job failed", extra={"job": name})
                 continue
         if processed:
-            logger.info("Background job processed %s item(s)", processed, extra={"job": name})
+            logger.info(
+                "Background job processed %s item(s)", processed, extra={"job": name, "processed": processed}
+            )
 
 
 async def _loop(db_config: SQLAlchemyAsyncConfig, interval: float) -> None:

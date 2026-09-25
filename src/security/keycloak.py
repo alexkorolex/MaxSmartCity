@@ -1,12 +1,17 @@
+import logging
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 import httpx
 import jwt
 from jwt import PyJWKClient
+from litestar.connection import ASGIConnection
 
 from src.security.settings import SecuritySettings
+
+logger = logging.getLogger(__name__)
+
+TOKEN_VERIFIER_STATE_KEY = "keycloak_token_verifier"
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,29 +92,53 @@ async def logout_staff(settings: SecuritySettings, *, refresh_token: str) -> Non
         )
 
 
-@lru_cache(maxsize=1)
-def _jwks_client(jwks_uri: str) -> PyJWKClient:
-    return PyJWKClient(jwks_uri, cache_keys=True, lifespan=3600)
+class KeycloakUnavailableError(RuntimeError):
+    """The realm's signing keys (JWKS) could not be fetched - Keycloak is down or unreachable.
+    Not the caller's fault: it must not be reported as an invalid token."""
 
 
-def decode_keycloak_token(token: str, settings: SecuritySettings) -> KeycloakClaims:
-    """Verify a Keycloak-issued access token against the realm's JWKS.
+class KeycloakTokenVerifier:
+    """Verifies staff access tokens against the realm's JWKS.
 
-    Raises:
-        jwt.PyJWTError: if the token is missing, expired, or fails signature/claim verification.
+    Owns the JWKS clients and therefore their signing-key cache - one verifier lives as long
+    as the application (``app.state``, see ``token_verifier``), so keys are fetched once an
+    hour, not on every request, and never shared between applications (e.g. tests).
     """
-    signing_key = _jwks_client(settings.keycloak_jwks_uri).get_signing_key_from_jwt(token)
-    claims = jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=["RS256"],
-        audience=settings.keycloak_audience,
-        issuer=settings.keycloak_issuer,
-        options={"require": ["sub", "exp"]},
-    )
-    realm_roles = frozenset(claims.get("realm_access", {}).get("roles", ()))
-    return KeycloakClaims(
-        subject=claims["sub"],
-        preferred_username=claims.get("preferred_username"),
-        roles=realm_roles,
-    )
+
+    def __init__(self) -> None:
+        self._jwks_clients: dict[str, PyJWKClient] = {}
+
+    def _jwks_client(self, jwks_uri: str) -> PyJWKClient:
+        client = self._jwks_clients.get(jwks_uri)
+        if client is None:
+            client = self._jwks_clients[jwks_uri] = PyJWKClient(jwks_uri, cache_keys=True, lifespan=3600)
+        return client
+
+    def decode(self, token: str, settings: SecuritySettings) -> KeycloakClaims:
+        """Raises:
+        jwt.PyJWTError: the token is malformed, expired, or fails signature/claim checks.
+        KeycloakUnavailableError: the signing keys could not be fetched.
+        """
+        try:
+            signing_key = self._jwks_client(settings.keycloak_jwks_uri).get_signing_key_from_jwt(token)
+        except jwt.PyJWKClientConnectionError as exc:
+            raise KeycloakUnavailableError(f"Could not fetch JWKS from {settings.keycloak_jwks_uri}") from exc
+        claims = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=settings.keycloak_audience,
+            issuer=settings.keycloak_issuer,
+            options={"require": ["sub", "exp"]},
+        )
+        realm_roles = frozenset(claims.get("realm_access", {}).get("roles", ()))
+        return KeycloakClaims(
+            subject=claims["sub"],
+            preferred_username=claims.get("preferred_username"),
+            roles=realm_roles,
+        )
+
+
+def token_verifier(connection: ASGIConnection) -> KeycloakTokenVerifier:
+    """The application's verifier, registered in ``src.main.create_app``."""
+    return connection.app.state[TOKEN_VERIFIER_STATE_KEY]

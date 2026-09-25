@@ -72,6 +72,6 @@ async def send_credentials_email(
         await send_email(recipient, subject, body)
     except MailDeliveryError as exc:
         # The error text never contains the password - only SMTP's own diagnostics.
-        logger.warning("Staff credentials e-mail was not sent", extra={"login": login, "error": str(exc)})
+        logger.warning("Staff credentials e-mail was not sent", extra={"login": login}, exc_info=True)
         return CredentialsEmailResult(recipient=recipient, sent=False, error=str(exc))
     return CredentialsEmailResult(recipient=recipient, sent=True)

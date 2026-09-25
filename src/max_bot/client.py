@@ -1,11 +1,13 @@
+import logging
 import ssl
-from functools import lru_cache
 from typing import Any
 
 import aiohttp
 
 from src.max_bot.certs import CERTS_DIR
 from src.max_bot.settings import MaxBotSettings
+
+logger = logging.getLogger(__name__)
 
 
 class MaxApiError(RuntimeError):
@@ -16,8 +18,8 @@ class MaxApiError(RuntimeError):
         self.status = status
 
 
-@lru_cache(maxsize=1)
 def _ssl_context() -> ssl.SSLContext:
+    """System CAs plus the Russian root certificates MAX's API is signed with."""
     context = ssl.create_default_context()
     for cert_path in sorted(CERTS_DIR.glob("*.crt")):
         context.load_verify_locations(cafile=str(cert_path))
@@ -25,8 +27,31 @@ def _ssl_context() -> ssl.SSLContext:
 
 
 class MaxClient:
+    """MAX Bot API client. Create one per unit of work (a webhook update, a notification
+    batch) and reuse it within it: it builds its TLS context and looks the bot's username up
+    once, not on every call."""
+
     def __init__(self, settings: MaxBotSettings) -> None:
         self._settings = settings
+        self._ssl: ssl.SSLContext | None = None
+        self._username: str | None = None
+
+    def _ssl_context(self) -> ssl.SSLContext:
+        if self._ssl is None:
+            self._ssl = _ssl_context()
+        return self._ssl
+
+    async def bot_username(self) -> str | None:
+        """The bot's @username (for "open in MAX" buttons); ``None`` if MAX can't tell -
+        the caller then simply leaves that button out."""
+        if self._username is None:
+            try:
+                me = await self.get_me()
+            except (MaxApiError, OSError):
+                logger.warning("Could not fetch the bot's username from MAX", exc_info=True)
+                return None
+            self._username = (me or {}).get("username")
+        return self._username
 
     async def _request(
         self,
@@ -39,7 +64,7 @@ class MaxClient:
         url = f"{self._settings.api_base_url}{path}"
         headers = {"Authorization": self._settings.bot_token}
         timeout = aiohttp.ClientTimeout(total=10)
-        connector = aiohttp.TCPConnector(ssl=_ssl_context())
+        connector = aiohttp.TCPConnector(ssl=self._ssl_context())
         async with (
             aiohttp.ClientSession(timeout=timeout, connector=connector) as session,
             session.request(method, url, headers=headers, params=params, json=json) as response,

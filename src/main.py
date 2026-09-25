@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.config.response_cache import ResponseCacheConfig
+from litestar.datastructures import State
 from litestar.openapi.config import OpenAPIConfig
 from litestar.openapi.plugins import SwaggerRenderPlugin
 from litestar.plugins.prometheus import PrometheusController
@@ -15,12 +16,14 @@ from src.background import background_jobs_lifespan
 from src.cli import OrchestrationCLIPlugin
 from src.database.cache import CacheSettings
 from src.database.config import DatabaseSettings
+from src.domains.reports.chat import chat_events_lifespan
 from src.max_bot.cli import MaxBotCLIPlugin
 from src.max_bot.controllers import MaxWebhookController
 from src.max_bot.startup import auto_subscribe_max_webhook
 from src.observability.logs import structlog_plugin
 from src.observability.prometheus import prometheus_config
 from src.observability.tracing import TracingSettings, configure_tracing
+from src.security.keycloak import TOKEN_VERIFIER_STATE_KEY, KeycloakTokenVerifier
 from src.settings import CorsSettings
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +42,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         middleware.append(tracing_config.middleware)
     return Litestar(
         route_handlers=[PrometheusController, MaxWebhookController],
+        state=State({TOKEN_VERIFIER_STATE_KEY: KeycloakTokenVerifier()}),
         cors_config=CORSConfig(
             allow_origins=list(cors_settings.allowed_origins),
             allow_credentials=True,
@@ -56,7 +60,7 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),
         on_startup=[auto_subscribe_max_webhook],
-        lifespan=[background_jobs_lifespan(db_config)],
+        lifespan=[chat_events_lifespan(cache_settings), background_jobs_lifespan(db_config)],
         openapi_config=OpenAPIConfig(
             title="Smart City Project",
             version="0.0.1",

@@ -1,6 +1,12 @@
 """Chat between a resident and the organizations working on their report."""
 
-from src.domains.reports.chat.events import MAX_WAIT_SECONDS, ChatSubscription, publish_chat_event
+from src.domains.reports.chat.events import (
+    MAX_WAIT_SECONDS,
+    ChatEventBus,
+    ChatSubscription,
+    chat_events_lifespan,
+    provide_chat_events,
+)
 from src.domains.reports.chat.notifier import UNREAD_NOTIFICATION_DELAY, notify_unread_chat_messages
 from src.domains.reports.chat.participants import ChatConflictError, ChatNotFoundError, report_organizations
 from src.domains.reports.chat.schemas import (
@@ -18,6 +24,7 @@ __all__ = (
     "UNREAD_NOTIFICATION_DELAY",
     "ChatConflictError",
     "ChatConversationSummary",
+    "ChatEventBus",
     "ChatMessageView",
     "ChatNotFoundError",
     "ChatSubscription",
@@ -25,7 +32,8 @@ __all__ = (
     "ChatUpdates",
     "ReportChatService",
     "SendChatMessageCommand",
+    "chat_events_lifespan",
     "notify_unread_chat_messages",
-    "publish_chat_event",
+    "provide_chat_events",
     "report_organizations",
 )

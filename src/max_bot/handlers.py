@@ -5,7 +5,6 @@ from src.database.logging import database_action
 from src.domains.identity.services import ResidentService
 from src.max_bot.client import MaxClient
 from src.max_bot.dedup import create_login_code
-from src.max_bot.identity import get_bot_username
 from src.max_bot.settings import MaxBotSettings
 
 logger = logging.getLogger(__name__)
@@ -49,11 +48,11 @@ def _display_name(first_name: str | None, last_name: str | None) -> str | None:
     return " ".join(part for part in (first_name, last_name) if part) or None
 
 
-async def login_button(code: str, settings: MaxBotSettings) -> list[dict[str, Any]]:
+async def login_button(code: str, settings: MaxBotSettings, client: MaxClient) -> list[dict[str, Any]]:
     login_url = f"{settings.web_app_login_url}?code={code}"
     row: list[dict[str, Any]] = []
 
-    bot_username = await get_bot_username(settings)
+    bot_username = await client.bot_username()
     if bot_username:
         row.append({"type": "open_app", "text": "Открыть в MAX", "web_app": bot_username, "payload": code})
 
@@ -83,7 +82,7 @@ async def _issue_login_button(
         user_id=max_user_id,
         chat_id=chat_id,
         text=text,
-        attachments=await login_button(code, settings),
+        attachments=await login_button(code, settings, client),
     )
 
 

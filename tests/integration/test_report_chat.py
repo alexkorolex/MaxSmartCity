@@ -12,11 +12,7 @@ from sqlalchemy.pool import NullPool
 
 from src.domains.identity.models import Resident
 from src.domains.notifications.resident_push import push_resident_notifications
-from src.domains.reports.chat import (
-    ChatSubscription,
-    notify_unread_chat_messages,
-    publish_chat_event,
-)
+from src.domains.reports.chat import ChatEventBus, notify_unread_chat_messages
 from tests.integration.test_housing_api import _headers, _register_housing_organization
 from tests.integration.test_ingestion import rows
 from tests.integration.test_resident_api import (  # noqa: F401
@@ -104,11 +100,12 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     # The resident is away: after a minute unread, they're told in MAX and in the app.
     delivered: list[tuple[int | None, str]] = []
 
-    async def fake_send(resident: Resident, text: str) -> bool:
+    async def fake_send(resident: Resident, text: str, _bot: object) -> bool:
         delivered.append((resident.max_chat_id, text))
         return True
 
     monkeypatch.setattr("src.domains.notifications.resident_push.send_to_resident", fake_send)
+    monkeypatch.setattr("src.domains.notifications.resident_push.max_bot_from_environment", object)
     _run_notifier(database_url, push_resident_notifications)  # whatever the report itself caused
     delivered.clear()
     run_sql(
@@ -212,15 +209,18 @@ def test_long_poll_answers_at_once_when_the_chat_changed_and_times_out_otherwise
 
 
 @pytest.mark.anyio
-async def test_a_published_chat_event_wakes_the_waiting_subscriber(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("REDIS_URL", os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+async def test_a_published_chat_event_wakes_the_waiting_subscriber() -> None:
+    bus = ChatEventBus.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
     report_id = uuid4()
     loop = asyncio.get_running_loop()
-    async with ChatSubscription(report_id) as subscription:
-        started = loop.time()
-        publisher = asyncio.create_task(asyncio.sleep(0.2))
-        publisher.add_done_callback(lambda _task: asyncio.ensure_future(publish_chat_event(report_id)))
-        assert await subscription.wait(5) is True
-        assert loop.time() - started < 2
-    async with ChatSubscription(uuid4()) as idle:
-        assert await idle.wait(0.3) is False
+    try:
+        async with bus.subscribe(report_id) as subscription:
+            started = loop.time()
+            publisher = asyncio.create_task(asyncio.sleep(0.2))
+            publisher.add_done_callback(lambda _task: asyncio.ensure_future(bus.publish(report_id)))
+            assert await subscription.wait(5) is True
+            assert loop.time() - started < 2
+        async with bus.subscribe(uuid4()) as idle:
+            assert await idle.wait(0.3) is False
+    finally:
+        await bus.aclose()

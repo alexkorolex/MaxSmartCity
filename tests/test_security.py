@@ -7,7 +7,12 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from litestar.connection import ASGIConnection
-from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
+from litestar.datastructures import State
+from litestar.exceptions import (
+    NotAuthorizedException,
+    PermissionDeniedException,
+    ServiceUnavailableException,
+)
 from litestar.handlers.base import BaseRouteHandler
 from litestar.types import Guard
 
@@ -18,6 +23,7 @@ from src.security.guards import (
     require_resident,
     require_roles,
 )
+from src.security.keycloak import TOKEN_VERIFIER_STATE_KEY, KeycloakTokenVerifier
 from src.security.resident import decode_resident_token, resident_jwt_auth
 from src.security.settings import SecuritySettings
 
@@ -86,8 +92,11 @@ def _keycloak_token(private_pem: str, *, roles: list[str], iss: str = ISSUER, au
     return jwt.encode(payload, private_pem, algorithm="RS256")
 
 
-def _run_guard(guard: Guard, headers: dict[str, str]) -> None:
-    connection = cast(ASGIConnection, type("FakeConnection", (), {"headers": headers})())
+def _run_guard(guard: Guard, headers: dict[str, str], verifier: KeycloakTokenVerifier | None = None) -> None:
+    app = type(
+        "FakeApp", (), {"state": State({TOKEN_VERIFIER_STATE_KEY: verifier or KeycloakTokenVerifier()})}
+    )()
+    connection = cast(ASGIConnection, type("FakeConnection", (), {"headers": headers, "app": app})())
     route_handler = cast(BaseRouteHandler, None)  # unused by our guards
     guard(connection, route_handler)
 
@@ -216,3 +225,33 @@ def test_require_admin_or_bootstrap_secret_rejects_wrong_bootstrap_secret(
     # then fails on the missing Authorization header - never a silent bypass.
     with pytest.raises(NotAuthorizedException):
         _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "wrong"})
+
+
+def test_unreachable_keycloak_is_a_503_not_an_invalid_token(
+    settings: SecuritySettings,
+    rsa_keypair: tuple[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    private_pem, _ = rsa_keypair
+
+    def unreachable(_self: object, _token: str) -> None:
+        raise jwt.PyJWKClientConnectionError("Fail to fetch data from the url, err: timed out")
+
+    monkeypatch.setattr(jwt.PyJWKClient, "get_signing_key_from_jwt", unreachable)
+    token = _keycloak_token(private_pem, roles=["admin"])
+
+    with pytest.raises(ServiceUnavailableException):
+        _run_guard(require_roles("admin"), {"Authorization": f"Bearer {token}"})
+    [record] = [record for record in caplog.records if record.name == "src.security.guards"]
+    assert record.levelname == "ERROR"
+    assert record.exc_info is not None
+
+
+def test_each_verifier_keeps_its_own_jwks_client(settings: SecuritySettings) -> None:
+    first, second = KeycloakTokenVerifier(), KeycloakTokenVerifier()
+
+    assert first._jwks_client(settings.keycloak_jwks_uri) is first._jwks_client(settings.keycloak_jwks_uri)
+    assert first._jwks_client(settings.keycloak_jwks_uri) is not second._jwks_client(
+        settings.keycloak_jwks_uri
+    )

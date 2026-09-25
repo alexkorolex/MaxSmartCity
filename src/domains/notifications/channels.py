@@ -10,6 +10,7 @@ an enum value and a strategy to ``CHANNEL_STRATEGIES``, nothing else.
 import hashlib
 import hmac
 import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -25,6 +26,8 @@ from src.domains.notifications.enums import OrganizationChannelType
 from src.domains.notifications.mailer import MailDeliveryError, send_email
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.settings import MaxBotSettings
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelConfigurationError(ValueError):
@@ -141,7 +144,14 @@ class MaxMembersStrategy(ChannelStrategy):
             try:
                 await client.send_message(text=message.text, user_id=max_user_id)
             except (MaxApiError, OSError):
+                # One member's blocked bot or a MAX hiccup must not stop the others - but
+                # stays visible: a member who never gets anything is otherwise a mystery.
                 failed += 1
+                logger.warning(
+                    "Could not message an organization member in MAX",
+                    extra={"organization_id": str(message.organization_id), "max_user_id": max_user_id},
+                    exc_info=True,
+                )
         if failed == len(recipients):
             raise ChannelDeliveryError(f"MAX delivery failed for all {failed} members")
 

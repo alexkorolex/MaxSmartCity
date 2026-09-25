@@ -216,18 +216,35 @@
       "id": 21,
       "type": "logs",
       "title": "Recent error logs",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "description": "Errors and their tracebacks. Click trace_id to open the request in Tempo.",
+      "gridPos": { "h": 12, "w": 16, "x": 0, "y": 29 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
-        { "expr": "{compose_service=\"backend\", level=\"error\"}", "refId": "A" }
+        { "expr": "{compose_service=\"backend\", level=~\"error|critical\"} | json | line_format \"{{if .exc_type}}{{.exc_type}}: {{end}}{{.event}}{{if .path}} [{{.method}} {{.path}}]{{end}}{{if .exception}}\\n{{.exception}}{{end}}{{if .trace_id}}\\ntrace_id={{.trace_id}}{{end}}\"", "refId": "A" }
       ],
       "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Top exception types",
+      "description": "Errors logged with a traceback, by exception type, over the selected time range.",
+      "gridPos": { "h": 12, "w": 8, "x": 16, "y": 29 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "expr": "sort_desc(sum by (exc_type) (count_over_time({compose_service=\"backend\", level=~\"error|critical\"} | json | exc_type != \"\" [$__range])))", "refId": "A", "queryType": "instant", "legendFormat": "{{exc_type}}" }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "exc_type": "Exception", "Value": "Count" } } }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Count", "desc": true }] }
     },
     {
       "id": 22,
       "type": "logs",
       "title": "Live backend logs",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 37 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         { "expr": "{compose_service=\"backend\"}", "refId": "A" }
@@ -235,14 +252,14 @@
       "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true }
     },
 
-    { "type": "row", "title": "Traces", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 }, "id": 103, "collapsed": false },
+    { "type": "row", "title": "Traces", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 }, "id": 103, "collapsed": false },
 
     {
       "id": 30,
       "type": "table",
       "title": "Recent traces",
       "description": "Click a trace ID to open the full trace view.",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 46 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 50 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "targets": [
         {

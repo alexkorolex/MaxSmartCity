@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +64,13 @@ class MLDecisionClient:
             ) as client:
                 response = await client.request(method, path, json=json)
         except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            # Callers fall back to rules, so this is not an error for the request - but a
+            # silently dead ML service would never be noticed otherwise.
+            logger.warning(
+                "ML service is unreachable, falling back",
+                extra={"method": method, "path": path, "ml_base_url": self._base_url},
+                exc_info=True,
+            )
             return MLHTTPResult(
                 status_code=503,
                 body={
@@ -73,6 +83,14 @@ class MLDecisionClient:
         try:
             body = response.json()
         except ValueError:
+            logger.warning(
+                "ML service returned a non-JSON response",
+                extra={
+                    "path": path,
+                    "status_code": response.status_code,
+                    "body_preview": response.text[:200],
+                },
+            )
             body = {
                 "request_id": json.get("request_id") if json else None,
                 "code": "MODEL_UNAVAILABLE",

@@ -15,9 +15,7 @@ def resident_jwt_auth(settings: SecuritySettings) -> JWTAuth:
     return JWTAuth(
         token_secret=settings.resident_jwt_secret,
         algorithm=RESIDENT_TOKEN_ALGORITHM,
-        retrieve_user_handler=lambda _token, _connection: (
-            None
-        ),  # unused: we don't run this as global middleware
+        retrieve_user_handler=lambda _token, _connection: None,
     )
 
 

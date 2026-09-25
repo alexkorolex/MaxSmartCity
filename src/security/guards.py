@@ -1,16 +1,23 @@
 import hmac
+import logging
 
 import jwt
 from litestar.connection import ASGIConnection
-from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
+from litestar.exceptions import (
+    NotAuthorizedException,
+    PermissionDeniedException,
+    ServiceUnavailableException,
+)
 from litestar.handlers.base import BaseRouteHandler
 from litestar.types import Guard
 
-from src.security.keycloak import decode_keycloak_token
+from src.security.keycloak import KeycloakClaims, KeycloakUnavailableError, token_verifier
 from src.security.resident import decode_resident_token
 from src.security.settings import SecuritySettings
 
 RESIDENT_TOKEN_ISSUER = "maxsmartcity-residents"
+
+logger = logging.getLogger(__name__)
 
 
 def extract_bearer_token(connection: ASGIConnection) -> str:
@@ -28,6 +35,18 @@ def is_keycloak_token(token: str, settings: SecuritySettings) -> bool:
     return unverified.get("iss") == settings.keycloak_issuer
 
 
+def verify_staff_token(connection: ASGIConnection, token: str, settings: SecuritySettings) -> KeycloakClaims:
+    """The verified claims of a Keycloak token: 401 for a bad or expired token, 503 (and an
+    error in the log) when Keycloak itself cannot be reached to check it."""
+    try:
+        return token_verifier(connection).decode(token, settings)
+    except KeycloakUnavailableError as exc:
+        logger.exception("Cannot verify a staff token: Keycloak is unavailable")
+        raise ServiceUnavailableException("Authentication service is unavailable") from exc
+    except jwt.PyJWTError as exc:
+        raise NotAuthorizedException("Invalid or expired token") from exc
+
+
 def require_roles(*roles: str) -> Guard:
     """Guard factory: only Keycloak-authenticated staff carrying one of ``roles`` may pass.
 
@@ -42,10 +61,7 @@ def require_roles(*roles: str) -> Guard:
         token = extract_bearer_token(connection)
         if not is_keycloak_token(token, settings):
             raise PermissionDeniedException("Staff authentication required")
-        try:
-            claims = decode_keycloak_token(token, settings)
-        except jwt.PyJWTError as exc:
-            raise NotAuthorizedException("Invalid or expired token") from exc
+        claims = verify_staff_token(connection, token, settings)
         if not claims.roles.intersection(roles):
             raise PermissionDeniedException(f"Requires one of roles: {', '.join(roles)}")
 
@@ -71,10 +87,7 @@ def require_admin_or_bootstrap_secret() -> Guard:
         token = extract_bearer_token(connection)
         if not is_keycloak_token(token, settings):
             raise PermissionDeniedException("Staff authentication required")
-        try:
-            claims = decode_keycloak_token(token, settings)
-        except jwt.PyJWTError as exc:
-            raise NotAuthorizedException("Invalid or expired token") from exc
+        claims = verify_staff_token(connection, token, settings)
         if "admin" not in claims.roles:
             raise PermissionDeniedException("Requires role: admin")
 
@@ -94,10 +107,7 @@ def require_staff() -> Guard:
         token = extract_bearer_token(connection)
         if not is_keycloak_token(token, settings):
             raise PermissionDeniedException("Staff authentication required")
-        try:
-            decode_keycloak_token(token, settings)
-        except jwt.PyJWTError as exc:
-            raise NotAuthorizedException("Invalid or expired token") from exc
+        verify_staff_token(connection, token, settings)
 
     return guard
 

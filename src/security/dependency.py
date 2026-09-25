@@ -1,16 +1,13 @@
 from uuid import UUID
 
-import jwt
 from litestar import Request
 from litestar.di import NamedDependency
-from litestar.exceptions import NotAuthorizedException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.domains.identity.models import OperatorUser, OrganizationMember
-from src.security.guards import extract_bearer_token, is_keycloak_token
-from src.security.keycloak import decode_keycloak_token
+from src.security.guards import extract_bearer_token, is_keycloak_token, verify_staff_token
 from src.security.principal import Principal
 from src.security.resident import decode_resident_token
 from src.security.settings import SecuritySettings
@@ -63,10 +60,7 @@ async def provide_principal(request: Request, db_session: NamedDependency[AsyncS
     token = extract_bearer_token(request)
 
     if is_keycloak_token(token, settings):
-        try:
-            claims = decode_keycloak_token(token, settings)
-        except jwt.PyJWTError as exc:
-            raise NotAuthorizedException("Invalid or expired token") from exc
+        claims = verify_staff_token(request, token, settings)
         return await _resolve_operator_principal(
             claims.subject, claims.roles, claims.preferred_username, db_session
         )

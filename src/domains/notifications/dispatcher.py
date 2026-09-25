@@ -113,6 +113,19 @@ class OrganizationNotificationDispatcher:
                 await self.strategies[channel.type].send(self.session, channel, message)
             except ChannelDeliveryError as exc:
                 errors.append(f"{channel.type.value}: {exc}")
+                # Per channel, with the traceback: its cause (SMTP, MAX, the CRM's webhook) is
+                # chained to ``exc`` - the summary below only has the messages.
+                logger.warning(
+                    "Organization notification channel failed",
+                    extra={
+                        "outbox_event_id": str(event.id),
+                        "organization_id": str(message.organization_id),
+                        "channel": channel.key,
+                        "channel_type": channel.type.value,
+                        "attempt": event.attempts + 1,
+                    },
+                    exc_info=True,
+                )
             else:
                 delivered.add(channel.key)
 

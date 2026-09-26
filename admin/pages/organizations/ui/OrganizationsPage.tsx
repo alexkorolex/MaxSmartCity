@@ -2,8 +2,15 @@ import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useCities } from '@/entities/geo';
-import { AUTHORITY_KIND_LABELS, ORGANIZATION_TYPE_LABELS, useOrganizations, type Organization } from '@/entities/organization';
-import { canBrowseOrganizations, isAdmin, useMe } from '@/entities/session';
+import {
+  AUTHORITY_KIND_LABELS,
+  HOUSING_ORGANIZATION_TYPES,
+  ORGANIZATION_TYPE_LABELS,
+  useOrganization,
+  useOrganizations,
+  type Organization,
+} from '@/entities/organization';
+import { canBrowseOrganizations, isAdmin, isAuthority, useMe } from '@/entities/session';
 import { useTerritories } from '@/entities/territory';
 import { RegisterAuthorityForm } from '@/features/register-authority';
 import { RegisterOrganizationForm } from '@/features/register-organization';
@@ -33,7 +40,21 @@ function OrganizationsDirectory() {
     [territories.data],
   );
 
-  const filtered = useMemo(() => (data ?? []).filter((org) => !city || org.city === city), [data, city]);
+  const authority = isAuthority(principal);
+  const ownOrganization = useOrganization(authority ? (principal?.organization_id ?? '') : '');
+  const ownTerritory = ownOrganization.data?.territory_id
+    ? territoryNames.get(ownOrganization.data.territory_id)
+    : undefined;
+
+  const filtered = useMemo(
+    () =>
+      (data ?? []).filter((org) =>
+        authority
+          ? (HOUSING_ORGANIZATION_TYPES as string[]).includes(org.type)
+          : !city || org.city === city,
+      ),
+    [data, city, authority],
+  );
 
   function kindLabel(org: Organization): string {
     return org.authority_kind ? AUTHORITY_KIND_LABELS[org.authority_kind] : ORGANIZATION_TYPE_LABELS[org.type];
@@ -91,8 +112,12 @@ function OrganizationsDirectory() {
       <div className="card">
         <div className="card__header">
           <div>
-            <div className="card__title">Организации</div>
-            <div className="card__meta">Органы власти, управляющие компании, ТСЖ и городские службы</div>
+            <div className="card__title">{authority ? 'Управляющие компании' : 'Организации'}</div>
+            <div className="card__meta">
+              {authority
+                ? `УК и ТСЖ, которые управляют домами${ownTerritory ? ` на территории «${ownTerritory}»` : ' вашей территории'}`
+                : 'Органы власти, управляющие компании, ТСЖ и городские службы'}
+            </div>
           </div>
           {isAdmin(principal) && !registering && (
             <div className="form-actions">
@@ -105,13 +130,18 @@ function OrganizationsDirectory() {
             </div>
           )}
         </div>
-        <div className="filter-bar">
-          <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
-        </div>
+        {!authority && (
+          <div className="filter-bar">
+            <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
+          </div>
+        )}
         <div className="card__body card__body--flush">
           <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
             {filtered.length === 0 ? (
-              <EmptyState icon={<InboxIcon />} title="Организаций не найдено" />
+              <EmptyState
+                icon={<InboxIcon />}
+                title={authority ? 'На вашей территории пока нет управляющих компаний' : 'Организаций не найдено'}
+              />
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
@@ -119,7 +149,7 @@ function OrganizationsDirectory() {
                     <tr>
                       <th>Название</th>
                       <th>Тип</th>
-                      <th>Город</th>
+                      {!authority && <th>Город</th>}
                       <th>ИНН</th>
                       <th>Статус</th>
                     </tr>
@@ -142,7 +172,7 @@ function OrganizationsDirectory() {
                             <div className="cell-muted">{territoryNames.get(org.territory_id)}</div>
                           )}
                         </td>
-                        <td className="cell-secondary" data-label="Город">{org.city ?? '—'}</td>
+                        {!authority && <td className="cell-secondary" data-label="Город">{org.city ?? '—'}</td>}
                         <td className="cell-muted" data-label="ИНН">{org.inn ?? '—'}</td>
                         <td data-label="Статус">
                           <Pill

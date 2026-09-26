@@ -1,6 +1,7 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
 
 import {
+  AUTHORITY_KIND_LABELS,
   CredentialsEmailNotice,
   ORGANIZATION_TYPE_LABELS,
   type OrganizationRegistrationResult,
@@ -8,7 +9,8 @@ import {
   useOrganization,
   useOrganizationMembers,
 } from '@/entities/organization';
-import { canBrowseOrganizations, isAdmin, roleLabel, useMe } from '@/entities/session';
+import { canBrowseOrganizations, isAdmin, isAuthority, roleLabel, useMe } from '@/entities/session';
+import { useTerritories } from '@/entities/territory';
 import { AddOrganizationEmployeeForm } from '@/features/add-organization-employee';
 import { OrganizationChannelsCard } from '@/features/organization-channels';
 import { formatDateTime } from '@/shared/lib';
@@ -26,14 +28,18 @@ export function OrganizationDetailPage() {
   // The admin manages every roster; staff manage their own organization's colleagues.
   const canManage = isAdmin(principal) || principal?.organization_id === organizationId;
   const org = organization.data;
+  const isAuthorityOrganization = Boolean(org?.authority_kind);
+  const territories = useTerritories(isAuthorityOrganization && (isAdmin(principal) || isAuthority(principal)));
+  const territoryName = territories.data?.find((node) => node.id === org?.territory_id)?.name;
+  const isOwn = principal?.organization_id === organizationId;
 
   return (
     <>
-      {canBrowseOrganizations(principal) && (
+      {canBrowseOrganizations(principal) && !(isAuthority(principal) && isOwn) && (
         <div className="page-back">
           <Link to={ROUTES.organizations} className="btn btn--ghost btn--small">
             <ArrowLeftIcon width={16} height={16} />
-            К списку организаций
+            {isAuthority(principal) ? 'К управляющим компаниям' : 'К списку организаций'}
           </Link>
         </div>
       )}
@@ -57,7 +63,7 @@ export function OrganizationDetailPage() {
               <div>
                 <div className="card__title">{org.name}</div>
                 <div className="card__meta">
-                  {ORGANIZATION_TYPE_LABELS[org.type]}
+                  {org.authority_kind ? AUTHORITY_KIND_LABELS[org.authority_kind] : ORGANIZATION_TYPE_LABELS[org.type]}
                   {org.city ? ` · ${org.city}` : ''}
                 </div>
               </div>
@@ -76,10 +82,17 @@ export function OrganizationDetailPage() {
                   <div className="stat-card__label">ОГРН</div>
                   <div className="stat-card__value stat-card__value--compact">{org.ogrn ?? '—'}</div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-card__label">Лицензия</div>
-                  <div className="stat-card__value stat-card__value--compact">{org.license_number ?? '—'}</div>
-                </div>
+                {isAuthorityOrganization ? (
+                  <div className="stat-card">
+                    <div className="stat-card__label">Территория</div>
+                    <div className="stat-card__value stat-card__value--compact">{territoryName ?? '—'}</div>
+                  </div>
+                ) : (
+                  <div className="stat-card">
+                    <div className="stat-card__label">Лицензия</div>
+                    <div className="stat-card__value stat-card__value--compact">{org.license_number ?? '—'}</div>
+                  </div>
+                )}
                 <div className="stat-card">
                   <div className="stat-card__label">Код</div>
                   <div className="stat-card__value stat-card__value--compact">{org.code}</div>
@@ -169,7 +182,7 @@ export function OrganizationDetailPage() {
         </div>
       </div>
 
-      {canManage && org && (
+      {canManage && org && !isAuthorityOrganization && (
         <OrganizationChannelsCard
           organizationId={org.id}
           isAdmin={isAdmin(principal)}

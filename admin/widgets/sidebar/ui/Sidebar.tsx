@@ -25,11 +25,15 @@ import './Sidebar.css';
 
 function navItems(principal: Principal | undefined) {
   const authority = isAuthority(principal);
-  const organizationItem = canBrowseOrganizations(principal)
-    ? { to: ROUTES.organizations, label: authority ? 'Организации' : 'Органы власти и УК', icon: BuildingIcon, end: false }
-    : principal?.organization_id
-      ? { to: ROUTES.organization(principal.organization_id), label: 'Моя организация', icon: BuildingIcon, end: false }
-      : null;
+  const ownOrganizationId = principal?.organization_id;
+  const ownOrganization = ownOrganizationId
+    ? [{ to: ROUTES.organization(ownOrganizationId), label: 'Моя организация', icon: authority ? CityIcon : BuildingIcon, end: false }]
+    : [];
+  const organizationItems = authority
+    ? [...ownOrganization, { to: ROUTES.organizations, label: 'Управляющие компании', icon: BuildingIcon, end: true }]
+    : canBrowseOrganizations(principal)
+      ? [{ to: ROUTES.organizations, label: 'Органы власти и УК', icon: BuildingIcon, end: false }]
+      : ownOrganization;
   const seesTerritories = isAdmin(principal) || authority;
   return [
     { to: ROUTES.home, label: 'Обзор', icon: HomeIcon, end: true },
@@ -37,7 +41,7 @@ function navItems(principal: Principal | undefined) {
     ...(seesTerritories
       ? [{ to: ROUTES.territories, label: authority ? 'Территория' : 'Территории', icon: MapIcon, end: false }]
       : []),
-    ...(organizationItem ? [organizationItem] : []),
+    ...organizationItems,
     { to: ROUTES.houses, label: 'Дома', icon: HousesIcon, end: false },
     ...(authority ? [] : [{ to: ROUTES.messages, label: 'Сообщения', icon: CommentIcon, end: false }]),
     { to: ROUTES.correspondence, label: 'Переписка', icon: MailIcon, end: false },

@@ -107,21 +107,21 @@ function StreetRow({
   );
 }
 
-export function StreetAssignment({ territory, cityId }: { territory: TerritoryNode; cityId: string }) {
+export function StreetAssignment({ territory, rootId }: { territory: TerritoryNode; rootId: string }) {
   const [query, setQuery] = useState('');
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const streets = useTerritoryStreets(territory.id, query);
   const assign = useAssignToTerritory();
-  const isCity = territory.type === 'CITY';
+  const isRoot = territory.id === rootId;
 
   const visible = useMemo(
     () =>
       (streets.data ?? []).filter(
-        (street) => !onlyUnassigned || street.territories.some((share) => share.territory_id === cityId),
+        (street) => !onlyUnassigned || street.territories.some((share) => share.territory_id === rootId),
       ),
-    [streets.data, onlyUnassigned, cityId],
+    [streets.data, onlyUnassigned, rootId],
   );
 
   function toggle(street: string) {
@@ -161,7 +161,7 @@ export function StreetAssignment({ territory, cityId }: { territory: TerritoryNo
             )
           }
         >
-          {isCity ? 'Вернуть на уровень города' : `Отнести к «${territory.name}»`}
+          {isRoot ? `Вернуть на уровень «${territory.name}»` : `Отнести к «${territory.name}»`}
           {selected.size > 0 && ` · ${selected.size}`}
         </button>
         {selected.size > 0 && (

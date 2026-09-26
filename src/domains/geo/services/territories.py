@@ -153,8 +153,12 @@ class TerritoryService:
         ]
 
     async def create(
-        self, *, name: str, type: AdministrativeAreaType, parent_id: UUID | None
+        self, *, name: str, type: AdministrativeAreaType, parent_id: UUID | None, scope: UUID | None = None
     ) -> AdministrativeArea:
+        if scope is not None:
+            if parent_id is None:
+                raise TerritoryForbiddenError("Only a platform admin can add a city")
+            await ensure_territory_visible(self.session, scope, parent_id)
         name = _clean_name(name)
         if parent_id is None and type is not AdministrativeAreaType.CITY:
             raise TerritoryConflictError("A top-level territory must be a city")
@@ -177,8 +181,12 @@ class TerritoryService:
         name: str | None = None,
         type: AdministrativeAreaType | None = None,
         parent_id: UUID | None = None,
+        scope: UUID | None = None,
     ) -> AdministrativeArea:
         territory = await self.get(territory_id)
+        await self._ensure_editable(territory_id, scope)
+        if scope is not None and parent_id is not None:
+            await ensure_territory_visible(self.session, scope, parent_id)
         is_city = territory.parent_id is None
         if name is not None:
             name = _clean_name(name)
@@ -196,8 +204,9 @@ class TerritoryService:
         await self.session.flush()
         return territory
 
-    async def delete(self, territory_id: UUID) -> None:
+    async def delete(self, territory_id: UUID, *, scope: UUID | None = None) -> None:
         territory = await self.get(territory_id)
+        await self._ensure_editable(territory_id, scope)
         if await self.session.scalar(
             select(AdministrativeArea.id).where(AdministrativeArea.parent_id == territory_id).limit(1)
         ):
@@ -221,18 +230,18 @@ class TerritoryService:
         return territory
 
     async def streets(
-        self, territory_id: UUID, *, query: str = "", limit: int = 200
+        self, territory_id: UUID, *, query: str = "", limit: int = 200, scope: UUID | None = None
     ) -> list[TerritoryStreet]:
-        root = await self.city_root(territory_id)
+        root = await self._working_root(territory_id, scope)
         statement = (
             select(Address.street, House.administrative_area_id, func.count().label("houses"))
             .join(House, House.address_id == Address.id)
-            .where(House.administrative_area_id.in_(subtree_ids(root.id)), Address.street.is_not(None))
+            .where(House.administrative_area_id.in_(subtree_ids(root)), Address.street.is_not(None))
             .group_by(Address.street, House.administrative_area_id)
         )
         if query.strip():
             statement = statement.where(Address.street.ilike(f"%{query.strip()}%"))
-        names = {node.id: node.name for node in await self.tree(root.id)}
+        names = {node.id: node.name for node in await self.tree(root)}
         streets: dict[str, list[TerritoryStreetShare]] = defaultdict(list)
         for row in (await self.session.execute(statement)).all():
             streets[row.street].append(
@@ -251,8 +260,10 @@ class TerritoryService:
             for street, shares in sorted(streets.items())[:limit]
         ]
 
-    async def street_houses(self, territory_id: UUID, street: str) -> list[TerritoryHouse]:
-        root = await self.city_root(territory_id)
+    async def street_houses(
+        self, territory_id: UUID, street: str, *, scope: UUID | None = None
+    ) -> list[TerritoryHouse]:
+        root = await self._working_root(territory_id, scope)
         rows = (
             await self.session.execute(
                 select(
@@ -264,7 +275,7 @@ class TerritoryService:
                 )
                 .join(Address, Address.id == House.address_id)
                 .join(AdministrativeArea, AdministrativeArea.id == House.administrative_area_id)
-                .where(House.administrative_area_id.in_(subtree_ids(root.id)), Address.street == street)
+                .where(House.administrative_area_id.in_(subtree_ids(root)), Address.street == street)
                 .order_by(Address.house_number)
             )
         ).all()
@@ -279,9 +290,11 @@ class TerritoryService:
             for row in rows
         ]
 
-    async def assign(self, territory_id: UUID, *, streets: list[str], house_ids: list[UUID]) -> int:
-        root = await self.city_root(territory_id)
-        in_city = House.administrative_area_id.in_(subtree_ids(root.id))
+    async def assign(
+        self, territory_id: UUID, *, streets: list[str], house_ids: list[UUID], scope: UUID | None = None
+    ) -> int:
+        root = await self._working_root(territory_id, scope)
+        in_city = House.administrative_area_id.in_(subtree_ids(root))
         moved = 0
         if streets:
             by_street = (
@@ -302,7 +315,7 @@ class TerritoryService:
                 select(func.count()).select_from(House).where(House.id.in_(house_ids), in_city)
             )
             if inside != len(set(house_ids)):
-                raise TerritoryConflictError("Some houses belong to another city")
+                raise TerritoryConflictError("Some houses are outside this territory")
             result = await self.session.execute(
                 update(House)
                 .where(House.id.in_(house_ids))
@@ -312,6 +325,20 @@ class TerritoryService:
             )
             moved += len(result.all())
         return moved
+
+    async def _working_root(self, territory_id: UUID, scope: UUID | None) -> UUID:
+        if scope is None:
+            return (await self.city_root(territory_id)).id
+        await self.get(territory_id)
+        await ensure_territory_visible(self.session, scope, territory_id)
+        return scope
+
+    async def _ensure_editable(self, territory_id: UUID, scope: UUID | None) -> None:
+        if scope is None:
+            return
+        if territory_id == scope:
+            raise TerritoryForbiddenError("Your own territory is changed by a platform admin")
+        await ensure_territory_visible(self.session, scope, territory_id)
 
     async def _ensure_name_free(self, name: str, parent_id: UUID | None) -> None:
         same_parent = (

@@ -245,3 +245,60 @@ def test_authority_sees_its_territory_in_numbers_and_corresponds_with_platform_a
         api_client.get(f"/correspondence/conversations/{to_platform['id']}", headers=worker_a).status_code
         == 404
     )
+
+    micro = api_client.post(
+        "/geo/territories/",
+        json={"name": "Микрорайон Мичуринский", "type": "OTHER", "parent_id": district_a},
+        headers=gov_a,
+    )
+    assert micro.status_code == 201, micro.text
+    micro_id = next(node["id"] for node in micro.json() if node["name"] == "Микрорайон Мичуринский")
+    assert {node["name"] for node in micro.json()} == {"Бежицкий район", "Микрорайон Мичуринский"}
+    beyond = {"name": "Чужой район", "type": "DISTRICT", "parent_id": city_id}
+    assert api_client.post("/geo/territories/", json=beyond, headers=gov_a).status_code == 403
+    assert (
+        api_client.post(
+            "/geo/territories/", json={"name": "Город", "type": "CITY"}, headers=gov_a
+        ).status_code
+        == 403
+    )
+    assert (
+        api_client.patch(f"/geo/territories/{district_a}", json={"name": "Х"}, headers=gov_a).status_code
+        == 403
+    )
+    assert api_client.delete(f"/geo/territories/{district_a}", headers=gov_a).status_code == 403
+    assert api_client.delete(f"/geo/territories/{district_b}", headers=gov_a).status_code == 403
+
+    streets = api_client.get(f"/geo/territories/{micro_id}/streets", headers=gov_a).json()
+    assert [item["street"] for item in streets] == ["улица Бежицкая"]
+    assert api_client.get(f"/geo/territories/{district_b}/streets", headers=gov_a).status_code == 403
+    outside = api_client.post(
+        f"/geo/territories/{micro_id}/assign", json={"house_ids": [house_b]}, headers=gov_a
+    )
+    assert outside.status_code == 409
+    moved = api_client.post(
+        f"/geo/territories/{micro_id}/assign",
+        json={"streets": ["улица Бежицкая", "улица Советская"]},
+        headers=gov_a,
+    )
+    assert moved.json() == {"moved": 1}
+    assert (
+        api_client.patch(
+            f"/geo/territories/{micro_id}", json={"name": "Мичуринский"}, headers=gov_a
+        ).status_code
+        == 200
+    )
+    assert api_client.delete(f"/geo/territories/{micro_id}", headers=gov_a).status_code == 204
+    assert (
+        api_client.get(f"/analytics/territories/{district_a}/summary", headers=gov_a).json()["total"][
+            "houses"
+        ]
+        == 1
+    )
+
+    city_district = api_client.post(
+        "/geo/territories/",
+        json={"name": "Фокинский район", "type": "DISTRICT", "parent_id": city_id},
+        headers=gov_city,
+    )
+    assert city_district.status_code == 201, city_district.text

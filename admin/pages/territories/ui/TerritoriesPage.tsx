@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { isAdmin, useMe } from '@/entities/session';
+import { isAdmin, isAuthority, useMe } from '@/entities/session';
 import { TERRITORY_TYPE_LABELS, territoryPath, useTerritories } from '@/entities/territory';
 import { StreetAssignment, TerritoryEditor, TerritoryTree } from '@/features/manage-territories';
 import { ROUTES } from '@/shared/routes';
@@ -11,7 +11,8 @@ import './TerritoriesPage.css';
 
 export function TerritoriesPage() {
   const { data: principal } = useMe();
-  const editable = isAdmin(principal);
+  const canAddCity = isAdmin(principal);
+  const editable = canAddCity || isAuthority(principal);
   const territories = useTerritories();
   const nodes = useMemo(() => territories.data ?? [], [territories.data]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function TerritoriesPage() {
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
   const path = selected ? territoryPath(nodes, selected.id) : [];
-  const cityId = path[0]?.id ?? null;
+  const rootId = path[0]?.id ?? null;
 
   return (
     <AsyncState isLoading={territories.isLoading} error={territories.error} onRetry={() => void territories.refetch()}>
@@ -42,14 +43,14 @@ export function TerritoriesPage() {
             <div>
               <div className="card__title">Территории</div>
               <div className="card__meta">
-                {editable
+                {canAddCity
                   ? 'Город и его деления — округа, районы, муниципальные образования'
-                  : 'Территория вашего органа власти'}
+                  : 'Территория вашего органа власти: добавляйте деления и распределяйте по ним дома'}
               </div>
             </div>
           </div>
           <div className="card__body">
-            <TerritoryTree nodes={nodes} selectedId={selectedId} onSelect={setSelectedId} editable={editable} />
+            <TerritoryTree nodes={nodes} selectedId={selectedId} onSelect={setSelectedId} canAddCity={canAddCity} />
           </div>
         </section>
 
@@ -62,8 +63,8 @@ export function TerritoriesPage() {
                   <div className="card__title">{selected.name}</div>
                   <div className="card__meta">
                     {TERRITORY_TYPE_LABELS[selected.type]} · домов: {selected.house_count.toLocaleString('ru-RU')}
-                    {selected.type === 'CITY' && selected.direct_house_count > 0 && selected.house_count !== selected.direct_house_count
-                      ? ` · без района: ${selected.direct_house_count.toLocaleString('ru-RU')}`
+                    {selected.id === rootId && selected.direct_house_count > 0 && selected.house_count !== selected.direct_house_count
+                      ? ` · не распределено: ${selected.direct_house_count.toLocaleString('ru-RU')}`
                       : ''}
                   </div>
                 </div>
@@ -82,7 +83,7 @@ export function TerritoriesPage() {
                     </ul>
                   ) : (
                     <p className="cell-muted">
-                      Не назначены.{editable && ' Зарегистрируйте орган власти в разделе «Организации».'}
+                      Не назначены.{canAddCity && ' Зарегистрируйте орган власти в разделе «Организации».'}
                     </p>
                   )}
                 </div>
@@ -97,7 +98,7 @@ export function TerritoriesPage() {
               </div>
             </section>
 
-            {editable && cityId && (
+            {editable && rootId && (
               <section className="card">
                 <div className="card__header">
                   <div>
@@ -109,7 +110,7 @@ export function TerritoriesPage() {
                   </div>
                 </div>
                 <div className="card__body">
-                  <StreetAssignment key={selected.id} territory={selected} cityId={cityId} />
+                  <StreetAssignment key={selected.id} territory={selected} rootId={rootId} />
                 </div>
               </section>
             )}

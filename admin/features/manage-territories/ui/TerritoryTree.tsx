@@ -18,14 +18,14 @@ interface TerritoryTreeProps {
   nodes: TerritoryNode[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  editable: boolean;
+  canAddCity: boolean;
 }
 
 function formatHouses(count: number): string {
   return new Intl.NumberFormat('ru-RU').format(count);
 }
 
-export function TerritoryTree({ nodes, selectedId, onSelect, editable }: TerritoryTreeProps) {
+export function TerritoryTree({ nodes, selectedId, onSelect, canAddCity }: TerritoryTreeProps) {
   const items = flattenTerritoryTree(nodes);
   const create = useCreateTerritory();
   const [cityName, setCityName] = useState('');
@@ -60,7 +60,7 @@ export function TerritoryTree({ nodes, selectedId, onSelect, editable }: Territo
           ))}
         </ul>
       )}
-      {editable && (
+      {canAddCity && (
         <form className="territory-tree__add" onSubmit={addCity}>
           <label className="sr-only" htmlFor="territory-city">
             Новый город
@@ -95,7 +95,7 @@ export function TerritoryEditor({ node, onDeleted, onCreated }: TerritoryEditorP
   const [childName, setChildName] = useState('');
   const [childType, setChildType] = useState<TerritoryType>('DISTRICT');
   const [name, setName] = useState(node.name);
-  const isCity = node.type === 'CITY';
+  const isRoot = node.parent_id === null;
 
   function addChild(event: FormEvent) {
     event.preventDefault();
@@ -155,7 +155,7 @@ export function TerritoryEditor({ node, onDeleted, onCreated }: TerritoryEditorP
           Добавить
         </button>
       </form>
-      {!isCity && (
+      {!isRoot && (
         <form className="territory-editor__row" onSubmit={rename}>
           <div className="territory-editor__grow">
             <label className="field-label" htmlFor="territory-name">

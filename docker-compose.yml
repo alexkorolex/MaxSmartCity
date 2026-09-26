@@ -263,9 +263,9 @@ services:
       tmpfs:
         - /tmp
       pids_limit: 100
-      mem_limit: 512m
-      mem_reservation: 256m
-      cpus: "1.0"
+      mem_limit: 1536m
+      mem_reservation: 768m
+      cpus: "2.0"
       restart: unless-stopped
 
     keycloak:

@@ -53,12 +53,16 @@ GET /reports/{report_id}/grouping
     }
   ],
   "policy_version": "house-category-active-window-v2",
-  "scorer_version": "multilingual-e5-query-passage-cosine-v2"
+  "scorer_version": "exact-text-or-multilingual-e5-cosine-v3"
 }
 ```
 
 Backend не возвращает фронтенду набор исходных сообщений, использованный для ранжирования: в
 карточку входят только поля самого инцидента и score.
+
+Повтор одного и того же текста обрабатывается детерминированным exact-match до сетевого вызова ML.
+Для остальных формулировок используется локальная E5-модель. Поэтому одинаковая заявка не зависит
+от прогрева модели или доступности ML-сервиса, а перефразировки по-прежнему ищутся семантически.
 
 Финальный выбор отправляется в `POST /reports/{report_id}/grouping-decision` и содержит один из
 вариантов:

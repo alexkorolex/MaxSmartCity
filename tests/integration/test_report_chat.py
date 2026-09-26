@@ -165,6 +165,52 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert len(delivered) == 1
     assert len(api_client.get("/notifications/", headers=resident).json()) == 2
 
+    # Back in the chat: the "new message" notifications about it are read along with it.
+    assert api_client.get(chat, headers=resident).status_code == 200
+    notifications = api_client.get("/notifications/", headers=resident).json()
+    assert [(item["type"], item["is_read"]) for item in notifications] == [("CHAT_MESSAGE", True)] * 2
+
+
+def test_platform_admin_only_observes_report_chats(
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, _ = rsa_keypair
+    admin = _headers(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]))
+    organization_id, worker = _register_housing_organization(
+        api_client, monkeypatch, private_pem, admin, "УК Наблюдение"
+    )
+    house = _insert_house(database_url, formatted=f"ул. Наблюдения, {uuid4().hex[:6]}")
+    body = {"house_id": house, "organization_id": organization_id, "basis": "Договор управления"}
+    assert api_client.post("/geo/house-management/", json=body, headers=worker).status_code == 201
+    _resident_id, token = _resident_token(api_client, display_name="Пётр Житель")
+    resident = _headers(token)
+    report = api_client.post(
+        "/reports/",
+        json={
+            "source_type": "MAX",
+            "text": "Течёт крыша",
+            "category_id": _insert_category(database_url),
+            "house_id": house,
+        },
+        headers=resident,
+    ).json()["id"]
+    chat = f"/reports/{report}/messages"
+    assert api_client.post(chat, json={"text": "Когда придёте?"}, headers=resident).status_code == 201
+
+    # The admin sees the chat, but it isn't theirs to answer...
+    admin_view = api_client.get(chat, headers=admin).json()
+    assert admin_view["can_write"] is False
+    assert [m["text"] for m in admin_view["messages"]] == ["Когда придёте?"]
+    assert api_client.post(chat, json={"text": "Разберёмся"}, headers=admin).status_code == 403
+    # ...nor to read for the organization: it still has the message as new.
+    inbox = api_client.get("/chat/conversations", headers=worker).json()
+    assert [(item["report_id"], item["unread_count"]) for item in inbox] == [(report, 1)]
+    receipts = [m["read_at"] for m in api_client.get(chat, headers=resident).json()["messages"]]
+    assert receipts == [None]
+
 
 def test_long_poll_answers_at_once_when_the_chat_changed_and_times_out_otherwise(
     api_client: TestClient,

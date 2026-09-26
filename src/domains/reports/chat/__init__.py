@@ -8,7 +8,12 @@ from src.domains.reports.chat.events import (
     provide_chat_events,
 )
 from src.domains.reports.chat.notifier import UNREAD_NOTIFICATION_DELAY, notify_unread_chat_messages
-from src.domains.reports.chat.participants import ChatConflictError, ChatNotFoundError, report_organizations
+from src.domains.reports.chat.participants import (
+    ChatConflictError,
+    ChatForbiddenError,
+    ChatNotFoundError,
+    report_organizations,
+)
 from src.domains.reports.chat.schemas import (
     ChatConversationSummary,
     ChatMessageView,
@@ -25,6 +30,7 @@ __all__ = (
     "ChatConflictError",
     "ChatConversationSummary",
     "ChatEventBus",
+    "ChatForbiddenError",
     "ChatMessageView",
     "ChatNotFoundError",
     "ChatSubscription",

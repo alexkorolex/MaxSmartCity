@@ -19,6 +19,7 @@ from src.domains.reports.chat import (
     ChatConflictError,
     ChatConversationSummary,
     ChatEventBus,
+    ChatForbiddenError,
     ChatMessageView,
     ChatNotFoundError,
     ChatThread,
@@ -49,7 +50,8 @@ class ReportChatController(Controller):
     """One chat per report: the resident who filed it on one side, the organizations
     working on it (its house's УК/ТСЖ, assigned executors) on the other. The same endpoints
     serve both - the token says which side the caller is on. Reading marks the other side's
-    messages read; anything left unread for a minute is announced out of the app."""
+    messages read; anything left unread for a minute is announced out of the app. The
+    platform admin only observes: reads every chat, never writes nor marks anything read."""
 
     path = "/reports/{report_id:uuid}/messages"
     tags = ("reports",)
@@ -139,6 +141,8 @@ class ReportChatController(Controller):
             raise NotFoundException(str(exc)) from exc
         except ChatConflictError as exc:
             raise ClientException(status_code=409, detail=str(exc)) from exc
+        except ChatForbiddenError as exc:
+            raise PermissionDeniedException(str(exc)) from exc
         await db_session.commit()
         await chat_events.publish(report_id)
         return message

@@ -12,8 +12,11 @@ from src.common.models import utc_now
 from src.domains.geo.models import Address, House
 from src.domains.identity.models import OperatorUser, Organization, Resident
 from src.domains.incidents.scope import organization_report_ids
+from src.domains.notifications.enums import NotificationType
+from src.domains.notifications.models import Notification
 from src.domains.reports.chat.participants import (
     ChatConflictError,
+    ChatForbiddenError,
     report_organizations,
     resident_report,
     staff_report,
@@ -57,6 +60,7 @@ class ReportChatService:
     async def resident_thread(self, report_id: UUID, *, resident_id: UUID) -> ChatThread:
         report = await resident_report(self.session, report_id, resident_id)
         await self._mark_read(report.id, sent_by=ActorType.OPERATOR)
+        await self._mark_chat_notifications_read(report.id, resident_id)
         organizations = await report_organizations(self.session, report)
         return ChatThread(
             report_id=report.id,
@@ -67,8 +71,8 @@ class ReportChatService:
         )
 
     async def staff_thread(self, report_id: UUID, *, organization_id: UUID | None) -> ChatThread:
-        """``organization_id=None`` is the platform admin: sees every chat, and looking at
-        one doesn't count as the organization having read it."""
+        """``organization_id=None`` is the platform admin: an observer of every chat, who
+        neither writes nor reads for the organization - looking doesn't mark anything read."""
         report = await staff_report(self.session, report_id, organization_id)
         if organization_id is not None:
             await self._mark_read(report.id, sent_by=ActorType.RESIDENT)
@@ -79,7 +83,7 @@ class ReportChatService:
             report_id=report.id,
             report_text=report.text,
             counterparts=[resident_name or "Житель"],
-            can_write=True,
+            can_write=organization_id is not None,
             messages=await self._messages(report.id, own_side=ActorType.OPERATOR),
         )
 
@@ -98,6 +102,8 @@ class ReportChatService:
     async def post_as_staff(
         self, report_id: UUID, text: str, *, operator_id: UUID, organization_id: UUID | None
     ) -> ChatMessageView:
+        if organization_id is None:
+            raise ChatForbiddenError("The platform admin only observes report chats")
         report = await staff_report(self.session, report_id, organization_id)
         message = ReportMessage(
             report_id=report.id,
@@ -107,8 +113,7 @@ class ReportChatService:
             text=_clean_text(text),
         )
         # Answering implies having read what the resident wrote.
-        if organization_id is not None:
-            await self._mark_read(report.id, sent_by=ActorType.RESIDENT)
+        await self._mark_read(report.id, sent_by=ActorType.RESIDENT)
         return await self._save(message, own_side=ActorType.OPERATOR)
 
     async def staff_conversations(
@@ -179,6 +184,20 @@ class ReportChatService:
         )
         if result.rowcount:  # ty: ignore[unresolved-attribute]
             self.marked_read = True
+
+    async def _mark_chat_notifications_read(self, report_id: UUID, resident_id: UUID) -> None:
+        """The resident is in the chat now - the "new message" notifications about it are
+        read too, so the app's notification badge doesn't keep counting them."""
+        await self.session.execute(
+            update(Notification)
+            .where(
+                Notification.resident_id == resident_id,
+                Notification.report_id == report_id,
+                Notification.type == NotificationType.CHAT_MESSAGE,
+                Notification.is_read.is_(False),
+            )
+            .values(is_read=True, read_at=utc_now())
+        )
 
     async def _save(self, message: ReportMessage, *, own_side: ActorType) -> ChatMessageView:
         self.session.add(message)

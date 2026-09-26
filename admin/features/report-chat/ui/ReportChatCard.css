@@ -316,6 +316,19 @@
   box-shadow: 0 -5px 20px color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
 
+.report-chat-card__observer {
+  flex: 0 0 auto;
+  margin: 0;
+  padding-block: 13px max(12px, env(safe-area-inset-bottom, 0px));
+  padding-inline: max(20px, calc((100% - 1040px) / 2));
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .admin-chat-composer__field {
   display: flex;
   align-items: flex-end;

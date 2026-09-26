@@ -215,7 +215,9 @@ export function ReportChatCard({ reportId, backTo }: { reportId: string; backTo:
               backTo={backTo}
             />
             {count > 0 ? <Timeline messages={chat.data.messages} endRef={endRef} /> : <div className="report-chat-card__empty"><strong>Диалог пока пуст</strong><span>Напишите жителю первым — уведомление придёт ему в MAX.</span></div>}
-            {chat.data.can_write && <Composer text={text} pending={send.isPending} error={send.isError ? send.error : null} onTextChange={setText} onSubmit={handleSubmit} />}
+            {chat.data.can_write
+              ? <Composer text={text} pending={send.isPending} error={send.isError ? send.error : null} onTextChange={setText} onSubmit={handleSubmit} />
+              : <p className="report-chat-card__observer">Режим просмотра: отвечают жителю сотрудники организации. Ваш просмотр не отмечает сообщения прочитанными.</p>}
           </>
         )}
       </AsyncState>

@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
+import { notificationsQueryKey } from '@/entities/notification';
 import { useChatLiveUpdates, useReportChat, useSendReportChatMessage, type ChatMessage } from '@/entities/report';
 import { ArrowLeftIcon, AsyncState, SendIcon } from '@/shared/ui';
 
@@ -179,6 +181,13 @@ export function ReportChat({ reportId, reportText, backTo }: ReportChatProps) {
   const [text, setText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const count = chat.data?.messages.length ?? 0;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Every fetch of the thread also reads the "new message" notifications about it on the
+    // server - refresh them so the notification badge drops right away.
+    if (chat.dataUpdatedAt) void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+  }, [chat.dataUpdatedAt, queryClient]);
 
   useEffect(() => {
     // Scroll the message list itself to the newest message, not the page around it.

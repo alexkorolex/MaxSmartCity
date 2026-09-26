@@ -23,6 +23,10 @@ class ChatConflictError(RuntimeError):
     pass
 
 
+class ChatForbiddenError(RuntimeError):
+    pass
+
+
 async def report_organizations(session: AsyncSession, report: Report) -> list[tuple[UUID, str]]:
     """``(id, name)`` of every organization working on ``report``, house manager first."""
     found: dict[UUID, str] = {}

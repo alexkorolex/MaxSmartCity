@@ -22,6 +22,7 @@ from src.domains.incidents.models import (
 from src.domains.incidents.schemas import (
     IncidentDisputeRequest,
     IncidentReadDTO,
+    ResidentIncidentReportResult,
     ResolutionDisputeReadDTO,
     ResolutionFeedbackCommand,
     ResolutionFeedbackResult,
@@ -104,6 +105,43 @@ class IncidentResidentController(Controller):
             )
             return list(result.scalars().all())
 
+    @get(
+        "/{item_id:uuid}/my-report",
+        return_dto=None,
+        name="incidents:Incident:my-report",
+        guards=[require_resident()],
+    )
+    async def get_my_report(
+        self,
+        item_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> ResidentIncidentReportResult:
+        report = await db_session.scalar(
+            select(Report)
+            .join(IncidentReportLink, IncidentReportLink.report_id == Report.id)
+            .where(
+                IncidentReportLink.incident_id == item_id,
+                IncidentReportLink.is_active.is_(True),
+                Report.resident_id == principal.actor_id,
+            )
+            .order_by(Report.received_at.desc())
+            .limit(1)
+        )
+        if report is None:
+            raise NotFoundException(f"Incident {item_id} was not found")
+        dispute = await db_session.scalar(
+            select(ResolutionDispute.id)
+            .where(
+                ResolutionDispute.incident_id == item_id,
+                ResolutionDispute.report_id == report.id,
+                ResolutionDispute.resident_id == principal.actor_id,
+                ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+            )
+            .limit(1)
+        )
+        return ResidentIncidentReportResult(report_id=report.id, has_open_dispute=dispute is not None)
+
     @post(
         "/{item_id:uuid}/confirm-resolution",
         name="incidents:Incident:confirm-resolution",
@@ -122,11 +160,9 @@ class IncidentResidentController(Controller):
             )
 
             incident = await service.get(item_id)
-            if incident.status != IncidentStatus.AWAITING_CONFIRMATION:
+            if incident.status not in {IncidentStatus.RESOLVED, IncidentStatus.AWAITING_CONFIRMATION}:
                 raise HTTPException(status_code=409, detail="Incident is not awaiting confirmation")
 
-            # Same path as /resolution-feedback: closes the incident together with every
-            # resident request linked to it, and notifies those residents.
             assert report_id is not None
             await IncidentCoreService(db_session).record_resolution_feedback(
                 item_id,
@@ -156,23 +192,38 @@ class IncidentResidentController(Controller):
             )
 
             incident = await service.get(item_id)
-            if incident.status != IncidentStatus.AWAITING_CONFIRMATION:
+            if incident.status not in {IncidentStatus.RESOLVED, IncidentStatus.AWAITING_CONFIRMATION}:
                 raise HTTPException(status_code=409, detail="Incident is not awaiting confirmation")
 
-            dispute = ResolutionDispute(
-                incident_id=item_id,
-                resident_id=principal.actor_id,
-                report_id=report_id,
-                status=ResolutionDisputeStatus.OPEN,
-                comment=data.comment,
+            existing_dispute = await db_session.scalar(
+                select(ResolutionDispute).where(
+                    ResolutionDispute.incident_id == item_id,
+                    ResolutionDispute.resident_id == principal.actor_id,
+                    ResolutionDispute.report_id == report_id,
+                    ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+                )
             )
-            db_session.add(dispute)
-            await IncidentCoreService(db_session).transition_for_resident(
-                incident,
-                IncidentStatus.RESOLUTION_DISPUTED,
+            if existing_dispute is not None:
+                raise HTTPException(status_code=409, detail="Resolution dispute already exists")
+            assert report_id is not None
+            await IncidentCoreService(db_session).record_resolution_feedback(
+                item_id,
+                ResolutionFeedbackCommand(
+                    report_id=report_id,
+                    feedback=ResolutionFeedback.PROBLEM_CONTINUES,
+                    comment=data.comment,
+                ),
                 resident_id=principal.actor_id,
-                reason=data.comment,
             )
+            dispute = await db_session.scalar(
+                select(ResolutionDispute).where(
+                    ResolutionDispute.incident_id == item_id,
+                    ResolutionDispute.resident_id == principal.actor_id,
+                    ResolutionDispute.report_id == report_id,
+                    ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+                )
+            )
+            assert dispute is not None
             await db_session.commit()
             return dispute
 

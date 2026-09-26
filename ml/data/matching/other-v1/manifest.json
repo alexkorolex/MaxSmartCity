@@ -1,0 +1,38 @@
+{
+  "dataset_version": "other-incident-matching-v1",
+  "status": "SYNTHETIC_LLM_ASSISTED_REQUIRES_TEAM_REVIEW",
+  "house_count": 20,
+  "incident_count": 60,
+  "report_count": 240,
+  "candidate_set_count": 160,
+  "match_query_count": 120,
+  "create_new_query_count": 40,
+  "split_counts": {
+    "train": 96,
+    "validation": 32,
+    "test": 32
+  },
+  "files": {
+    "houses.jsonl": "d389a81328d6bd4ee4fc0e9ec95ca5ff6aec360994a23013e17f46c36a1c7da3",
+    "incidents.jsonl": "44f7850cd75ec7fa60ac0707861603721184d87c95a8e3ddf7eac281e3000010",
+    "reports.jsonl": "f17d3d787a888a426f12ebffc679d2e40681d6d1a2c83eaa1fa26fde4b411fc3",
+    "candidate_sets.jsonl": "74e53fb2fff0bafc34e46d769771ac28a7bd3f14914db7b154e78e37a995a596"
+  },
+  "limitations": [
+    "Houses are deterministic real registry references; report texts are synthetic.",
+    "Labels derive from locked event ids, not from an LLM judgment.",
+    "A small human review of hard negatives is still required before production calibration."
+  ],
+  "generation": {
+    "model": "mistral-small-2603",
+    "api_call_count": 20,
+    "source": "AITUNNEL",
+    "input_tokens": 19193,
+    "output_tokens": 6183,
+    "estimated_cost_rub": 1.3177
+  },
+  "sources": {
+    "houses_sha256": "f42e73784a27d7060f329cbed5571e5a70ed889ae2606a7f9d11657bbfa922ba",
+    "references_sha256": "047ed60b8d61664391ae4e92d5d7429960a9bfd82992f038269fe6e874497104"
+  }
+}

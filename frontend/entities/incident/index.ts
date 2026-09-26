@@ -1,12 +1,11 @@
 export { canConfirmOrDispute, INCIDENT_STATUS_LABELS, INCIDENT_STATUS_TONES } from './lib/statusLabels';
 export {
-  incidentDisputesQueryKey,
   incidentQueryKey,
+  myIncidentReportQueryKey,
   myHouseIncidentsQueryKey,
-  useConfirmResolution,
-  useDisputeResolution,
   useIncident,
-  useIncidentDisputes,
+  useMyIncidentReport,
   useMyHouseIncidents,
+  useResolutionFeedback,
 } from './model/queries';
-export type { Incident, IncidentPriority, IncidentStatus, ResolutionDispute } from './model/types';
+export type { Incident, IncidentPriority, IncidentStatus, ResidentIncidentReport, ResolutionFeedbackResult } from './model/types';

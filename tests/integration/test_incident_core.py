@@ -17,14 +17,17 @@ from src.domains.identity.models import OperatorUser, Organization, Resident
 from src.domains.incidents.enums import (
     GroupingOutcome,
     IncidentStatus,
+    ResolutionDisputeStatus,
     ResolutionFeedback,
 )
 from src.domains.incidents.models import (
     Incident,
     IncidentGroupingDecision,
     IncidentReportLink,
+    ResolutionDispute,
 )
 from src.domains.incidents.schemas import (
+    CompleteIncidentCommand,
     GroupReportCommand,
     ResolutionFeedbackCommand,
     TransitionIncidentCommand,
@@ -336,3 +339,30 @@ async def test_resolution_dispute_escalates_only_after_three_residents(
 
     card = await service.get_card(incident.id)
     assert len(card.disputes) == 3
+
+    await service.complete_by_staff(
+        incident.id,
+        CompleteIncidentCommand(),
+        changed_by=operator.id,
+        organization_id=None,
+    )
+    assert incident.status is IncidentStatus.RESOLVED
+    assert all(
+        dispute.status is ResolutionDisputeStatus.RESOLVED
+        for dispute in (
+            await db_session.scalars(
+                select(ResolutionDispute).where(ResolutionDispute.incident_id == incident.id)
+            )
+        ).all()
+    )
+
+    next_feedback = await service.record_resolution_feedback(
+        incident.id,
+        ResolutionFeedbackCommand(
+            report_id=report_ids[0],
+            feedback=ResolutionFeedback.PROBLEM_CONTINUES,
+            comment="The water is still off after another repair",
+        ),
+        resident_id=residents[0].id,
+    )
+    assert next_feedback.incident_status is IncidentStatus.RESOLVED

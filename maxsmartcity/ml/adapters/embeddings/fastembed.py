@@ -41,11 +41,22 @@ class FastEmbedProvider:
         return self._model_name
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
+        """Backward-compatible query embedding used by smoke tests."""
+
+        return self.embed_queries(texts)
+
+    def embed_queries(self, texts: Sequence[str]) -> np.ndarray:
+        return self._embed(texts, prefix="query")
+
+    def embed_documents(self, texts: Sequence[str]) -> np.ndarray:
+        return self._embed(texts, prefix="passage")
+
+    def _embed(self, texts: Sequence[str], *, prefix: str) -> np.ndarray:
         if not texts:
             return np.empty((0, 0), dtype=np.float32)
         model = self._load()
         try:
-            prepared = [f"query: {text}" for text in texts] if self._uses_e5_prefix else list(texts)
+            prepared = [f"{prefix}: {text}" for text in texts] if self._uses_e5_prefix else list(texts)
             vectors = np.asarray(list(model.embed(prepared)), dtype=np.float32)
         except (OSError, RuntimeError, ValueError) as exc:
             raise ComponentUnavailableError("LOCAL_EMBEDDING_INFERENCE_FAILED") from exc

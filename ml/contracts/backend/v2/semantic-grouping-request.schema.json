@@ -19,7 +19,7 @@
     },
     "candidate_incidents": {
       "type": "array",
-      "maxItems": 128,
+      "maxItems": 16,
       "description": "Backend-filtered candidates from the same allowed geo/time scope.",
       "items": {
         "type": "object",

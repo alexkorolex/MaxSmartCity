@@ -19,6 +19,7 @@ from src.database.logging import database_action
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import RESIDENT_DATA_ROLES, resolve_organization_scope
 from src.domains.incidents.enums import GroupingMode
+from src.domains.incidents.models import IncidentGroupingDecision
 from src.domains.incidents.schemas import (
     CloseReportCommand,
     CloseReportResult,
@@ -31,6 +32,8 @@ from src.domains.incidents.services import (
     IncidentCoreNotFoundError,
     IncidentCoreService,
 )
+from src.domains.ml.client import MLDecisionClient
+from src.domains.ml.report_grouping import ReportGroupingRecommendationService
 from src.domains.reports.enums import ReportSourceType
 from src.domains.reports.models import ProblemCategory, Report
 from src.domains.reports.schemas import (
@@ -57,6 +60,10 @@ def provide_report_service(db_session: NamedDependency[AsyncSession]) -> ReportS
 
 def provide_s3_settings() -> S3Settings:
     return S3Settings.from_environment()
+
+
+def provide_ml_decision_client() -> MLDecisionClient:
+    return MLDecisionClient.from_environment()
 
 
 _STAFF_ADMIN_ROLES = RESIDENT_DATA_ROLES
@@ -102,6 +109,7 @@ class ReportController(Controller):
             "service": Provide(provide_report_service, sync_to_thread=False),
             "principal": Provide(provide_principal),
             "s3_settings": Provide(provide_s3_settings, sync_to_thread=False),
+            "ml_client": Provide(provide_ml_decision_client, sync_to_thread=False),
         }
 
     @post(
@@ -147,6 +155,47 @@ class ReportController(Controller):
                     .offset(offset)
                 )
             ).all()
+        )
+
+    @get(
+        "/{item_id:uuid}/grouping",
+        return_dto=None,
+        name="reports:Report:grouping",
+        guards=[require_resident()],
+    )
+    async def get_grouping(
+        self,
+        item_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+        ml_client: NamedDependency[MLDecisionClient],
+    ) -> GroupReportResult:
+        report = await db_session.scalar(
+            select(Report).where(Report.id == item_id, Report.resident_id == principal.actor_id)
+        )
+        if report is None:
+            raise NotFoundException(f"Report {item_id} was not found")
+        decision = await db_session.scalar(
+            select(IncidentGroupingDecision)
+            .where(IncidentGroupingDecision.report_id == item_id)
+            .order_by(IncidentGroupingDecision.created_at.desc(), IncidentGroupingDecision.id.desc())
+            .limit(1)
+        )
+        if decision is None:
+            raise NotFoundException(f"Grouping for report {item_id} was not found")
+        recommendations = await ReportGroupingRecommendationService(db_session, ml_client).recommend(
+            report, decision
+        )
+        return GroupReportResult(
+            report_id=report.id,
+            outcome=decision.outcome,
+            incident_id=decision.selected_incident_id,
+            score=float(decision.score) if decision.score is not None else None,
+            candidate_incident_ids=[item.incident_id for item in recommendations.candidates],
+            candidate_incidents=recommendations.candidates,
+            reason_codes=decision.reason_codes,
+            policy_version=decision.policy_version,
+            scorer_version=recommendations.scorer_version or decision.scorer_version,
         )
 
     @post(

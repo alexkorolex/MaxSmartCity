@@ -332,7 +332,7 @@ def test_dispute_resolution_creates_dispute_scoped_to_resident(
     assert disputed.json()["status"] == "OPEN"
 
     incident_after = api_client.get(f"/incidents/{incident_id}")
-    assert incident_after.json()["status"] == "RESOLUTION_DISPUTED"
+    assert incident_after.json()["status"] == "AWAITING_CONFIRMATION"
 
     again = api_client.post(
         f"/incidents/{incident_id}/dispute-resolution",
@@ -349,6 +349,117 @@ def test_dispute_resolution_creates_dispute_scoped_to_resident(
         f"/incidents/{incident_id}/disputes", headers={"Authorization": f"Bearer {other_token}"}
     )
     assert others.json() == []
+
+
+def test_incident_core_reads_are_scoped_to_the_resident(api_client: TestClient, database_url: str) -> None:
+    _resident_id, token = _resident_token(api_client)
+    _other_id, other_token = _resident_token(api_client)
+    house_id = _insert_house(database_url)
+    category_id = str(uuid4())
+    category_code = f"core-{uuid4().hex}"
+    run_sql(
+        database_url,
+        "INSERT INTO reports.problem_category(id, code, name, created_at, updated_at) "
+        "VALUES (:id, :code, 'Incident core', now(), now())",
+        id=category_id,
+        code=category_code,
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "source_external_id": str(uuid4()),
+        "request_id": str(uuid4()),
+        "house_id": house_id,
+        "category_code": category_code,
+        "text": "Нет холодной воды во всём доме",
+        "urgency": "HIGH",
+        "problem_continues": False,
+    }
+    created = api_client.post("/reports/intake", json=payload, headers=headers)
+    assert created.status_code == 201, created.text
+    result = created.json()
+    assert result["grouping"]["outcome"] == "CREATED"
+    report_id = result["report_id"]
+    incident_id = result["grouping"]["incident_id"]
+    saved_report = api_client.get(f"/reports/{report_id}", headers=headers)
+    assert saved_report.status_code == 200
+    assert saved_report.json()["urgency"] == "HIGH"
+    assert saved_report.json()["problem_continues"] is False
+
+    repeated = api_client.post("/reports/intake", json=payload, headers=headers)
+    assert repeated.status_code == 201
+    assert repeated.json()["report_id"] == report_id
+    assert (
+        api_client.post("/reports/intake", json={**payload, "urgency": "LOW"}, headers=headers).status_code
+        == 409
+    )
+
+    grouping = api_client.get(f"/reports/{report_id}/grouping", headers=headers)
+    assert grouping.status_code == 200, grouping.text
+    assert grouping.json()["incident_id"] == incident_id
+
+    my_report = api_client.get(f"/incidents/{incident_id}/my-report", headers=headers)
+    assert my_report.status_code == 200, my_report.text
+    assert my_report.json() == {"report_id": report_id, "has_open_dispute": False}
+
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    assert api_client.get(f"/reports/{report_id}/grouping", headers=other_headers).status_code == 404
+    assert api_client.get(f"/incidents/{incident_id}/my-report", headers=other_headers).status_code == 404
+
+
+def test_resident_can_finish_ambiguous_grouping_after_reopening_report(
+    api_client: TestClient, database_url: str
+) -> None:
+    _resident_id, token = _resident_token(api_client)
+    house_id = _insert_house(database_url)
+    category_id = str(uuid4())
+    category_code = f"ambiguous-{uuid4().hex}"
+    run_sql(
+        database_url,
+        "INSERT INTO reports.problem_category(id, code, name, created_at, updated_at) "
+        "VALUES (:id, :code, 'Water', now(), now())",
+        id=category_id,
+        code=category_code,
+    )
+    candidates = [_insert_incident(database_url, category_id=category_id, status="NEW") for _ in range(2)]
+    for incident_id in candidates:
+        _insert_affected_house(database_url, incident_id=incident_id, house_id=house_id)
+        run_sql(
+            database_url,
+            "UPDATE incidents.incident SET title='Нет холодной воды во всём доме' WHERE id=:id",
+            id=incident_id,
+        )
+
+    headers = {"Authorization": f"Bearer {token}"}
+    created = api_client.post(
+        "/reports/intake",
+        json={
+            "source_external_id": str(uuid4()),
+            "house_id": house_id,
+            "category_code": category_code,
+            "text": "Нет холодной воды во всём доме",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    report_id = created.json()["report_id"]
+    assert created.json()["grouping"]["outcome"] == "NEEDS_CLARIFICATION"
+
+    reopened = api_client.get(f"/reports/{report_id}/grouping", headers=headers)
+    assert reopened.status_code == 200, reopened.text
+    assert set(reopened.json()["candidate_incident_ids"]) == set(candidates)
+    assert {item["incident_id"] for item in reopened.json()["candidate_incidents"]} == set(candidates)
+    assert {item["title"] for item in reopened.json()["candidate_incidents"]} == {
+        "Нет холодной воды во всём доме"
+    }
+
+    decided = api_client.post(
+        f"/reports/{report_id}/grouping-decision",
+        json={"mode": "CONFIRM_INCIDENT", "confirmed_incident_id": candidates[0]},
+        headers=headers,
+    )
+    assert decided.status_code == 200, decided.text
+    assert decided.json()["incident_id"] == candidates[0]
+    assert api_client.get(f"/reports/{report_id}", headers=headers).json()["status"] == "LINKED"
 
 
 def test_my_house_lists_incidents_affecting_residents_most_recent_house(

@@ -1,6 +1,6 @@
 import { http } from '@/shared/api';
 
-import type { Incident, ResolutionDispute } from '../model/types';
+import type { Incident, ResidentIncidentReport, ResolutionFeedbackResult } from '../model/types';
 
 export function fetchIncident(incidentId: string): Promise<Incident> {
   return http.get<Incident>(`/incidents/${incidentId}`);
@@ -10,14 +10,19 @@ export function fetchMyHouseIncidents(): Promise<Incident[]> {
   return http.get<Incident[]>('/incidents/my-house');
 }
 
-export function confirmResolution(incidentId: string): Promise<Incident> {
-  return http.post<Incident>(`/incidents/${incidentId}/confirm-resolution`);
+export function fetchMyIncidentReport(incidentId: string): Promise<ResidentIncidentReport> {
+  return http.get<ResidentIncidentReport>(`/incidents/${incidentId}/my-report`);
 }
 
-export function disputeResolution(incidentId: string, comment: string): Promise<ResolutionDispute> {
-  return http.post<ResolutionDispute>(`/incidents/${incidentId}/dispute-resolution`, { comment });
-}
-
-export function fetchIncidentDisputes(incidentId: string): Promise<ResolutionDispute[]> {
-  return http.get<ResolutionDispute[]>(`/incidents/${incidentId}/disputes`);
+export function sendResolutionFeedback(
+  incidentId: string,
+  reportId: string,
+  feedback: 'CONFIRMED' | 'PROBLEM_CONTINUES',
+  comment: string | null,
+): Promise<ResolutionFeedbackResult> {
+  return http.post<ResolutionFeedbackResult>(`/incidents/${incidentId}/resolution-feedback`, {
+    report_id: reportId,
+    feedback,
+    comment,
+  });
 }

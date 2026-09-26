@@ -63,12 +63,21 @@ class GroupReportCommand:
 
 
 @dataclass(slots=True)
+class GroupingCandidate:
+    incident_id: UUID
+    title: str
+    description: str | None
+    score: float | None = None
+
+
+@dataclass(slots=True)
 class GroupReportResult:
     report_id: UUID
     outcome: GroupingOutcome
     incident_id: UUID | None
     score: float | None
     candidate_incident_ids: list[UUID] = field(default_factory=list)
+    candidate_incidents: list[GroupingCandidate] = field(default_factory=list)
     reason_codes: list[str] = field(default_factory=list)
     policy_version: str = ""
     scorer_version: str = ""
@@ -123,6 +132,12 @@ class ResolutionFeedbackResult:
     report_id: UUID
     incident_status: IncidentStatus
     feedback: ResolutionFeedback
+
+
+@dataclass(slots=True)
+class ResidentIncidentReportResult:
+    report_id: UUID
+    has_open_dispute: bool
 
 
 @dataclass(slots=True)

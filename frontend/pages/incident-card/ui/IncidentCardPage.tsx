@@ -6,6 +6,7 @@ import {
   INCIDENT_STATUS_LABELS,
   INCIDENT_STATUS_TONES,
   useIncident,
+  useMyIncidentReport,
 } from '@/entities/incident';
 import { PRIORITY_LABELS, PRIORITY_TONES } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
@@ -17,6 +18,7 @@ import './IncidentCardPage.css';
 export function IncidentCardPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
   const incident = useIncident(incidentId);
+  const myReport = useMyIncidentReport(incidentId);
 
   return (
     <PageLayout title="Инцидент" subtitle="Подробности и текущий статус" backTo={ROUTES.myHouse} withNavSpacing={false}>
@@ -58,7 +60,7 @@ export function IncidentCardPage() {
             </CellList>
             </ListCard>
 
-            {canConfirmOrDispute(incident.data.status) && (
+            {canConfirmOrDispute(incident.data.status) && myReport.data && !myReport.data.has_open_dispute && (
               <Flex
                 direction="column"
                 gap="var(--space-3)"

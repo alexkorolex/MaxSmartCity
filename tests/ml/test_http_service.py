@@ -23,9 +23,13 @@ class FixedPipeline:
 class FixedEmbeddingProvider:
     model_name = "fixed-semantic-test"
 
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
-        assert len(texts) == 2
-        return np.array([[1.0, 0.0], [0.99, 0.01]], dtype=np.float32)
+    def embed_queries(self, texts: Sequence[str]) -> np.ndarray:
+        assert len(texts) == 1
+        return np.array([[1.0, 0.0]], dtype=np.float32)
+
+    def embed_documents(self, texts: Sequence[str]) -> np.ndarray:
+        assert len(texts) == 1
+        return np.array([[0.99, 0.01]], dtype=np.float32)
 
 
 def _runtime() -> MLRuntime:

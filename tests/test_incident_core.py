@@ -17,7 +17,6 @@ from src.domains.incidents.grouping import (
     GroupingConfig,
     IncidentCandidate,
     ProposedAction,
-    char_ngram_cosine,
     propose_grouping,
 )
 from src.domains.incidents.state_machine import INCIDENT_TRANSITIONS, ensure_incident_transition
@@ -55,53 +54,54 @@ def test_terminal_states_reject_transitions(
         validator(current, target)
 
 
-def test_character_similarity_handles_russian_inflection_and_typo() -> None:
-    score = char_ngram_cosine(
-        "В доме не работает лифт",
-        "Лифт снова не работаeт в нашем доме",
-    )
-    assert score > 0.45
-
-
-def test_online_policy_attaches_clear_match() -> None:
+def test_deterministic_policy_attaches_only_active_candidate_for_fixed_scenario() -> None:
     incident_id = uuid4()
     proposal = propose_grouping(
-        "Во всём доме нет холодной воды",
         (
             IncidentCandidate(
                 incident_id,
-                "Нет холодной воды во всём доме",
                 NOW - timedelta(hours=1),
             ),
         ),
-        occurred_at=NOW,
+        allow_single_auto_attach=True,
     )
     assert proposal.action is ProposedAction.ATTACH
     assert proposal.selected_incident_id == incident_id
 
 
 def test_online_policy_asks_when_top_candidates_are_ambiguous() -> None:
-    candidates = tuple(
-        IncidentCandidate(uuid4(), "В доме нет воды", NOW - timedelta(minutes=index)) for index in (10, 20)
-    )
-    proposal = propose_grouping("В доме нет воды", candidates, occurred_at=NOW)
+    candidates = tuple(IncidentCandidate(uuid4(), NOW - timedelta(minutes=index)) for index in (10, 20))
+    proposal = propose_grouping(candidates, allow_single_auto_attach=True)
     assert proposal.action is ProposedAction.CLARIFY
-    assert "AMBIGUOUS_TOP_CANDIDATES" in proposal.reason_codes
+    assert "MULTIPLE_ACTIVE_CANDIDATES" in proposal.reason_codes
 
 
-def test_online_policy_creates_for_unrelated_text() -> None:
-    proposal = propose_grouping(
-        "Не вывезли мусор из контейнеров",
-        (IncidentCandidate(uuid4(), "Не работает лифт", NOW - timedelta(hours=1)),),
-        occurred_at=NOW,
-    )
+def test_deterministic_policy_creates_when_there_are_no_candidates() -> None:
+    proposal = propose_grouping((), allow_single_auto_attach=True)
     assert proposal.action is ProposedAction.CREATE
     assert proposal.selected_incident_id is None
 
 
-def test_grouping_thresholds_are_validated() -> None:
-    with pytest.raises(ValueError, match="thresholds"):
-        GroupingConfig(attach_threshold=0.3, clarify_threshold=0.5)
+def test_other_never_auto_attaches_without_resident_choice() -> None:
+    incident_id = uuid4()
+    proposal = propose_grouping(
+        (IncidentCandidate(incident_id, NOW - timedelta(hours=1)),),
+        allow_single_auto_attach=False,
+    )
+    assert proposal.action is ProposedAction.CLARIFY
+    assert proposal.selected_incident_id is None
+    assert proposal.candidate_incident_ids == (incident_id,)
+    assert proposal.reason_codes == ("USER_CHOICE_REQUIRED_FOR_OTHER",)
+
+
+def test_candidate_window_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="candidate_window"):
+        GroupingConfig(candidate_window=timedelta(0))
+
+
+def test_candidate_limit_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="max_candidates"):
+        GroupingConfig(max_candidates=0)
 
 
 def test_seeded_problem_categories_match_ml_taxonomy() -> None:

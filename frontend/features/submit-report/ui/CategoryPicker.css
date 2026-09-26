@@ -1,0 +1,114 @@
+.category-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.category-picker__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: clamp(15px, 4vw, 20px);
+}
+
+.category-picker__group--critical {
+  background: color-mix(in srgb, var(--error) 6%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--error) 28%, var(--border-soft));
+  border-radius: var(--radius-lg);
+}
+
+.category-picker__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.category-picker__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.category-picker__group--critical .category-picker__title {
+  color: var(--error);
+}
+
+.category-picker__hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.category-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.category-option {
+  position: relative;
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  background: var(--background-secondary);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.category-option__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.category-option__name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 560;
+  line-height: 1.3;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.category-option__icon {
+  flex: 0 0 auto;
+  color: var(--error);
+}
+
+.category-option:has(.category-option__input:checked) {
+  color: var(--blue-strong);
+  background: var(--blue-soft);
+  border-color: var(--blue);
+}
+
+.category-option--critical {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--error) 22%, transparent);
+}
+
+.category-option--critical:has(.category-option__input:checked) {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 12%, var(--surface-raised));
+  border-color: var(--error);
+}
+
+.category-option:has(.category-option__input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (max-width: 340px) {
+  .category-picker__grid {
+    grid-template-columns: 1fr;
+  }
+}

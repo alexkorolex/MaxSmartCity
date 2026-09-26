@@ -68,6 +68,11 @@ class GroupingCandidate:
     title: str
     description: str | None
     score: float | None = None
+    headline: str | None = None
+    category_name: str | None = None
+    reports_count: int = 0
+    first_report_at: datetime | None = None
+    last_report_at: datetime | None = None
 
 
 @dataclass(slots=True)

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.incidents.models import Incident, IncidentGroupingDecision, IncidentReportLink
@@ -21,6 +22,8 @@ _MINIMUM_SCORE = 0.88
 _MAX_RECOMMENDATIONS = 3
 _MAX_REPRESENTATIVE_TEXTS = 20
 _EXACT_SCORER_VERSION = "normalized-exact-text-v1"
+_HEADLINE_LENGTH = 80
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+|\n+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +48,15 @@ class ReportGroupingRecommendationService:
         if not candidate_ids:
             return GroupingRecommendations([])
 
+        recommendations = await self._rank(report, decision, candidate_ids)
+        return replace(recommendations, candidates=await self._describe(recommendations.candidates))
+
+    async def _rank(
+        self,
+        report: Report,
+        decision: IncidentGroupingDecision,
+        candidate_ids: list[UUID],
+    ) -> GroupingRecommendations:
         incidents = await self._load_incidents(candidate_ids)
         category_code = await self.session.scalar(
             select(ProblemCategory.code).where(ProblemCategory.id == report.category_id)
@@ -81,6 +93,52 @@ class ReportGroupingRecommendationService:
         ]
         scorer = result.body.get("scorer_version")
         return GroupingRecommendations(candidates, scorer if isinstance(scorer, str) else None)
+
+    async def _describe(self, candidates: list[GroupingCandidate]) -> list[GroupingCandidate]:
+        if not candidates:
+            return candidates
+        ids = [candidate.incident_id for candidate in candidates]
+        reports = dict(
+            (
+                await self.session.execute(
+                    select(IncidentReportLink.incident_id, func.count())
+                    .where(IncidentReportLink.incident_id.in_(ids), IncidentReportLink.is_active.is_(True))
+                    .group_by(IncidentReportLink.incident_id)
+                )
+            )
+            .tuples()
+            .all()
+        )
+        details = {
+            row.id: row
+            for row in (
+                await self.session.execute(
+                    select(
+                        Incident.id,
+                        Incident.first_report_at,
+                        Incident.last_report_at,
+                        Incident.created_at,
+                        ProblemCategory.name.label("category_name"),
+                    )
+                    .join(ProblemCategory, ProblemCategory.id == Incident.category_id)
+                    .where(Incident.id.in_(ids))
+                )
+            ).all()
+        }
+        described = []
+        for candidate in candidates:
+            row = details.get(candidate.incident_id)
+            described.append(
+                replace(
+                    candidate,
+                    headline=headline_from(candidate.description) or candidate.title,
+                    category_name=row.category_name if row else None,
+                    reports_count=reports.get(candidate.incident_id, 0),
+                    first_report_at=(row.first_report_at or row.created_at) if row else None,
+                    last_report_at=row.last_report_at if row else None,
+                )
+            )
+        return described
 
     async def _load_incidents(self, candidate_ids: list[UUID]) -> dict[UUID, Incident]:
         values = await self.session.scalars(
@@ -143,6 +201,17 @@ class ReportGroupingRecommendationService:
                 if incident_id in incidents
             ],
         }
+
+
+def headline_from(text: str | None) -> str | None:
+    cleaned = " ".join((text or "").split())
+    if not cleaned:
+        return None
+    sentence = _SENTENCE_END.split(cleaned, maxsplit=1)[0].rstrip(".!?… ")
+    if len(sentence) > _HEADLINE_LENGTH:
+        cut = sentence[:_HEADLINE_LENGTH].rsplit(" ", 1)[0].rstrip(",;:—- ")
+        sentence = f"{cut}…"
+    return sentence[:1].upper() + sentence[1:]
 
 
 def _candidate_ids(values: list[str]) -> list[UUID]:

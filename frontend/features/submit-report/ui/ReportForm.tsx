@@ -5,9 +5,10 @@ import { HouseSelector } from '@/features/select-house';
 import { useHouse } from '@/entities/geo';
 import { PRIORITY_LABELS, PRIORITY_TONES, useProblemCategories, type Priority } from '@/entities/report';
 import { ROUTES } from '@/shared/routes';
-import { AsyncState, HouseIcon, ListCard, ToneDot, WarningIcon } from '@/shared/ui';
+import { AsyncState, HouseIcon, ListCard, ToneDot } from '@/shared/ui';
 
 import { useReportForm } from '../model/useReportForm';
+import { CategoryPicker } from './CategoryPicker';
 import { PhotoPicker } from './PhotoPicker';
 
 import './ReportForm.css';
@@ -42,34 +43,16 @@ export function ReportForm() {
 
   return (
     <div className="form-stack">
-      <ListCard>
-        <CellList mode="full-width" header={<CellHeader>Тип обращения</CellHeader>}>
-          <AsyncState isLoading={categories.isLoading} error={categories.error}>
-            {categories.data?.map((category) => (
-              <CellSimple
-                key={category.id}
-                title={category.name}
-                before={
-                  category.is_critical ? (
-                    <WarningIcon className="report-form__critical-icon" width={18} height={18} />
-                  ) : undefined
-                }
-                after={
-                  <Radio
-                    name="category"
-                    checked={form.categoryCode === category.code}
-                    onChange={() => {
-                      form.setCategoryCode(category.code);
-                      if (category.is_critical) form.setUrgency('CRITICAL');
-                    }}
-                    aria-label={category.name}
-                  />
-                }
-              />
-            ))}
-          </AsyncState>
-        </CellList>
-      </ListCard>
+      <AsyncState isLoading={categories.isLoading} error={categories.error}>
+        <CategoryPicker
+          categories={categories.data ?? []}
+          value={form.categoryCode}
+          onChange={(category) => {
+            form.setCategoryCode(category.code);
+            if (category.is_critical) form.setUrgency('CRITICAL');
+          }}
+        />
+      </AsyncState>
 
       <ListCard>
         <CellList mode="full-width" header={<CellHeader>Описание проблемы</CellHeader>}>

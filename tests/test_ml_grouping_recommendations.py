@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
@@ -107,9 +108,21 @@ async def test_backend_exact_match_does_not_depend_on_ml_service() -> None:
     scalar_result.all.return_value = [incident]
     session_mock.scalars.return_value = scalar_result
     session_mock.scalar.return_value = "other"
-    row_result = MagicMock()
-    row_result.all.return_value = [(incident_id, repeated)]
-    session_mock.execute.return_value = row_result
+    texts_result = MagicMock()
+    texts_result.all.return_value = [(incident_id, repeated)]
+    counts_result = MagicMock()
+    counts_result.tuples.return_value.all.return_value = [(incident_id, 3)]
+    details_result = MagicMock()
+    details_result.all.return_value = [
+        SimpleNamespace(
+            id=incident_id,
+            first_report_at=incident.last_report_at,
+            last_report_at=incident.last_report_at,
+            created_at=incident.last_report_at,
+            category_name="Другая проблема",
+        )
+    ]
+    session_mock.execute.side_effect = [texts_result, counts_result, details_result]
     client_mock = AsyncMock()
 
     result = await ReportGroupingRecommendationService(
@@ -120,4 +133,6 @@ async def test_backend_exact_match_does_not_depend_on_ml_service() -> None:
     assert [item.incident_id for item in result.candidates] == [incident_id]
     assert result.candidates[0].score == 1.0
     assert result.scorer_version == "normalized-exact-text-v1"
+    assert result.candidates[0].headline == "В подъезде появился резкий неприятный запах"
+    assert (result.candidates[0].category_name, result.candidates[0].reports_count) == ("Другая проблема", 3)
     client_mock.recommend_grouping.assert_not_awaited()

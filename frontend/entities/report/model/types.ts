@@ -52,6 +52,11 @@ export interface GroupingResult {
     title: string;
     description: string | null;
     score: number | null;
+    headline: string | null;
+    category_name: string | null;
+    reports_count: number;
+    first_report_at: string | null;
+    last_report_at: string | null;
   }[];
   reason_codes: string[];
   policy_version: string;

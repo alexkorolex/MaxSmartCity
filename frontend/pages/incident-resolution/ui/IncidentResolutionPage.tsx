@@ -4,9 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   canConfirmOrDispute,
-  useConfirmResolution,
-  useDisputeResolution,
   useIncident,
+  useMyIncidentReport,
+  useResolutionFeedback,
 } from '@/entities/incident';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CheckCircleIcon, EmptyState, PageLayout } from '@/shared/ui';
@@ -17,27 +17,31 @@ export function IncidentResolutionPage() {
   const { incidentId = '' } = useParams<{ incidentId: string }>();
   const navigate = useNavigate();
   const incident = useIncident(incidentId);
-  const confirmResolution = useConfirmResolution(incidentId);
-  const disputeResolution = useDisputeResolution(incidentId);
+  const myReport = useMyIncidentReport(incidentId);
+  const feedback = useResolutionFeedback(incidentId, myReport.data?.report_id);
   const [comment, setComment] = useState('');
   const [isDisputing, setIsDisputing] = useState(false);
 
   const handleConfirm = () => {
-    confirmResolution.mutate(undefined, {
+    feedback.mutate({ feedback: 'CONFIRMED', comment: null }, {
       onSuccess: () => navigate(ROUTES.incident(incidentId), { replace: true }),
     });
   };
 
   const handleDispute = () => {
     if (comment.trim().length < 5) return;
-    disputeResolution.mutate(comment.trim(), {
+    feedback.mutate({ feedback: 'PROBLEM_CONTINUES', comment: comment.trim() }, {
       onSuccess: () => navigate(ROUTES.incident(incidentId), { replace: true }),
     });
   };
 
   return (
     <PageLayout title="Проверка решения" subtitle="Подтвердите результат работ" backTo={ROUTES.incident(incidentId)} withNavSpacing={false}>
-      <AsyncState isLoading={incident.isLoading} error={incident.error}>
+      <AsyncState
+        isLoading={incident.isLoading || myReport.isLoading}
+        error={incident.error ?? myReport.error}
+        onRetry={() => { void incident.refetch(); void myReport.refetch(); }}
+      >
         {incident.data && !canConfirmOrDispute(incident.data.status) && (
           <EmptyState
             icon={<CheckCircleIcon width={28} height={28} />}
@@ -46,7 +50,7 @@ export function IncidentResolutionPage() {
           />
         )}
 
-        {incident.data && canConfirmOrDispute(incident.data.status) && (
+        {incident.data && myReport.data && canConfirmOrDispute(incident.data.status) && (
           <>
             <Flex
               direction="column"
@@ -66,18 +70,23 @@ export function IncidentResolutionPage() {
               </Typography.Text>
             </Flex>
 
-            {!isDisputing ? (
+            {myReport.data.has_open_dispute ? (
+              <Typography.Text variant="description" color="secondary">
+                Вы уже сообщили, что проблема осталась. Мы учитываем ваш ответ.
+              </Typography.Text>
+            ) : !isDisputing ? (
               <Flex direction="column" gap="var(--space-2)">
                 <Button
                   variant="primary"
                   size="large"
                   stretched
-                  loading={confirmResolution.isPending}
+                  loading={feedback.isPending}
+                  disabled={feedback.isPending}
                   onClick={handleConfirm}
                 >
                   Да, проблема решена
                 </Button>
-                <Button variant="destructive" size="large" stretched onClick={() => setIsDisputing(true)}>
+                <Button variant="destructive" size="large" stretched disabled={feedback.isPending} onClick={() => setIsDisputing(true)}>
                   Проблема не решена
                 </Button>
               </Flex>
@@ -94,8 +103,8 @@ export function IncidentResolutionPage() {
                   variant="destructive"
                   size="large"
                   stretched
-                  loading={disputeResolution.isPending}
-                  disabled={comment.trim().length < 5}
+                  loading={feedback.isPending}
+                  disabled={comment.trim().length < 5 || feedback.isPending}
                   onClick={handleDispute}
                 >
                   Оспорить решение
@@ -104,6 +113,11 @@ export function IncidentResolutionPage() {
                   Отмена
                 </Button>
               </Flex>
+            )}
+            {feedback.isError && (
+              <Typography.Text variant="description" color="primary">
+                Не удалось отправить ответ. Обновите страницу и попробуйте ещё раз.
+              </Typography.Text>
             )}
           </>
         )}

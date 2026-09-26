@@ -35,5 +35,5 @@ export const INCIDENT_STATUS_TONES: Record<IncidentStatus, StatusTone> = {
 };
 
 export function canConfirmOrDispute(status: IncidentStatus): boolean {
-  return status === 'AWAITING_CONFIRMATION';
+  return status === 'RESOLVED' || status === 'AWAITING_CONFIRMATION';
 }

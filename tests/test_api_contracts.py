@@ -54,10 +54,12 @@ def test_incident_core_exposes_commands_instead_of_generic_mutations(
     assert "get" in api_schema["paths"]["/geo/houses"]
     assert "get" in api_schema["paths"]["/incidents/my-house"]
     assert "post" in api_schema["paths"]["/reports/{item_id}/grouping-decision"]
+    assert "get" in api_schema["paths"]["/reports/{item_id}/grouping"]
     assert "post" in api_schema["paths"]["/incidents/group-reports/{report_id}"]
     assert "post" in api_schema["paths"]["/incidents/{item_id}/status"]
     assert "get" in api_schema["paths"]["/incidents/{item_id}/card"]
     assert "post" in api_schema["paths"]["/incidents/{item_id}/resolution-feedback"]
+    assert "get" in api_schema["paths"]["/incidents/{item_id}/my-report"]
     assert "post" in api_schema["paths"]["/collaboration/assignments"]
     assert "post" in api_schema["paths"]["/collaboration/assignments/{item_id}/status"]
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useCreateReport, uploadReportAttachment } from '@/entities/report';
 import type { Priority } from '@/entities/report';
@@ -8,7 +8,7 @@ import { usePhotoPicker } from './usePhotoPicker';
 
 export function useReportForm(onSubmitted: (reportId: string) => void) {
   const profile = useMyProfile();
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [categoryCode, setCategoryCode] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [urgency, setUrgency] = useState<Priority>('NORMAL');
   const [problemContinues, setProblemContinues] = useState(true);
@@ -16,6 +16,7 @@ export function useReportForm(onSubmitted: (reportId: string) => void) {
   const [isEditingHouse, setIsEditingHouse] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [attachmentWarning, setAttachmentWarning] = useState<string | null>(null);
+  const request = useRef<{ signature: string; id: string } | null>(null);
 
   useEffect(() => {
     if (profile.data) setHouseId((current) => current ?? profile.data.house_id);
@@ -30,35 +31,48 @@ export function useReportForm(onSubmitted: (reportId: string) => void) {
       setValidationError('Опишите проблему подробнее — минимум 10 символов');
       return;
     }
+    if (!categoryCode) {
+      setValidationError('Выберите тип обращения');
+      return;
+    }
+    if (!houseId) {
+      setValidationError('Выберите дом');
+      return;
+    }
     setValidationError(null);
     setAttachmentWarning(null);
 
+    const signature = JSON.stringify([houseId, categoryCode, text.trim(), urgency, problemContinues]);
+    if (request.current?.signature !== signature) {
+      request.current = { signature, id: crypto.randomUUID() };
+    }
+    const requestId = request.current.id;
+
     createReport.mutate(
       {
-        source_type: 'MAX',
+        source_external_id: requestId,
+        request_id: requestId,
+        house_id: houseId,
+        category_code: categoryCode,
         text: text.trim(),
-        category_id: categoryId,
         urgency,
         problem_continues: problemContinues,
-        house_id: houseId,
       },
       {
-        onSuccess: async (report) => {
+        onSuccess: async (result) => {
           if (photoPicker.photos.length === 0) {
-            onSubmitted(report.id);
+            onSubmitted(result.report_id);
             return;
           }
           const results = await Promise.allSettled(
-            photoPicker.photos.map((photo) => uploadReportAttachment(report.id, photo.file)),
+            photoPicker.photos.map((photo) => uploadReportAttachment(result.report_id, photo.file)),
           );
           const failedCount = results.filter((result) => result.status === 'rejected').length;
           if (failedCount === 0) {
-            onSubmitted(report.id);
+            onSubmitted(result.report_id);
             return;
           }
-          // The report itself is already safely created - only some photos failed to
-          // attach. Stay on the page so the warning is actually seen before moving on.
-          setCreatedReportId(report.id);
+          setCreatedReportId(result.report_id);
           setAttachmentWarning(
             failedCount === photoPicker.photos.length
               ? 'Обращение отправлено, но фото загрузить не удалось.'
@@ -74,8 +88,8 @@ export function useReportForm(onSubmitted: (reportId: string) => void) {
   };
 
   return {
-    categoryId,
-    setCategoryId,
+    categoryCode,
+    setCategoryCode,
     text,
     setText,
     urgency,

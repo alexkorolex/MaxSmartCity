@@ -19,9 +19,11 @@ from src.database.logging import database_action
 from src.domains.geo.models import Address, House
 from src.domains.identity.admin_scope import RESIDENT_DATA_ROLES, resolve_organization_scope
 from src.domains.incidents.enums import GroupingMode
+from src.domains.incidents.models import Incident, IncidentGroupingDecision
 from src.domains.incidents.schemas import (
     CloseReportCommand,
     CloseReportResult,
+    GroupingCandidate,
     GroupReportCommand,
     GroupReportResult,
 )
@@ -147,6 +149,54 @@ class ReportController(Controller):
                     .offset(offset)
                 )
             ).all()
+        )
+
+    @get(
+        "/{item_id:uuid}/grouping",
+        return_dto=None,
+        name="reports:Report:grouping",
+        guards=[require_resident()],
+    )
+    async def get_grouping(
+        self,
+        item_id: FromPath[UUID],
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> GroupReportResult:
+        report = await db_session.scalar(
+            select(Report).where(Report.id == item_id, Report.resident_id == principal.actor_id)
+        )
+        if report is None:
+            raise NotFoundException(f"Report {item_id} was not found")
+        decision = await db_session.scalar(
+            select(IncidentGroupingDecision)
+            .where(IncidentGroupingDecision.report_id == item_id)
+            .order_by(IncidentGroupingDecision.created_at.desc(), IncidentGroupingDecision.id.desc())
+            .limit(1)
+        )
+        if decision is None:
+            raise NotFoundException(f"Grouping for report {item_id} was not found")
+        candidate_ids = [UUID(value) for value in decision.candidate_incident_ids]
+        candidates = (
+            await db_session.execute(
+                select(Incident.id, Incident.title, Incident.description).where(
+                    Incident.id.in_(candidate_ids)
+                )
+            )
+        ).all()
+        return GroupReportResult(
+            report_id=report.id,
+            outcome=decision.outcome,
+            incident_id=decision.selected_incident_id,
+            score=float(decision.score) if decision.score is not None else None,
+            candidate_incident_ids=candidate_ids,
+            candidate_incidents=[
+                GroupingCandidate(incident_id=id, title=title, description=description)
+                for id, title, description in candidates
+            ],
+            reason_codes=decision.reason_codes,
+            policy_version=decision.policy_version,
+            scorer_version=decision.scorer_version,
         )
 
     @post(

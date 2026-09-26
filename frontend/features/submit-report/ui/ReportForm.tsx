@@ -17,9 +17,12 @@ const URGENCY_OPTIONS: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 export function ReportForm() {
   const navigate = useNavigate();
   const categories = useProblemCategories();
-  const form = useReportForm((reportId) => navigate(ROUTES.myReports, { state: { createdReportId: reportId } }));
+  const form = useReportForm((reportId) => navigate(ROUTES.report(reportId), { replace: true }));
 
   const selectedHouse = useHouse(form.houseId).data;
+  const criticalCategory = categories.data?.some(
+    (category) => category.code === form.categoryCode && category.is_critical,
+  );
 
   if (form.attachmentWarning) {
     return (
@@ -31,7 +34,7 @@ export function ReportForm() {
           {form.attachmentWarning}
         </Typography.Text>
         <Button variant="primary" size="large" stretched onClick={form.dismissAttachmentWarning}>
-          Понятно, к моим обращениям
+          Понятно, к обращению
         </Button>
       </Flex>
     );
@@ -54,8 +57,11 @@ export function ReportForm() {
                 after={
                   <Radio
                     name="category"
-                    checked={form.categoryId === category.id}
-                    onChange={() => form.setCategoryId(category.id)}
+                    checked={form.categoryCode === category.code}
+                    onChange={() => {
+                      form.setCategoryCode(category.code);
+                      if (category.is_critical) form.setUrgency('CRITICAL');
+                    }}
                     aria-label={category.name}
                   />
                 }
@@ -136,6 +142,7 @@ export function ReportForm() {
                 <Radio
                   name="urgency"
                   checked={form.urgency === option}
+                  disabled={criticalCategory}
                   onChange={() => form.setUrgency(option)}
                   aria-label={PRIORITY_LABELS[option]}
                 />

@@ -32,15 +32,35 @@ export interface Report {
 }
 
 export interface ReportCreatePayload {
-  /** Always sent as "MAX" - the backend forces this to the caller's real source
-   * regardless of what's submitted here; the DTO just requires the field to be present. */
-  source_type: 'MAX';
+  source_external_id: string;
+  request_id: string;
+  house_id: string;
+  category_code: string;
   text: string;
-  category_id?: string | null;
-  urgency?: Priority;
-  problem_continues?: boolean | null;
-  house_id?: string | null;
+  urgency: Priority;
+  problem_continues: boolean;
 }
+
+export interface GroupingResult {
+  report_id: string;
+  outcome: 'CREATED' | 'ATTACHED' | 'NEEDS_CLARIFICATION';
+  incident_id: string | null;
+  score: number | null;
+  candidate_incident_ids: string[];
+  candidate_incidents: { incident_id: string; title: string; description: string | null }[];
+  reason_codes: string[];
+  policy_version: string;
+  scorer_version: string;
+}
+
+export interface ReportCreateResult {
+  report_id: string;
+  grouping: GroupingResult;
+}
+
+export type GroupingDecision =
+  | { mode: 'CONFIRM_INCIDENT'; confirmed_incident_id: string }
+  | { mode: 'FORCE_NEW' };
 
 export interface ReportAttachment {
   id: string;

@@ -11,6 +11,7 @@ import {
   useReportAttachments,
 } from '@/entities/report';
 import { CloseReportCard } from '@/features/close-report';
+import { ClarifyReportCard } from '@/features/clarify-report';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CommentIcon, ListCard, PageLayout, StatusBadge } from '@/shared/ui';
@@ -94,6 +95,8 @@ export function ReportCardPage() {
                 </CellSimple>
               </CellList>
             </ListCard>
+
+            {report.data.status === 'NEEDS_CLARIFICATION' && <ClarifyReportCard reportId={report.data.id} />}
 
             <CloseReportCard report={report.data} />
 

@@ -67,13 +67,21 @@ class ReportIntakeService:
         if existing is not None:
             if existing.resident_id != resident_id:
                 raise ReportIntakeConflictError("source_external_id belongs to another resident")
-            existing_category_code = await self.session.scalar(
-                select(ProblemCategory.code).where(ProblemCategory.id == existing.category_id)
+            existing_category = await self.session.scalar(
+                select(ProblemCategory).where(ProblemCategory.id == existing.category_id)
+            )
+            effective_urgency = (
+                Priority.CRITICAL
+                if existing_category is not None and existing_category.is_critical
+                else command.urgency or Priority.NORMAL
             )
             if (
                 existing.house_id != command.house_id
-                or existing_category_code != category_code
+                or existing_category is None
+                or existing_category.code != category_code
                 or existing.text != body
+                or existing.urgency != effective_urgency
+                or existing.problem_continues != command.problem_continues
                 or existing.occurred_at != command.occurred_at
             ):
                 raise ReportIntakeConflictError(
@@ -102,7 +110,8 @@ class ReportIntakeService:
             text=body,
             category_id=category.id,
             house_id=command.house_id,
-            urgency=Priority.CRITICAL if category.is_critical else Priority.NORMAL,
+            urgency=Priority.CRITICAL if category.is_critical else command.urgency or Priority.NORMAL,
+            problem_continues=command.problem_continues,
             occurred_at=command.occurred_at,
         )
         self.session.add(report)

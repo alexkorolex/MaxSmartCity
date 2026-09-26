@@ -120,6 +120,53 @@ def test_old_candidates_are_excluded_before_inference() -> None:
     assert result.reason_codes == ("NO_ELIGIBLE_CANDIDATES",)
 
 
+def test_candidate_updated_after_report_time_remains_eligible() -> None:
+    service = SemanticGroupingService(
+        FixedEmbeddingProvider(((1, 0), (1, 0))),
+        SemanticGroupingConfig(attach_threshold=0.9, clarify_threshold=0.7),
+    )
+
+    result = service.recommend(
+        "резкий запах в подъезде",
+        (candidate("INC-SMELL", "неприятный запах", age_hours=-1),),
+        occurred_at=NOW,
+    )
+
+    assert result.action is SemanticAction.ATTACH
+    assert result.selected_incident_id == "INC-SMELL"
+
+
+def test_identical_text_is_recommended_without_embedding_inference() -> None:
+    service = SemanticGroupingService(None)
+    repeated = "В подъезде несколько дней чувствуется неприятный запах"
+
+    result = service.recommend(
+        f"  {repeated.upper()}  ",
+        (candidate("INC-SMELL", repeated),),
+        occurred_at=NOW,
+    )
+
+    assert result.action is SemanticAction.ATTACH
+    assert result.selected_incident_id == "INC-SMELL"
+    assert result.candidates[0].score == 1.0
+    assert result.reason_codes == ("EXACT_TEXT_MATCH",)
+
+
+def test_duplicate_exact_incidents_require_resident_choice() -> None:
+    service = SemanticGroupingService(None)
+    repeated = "В подъезде появился неприятный запах"
+
+    result = service.recommend(
+        repeated,
+        (candidate("INC-B", repeated), candidate("INC-A", repeated)),
+        occurred_at=NOW,
+    )
+
+    assert result.action is SemanticAction.CLARIFY
+    assert [item.incident_id for item in result.candidates] == ["INC-A", "INC-B"]
+    assert result.reason_codes == ("EXACT_TEXT_MATCH", "DUPLICATE_EXACT_CANDIDATES")
+
+
 def test_candidate_limit_causes_safe_abstention() -> None:
     service = SemanticGroupingService(
         UnavailableEmbeddingProvider(), SemanticGroupingConfig(max_candidates=2)

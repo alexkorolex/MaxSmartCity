@@ -13,7 +13,7 @@ import numpy as np
 from maxsmartcity.ml.ports.embeddings import TextEmbeddingProvider
 from maxsmartcity.ml.ports.models import ComponentUnavailableError
 
-SEMANTIC_SCORER_VERSION: Final = "multilingual-e5-query-passage-cosine-v2"
+SEMANTIC_SCORER_VERSION: Final = "exact-text-or-multilingual-e5-cosine-v3"
 
 
 class SemanticAction(StrEnum):
@@ -89,12 +89,9 @@ class SemanticGroupingService:
         normalized_text = " ".join(text.split())
         if not normalized_text:
             return self._abstain("EMPTY_TEXT")
-        if self.embedding_provider is None:
-            return self._abstain("SEMANTIC_MODEL_DISABLED")
+        oldest_allowed_activity = occurred_at - self.config.candidate_window
         eligible = tuple(
-            candidate
-            for candidate in candidates
-            if timedelta(0) <= occurred_at - candidate.last_activity_at <= self.config.candidate_window
+            candidate for candidate in candidates if candidate.last_activity_at >= oldest_allowed_activity
         )
         if len(eligible) > self.config.max_candidates:
             return self._abstain("CANDIDATE_LIMIT_EXCEEDED")
@@ -105,8 +102,37 @@ class SemanticGroupingService:
                 candidates=(),
                 suggested_title=suggest_cluster_title((normalized_text,)),
                 reason_codes=("NO_ELIGIBLE_CANDIDATES",),
-                model_name=self.embedding_provider.model_name,
+                model_name=self.embedding_provider.model_name if self.embedding_provider else None,
             )
+
+        exact_matches = tuple(
+            candidate
+            for candidate in eligible
+            if normalized_text.casefold()
+            in {
+                _normalize_text(candidate.title),
+                *(_normalize_text(value) for value in candidate.representative_texts),
+            }
+        )
+        if exact_matches:
+            ranked = tuple(
+                SemanticScoredCandidate(candidate.incident_id, 1.0)
+                for candidate in sorted(exact_matches, key=lambda item: item.incident_id)
+            )
+            return SemanticGroupingRecommendation(
+                action=SemanticAction.ATTACH if len(ranked) == 1 else SemanticAction.CLARIFY,
+                selected_incident_id=ranked[0].incident_id,
+                candidates=ranked,
+                suggested_title=None,
+                reason_codes=(
+                    ("EXACT_TEXT_MATCH",)
+                    if len(ranked) == 1
+                    else ("EXACT_TEXT_MATCH", "DUPLICATE_EXACT_CANDIDATES")
+                ),
+                model_name=self.embedding_provider.model_name if self.embedding_provider else None,
+            )
+        if self.embedding_provider is None:
+            return self._abstain("SEMANTIC_MODEL_DISABLED")
 
         profiles = tuple(self._profile(candidate) for candidate in eligible)
         try:
@@ -184,6 +210,10 @@ def suggest_cluster_title(texts: tuple[str, ...]) -> str:
 
     del texts
     return "Другая проблема"
+
+
+def _normalize_text(value: str) -> str:
+    return " ".join(value.split()).casefold()
 
 
 def _normalize(vector: np.ndarray) -> np.ndarray:

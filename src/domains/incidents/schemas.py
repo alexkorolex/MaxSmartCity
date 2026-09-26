@@ -67,6 +67,7 @@ class GroupingCandidate:
     incident_id: UUID
     title: str
     description: str | None
+    score: float | None = None
 
 
 @dataclass(slots=True)

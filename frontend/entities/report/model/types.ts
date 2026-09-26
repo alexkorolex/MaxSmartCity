@@ -47,7 +47,12 @@ export interface GroupingResult {
   incident_id: string | null;
   score: number | null;
   candidate_incident_ids: string[];
-  candidate_incidents: { incident_id: string; title: string; description: string | null }[];
+  candidate_incidents: {
+    incident_id: string;
+    title: string;
+    description: string | null;
+    score: number | null;
+  }[];
   reason_codes: string[];
   policy_version: string;
   scorer_version: string;

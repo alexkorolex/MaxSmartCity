@@ -99,6 +99,11 @@ def test_candidate_window_must_be_positive() -> None:
         GroupingConfig(candidate_window=timedelta(0))
 
 
+def test_candidate_limit_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="max_candidates"):
+        GroupingConfig(max_candidates=0)
+
+
 def test_seeded_problem_categories_match_ml_taxonomy() -> None:
     taxonomy = json.loads((ROOT / "ml/configs/taxonomy.backend-aligned.v2.json").read_text(encoding="utf-8"))
     migration = (ROOT / "migrations/sql/013_incident_mvp.up.sql").read_text(encoding="utf-8")

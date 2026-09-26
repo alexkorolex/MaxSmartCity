@@ -138,6 +138,7 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
                 activity >= cutoff,
             )
             .order_by(activity.desc(), Incident.id)
+            .limit(self.config.max_candidates)
             .with_for_update(of=Incident)
         )
         return list((await self.session.scalars(statement)).all())

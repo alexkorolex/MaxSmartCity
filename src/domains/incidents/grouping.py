@@ -25,10 +25,13 @@ class ProposedAction(StrEnum):
 @dataclass(frozen=True, slots=True)
 class GroupingConfig:
     candidate_window: timedelta = timedelta(days=3)
+    max_candidates: int = 16
 
     def __post_init__(self) -> None:
         if self.candidate_window <= timedelta(0):
             raise ValueError("candidate_window must be positive")
+        if self.max_candidates < 1:
+            raise ValueError("max_candidates must be positive")
 
 
 @dataclass(frozen=True, slots=True)

@@ -302,3 +302,20 @@ def test_authority_sees_its_territory_in_numbers_and_corresponds_with_platform_a
         headers=gov_city,
     )
     assert city_district.status_code == 201, city_district.text
+
+    district_staff = api_client.get("/identity/staff-directory/", headers=gov_a).json()
+    assert [(item["organization_name"], item["role_code"]) for item in district_staff] == [
+        ("УК Бежица", "housing_worker")
+    ]
+    assert set(district_staff[0]) == {
+        "member_id",
+        "display_name",
+        "role_code",
+        "organization_id",
+        "organization_name",
+    }
+    city_staff = api_client.get("/identity/staff-directory/", headers=gov_city).json()
+    assert {item["organization_id"] for item in city_staff} == {uk_a, uk_b}
+    foreign = api_client.get("/identity/staff-directory/", params={"organization_id": uk_b}, headers=gov_a)
+    assert foreign.json() == []
+    assert api_client.get("/identity/staff-directory/", headers=worker_a).status_code == 403

@@ -1,6 +1,6 @@
 import { http } from '@/shared/api';
 
-import type { StaffMember } from '../model/types';
+import type { StaffDirectoryEntry, StaffMember } from '../model/types';
 
 interface ListParams {
   city?: string;
@@ -22,4 +22,10 @@ export function fetchStaff(params: ListParams = {}): Promise<StaffMember[]> {
 
 export function fetchStaffMember(staffId: string): Promise<StaffMember> {
   return http.get<StaffMember>(`/identity/operator-users/${staffId}`);
+}
+
+export function fetchStaffDirectory(organizationId?: string): Promise<StaffDirectoryEntry[]> {
+  return http.get<StaffDirectoryEntry[]>('/identity/staff-directory/', {
+    query: { organization_id: organizationId },
+  });
 }

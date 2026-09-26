@@ -1,2 +1,2 @@
-export { staffMemberQueryKey, staffQueryKey, useStaffList, useStaffMember } from './model/queries';
-export type { StaffMember } from './model/types';
+export { staffMemberQueryKey, staffQueryKey, useStaffDirectory, useStaffList, useStaffMember } from './model/queries';
+export type { StaffDirectoryEntry, StaffMember } from './model/types';

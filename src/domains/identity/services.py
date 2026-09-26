@@ -27,8 +27,10 @@ from src.domains.identity.schemas import (
     OrganizationMemberCreateRequest,
     OrganizationRegistrationRequest,
     StaffAccountRequest,
+    StaffDirectoryEntry,
 )
 from src.domains.identity.validation import (
+    HOUSING_ORGANIZATION_TYPES,
     OrganizationRequisitesError,
     is_valid_inn,
     is_valid_ogrn,
@@ -412,3 +414,39 @@ class ResidentService(SQLAlchemyAsyncRepositoryService[Resident]):
 
 class OperatorUserService(SQLAlchemyAsyncRepositoryService[OperatorUser]):
     repository_type = OperatorUserRepository
+
+
+async def jurisdiction_staff(
+    session: AsyncSession, authority_id: UUID, *, organization_id: UUID | None = None
+) -> list[StaffDirectoryEntry]:
+    statement = (
+        select(
+            OrganizationMember.id,
+            OperatorUser.display_name,
+            Role.code,
+            Organization.id.label("organization_id"),
+            Organization.name.label("organization_name"),
+        )
+        .join(OperatorUser, OperatorUser.id == OrganizationMember.user_id)
+        .join(Role, Role.id == OrganizationMember.role_id)
+        .join(Organization, Organization.id == OrganizationMember.organization_id)
+        .where(
+            OrganizationMember.is_active.is_(True),
+            OperatorUser.is_active.is_(True),
+            Organization.type.in_(HOUSING_ORGANIZATION_TYPES),
+            Organization.id.in_(visible_organization_ids(authority_id)),
+        )
+        .order_by(Organization.name, OperatorUser.display_name)
+    )
+    if organization_id is not None:
+        statement = statement.where(Organization.id == organization_id)
+    return [
+        StaffDirectoryEntry(
+            member_id=row.id,
+            display_name=row.display_name,
+            role_code=row.code,
+            organization_id=row.organization_id,
+            organization_name=row.organization_name,
+        )
+        for row in (await session.execute(statement)).all()
+    ]

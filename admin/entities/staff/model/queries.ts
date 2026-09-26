@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchStaff, fetchStaffMember } from '../api/staff';
+import { fetchStaff, fetchStaffDirectory, fetchStaffMember } from '../api/staff';
 
 export const staffQueryKey = (city?: string, organizationId?: string) =>
   ['staff', city ?? '', organizationId ?? ''] as const;
@@ -18,5 +18,13 @@ export function useStaffMember(staffId: string) {
     queryKey: staffMemberQueryKey(staffId),
     queryFn: () => fetchStaffMember(staffId),
     enabled: Boolean(staffId),
+  });
+}
+
+export function useStaffDirectory(organizationId?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['staff', 'directory', organizationId ?? ''],
+    queryFn: () => fetchStaffDirectory(organizationId),
+    enabled,
   });
 }

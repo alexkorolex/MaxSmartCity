@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
-from src.domains.identity.admin_scope import STAFF_ROLES, resolve_organization_scope
+from src.domains.identity.admin_scope import AUTHORITY_ROLE, STAFF_ROLES, resolve_organization_scope
 from src.domains.identity.models import (
     Department,
     OperatorUser,
@@ -27,9 +27,11 @@ from src.domains.identity.schemas import (
     DepartmentReadDTO,
     DepartmentUpdateDTO,
     OperatorUserSummary,
+    StaffDirectoryEntry,
 )
 from src.domains.identity.services import (
     DepartmentService,
+    jurisdiction_staff,
 )
 from src.security.dependency import provide_principal
 from src.security.guards import require_roles
@@ -240,4 +242,28 @@ class OperatorUserController(Controller):
                 department_id=row.department_id,
                 department_name=row.department_name,
                 role_code=row.role_code,
+            )
+
+
+class StaffDirectoryController(Controller):
+    path = "/identity/staff-directory"
+    tags = ("identity",)
+    return_dto = None
+
+    def __init__(self, owner: Router) -> None:
+        super().__init__(owner)
+        self.dependencies = {"principal": Provide(provide_principal)}
+
+    @get("/", name="identity:StaffDirectory:list", guards=[require_roles(AUTHORITY_ROLE)])
+    async def list_items(
+        self,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+        organization_id: Annotated[UUID | None, Parameter()] = None,
+    ) -> Sequence[StaffDirectoryEntry]:
+        if principal.organization_id is None:
+            return []
+        with database_action("list", "identity.OrganizationMember"):
+            return await jurisdiction_staff(
+                db_session, principal.organization_id, organization_id=organization_id
             )

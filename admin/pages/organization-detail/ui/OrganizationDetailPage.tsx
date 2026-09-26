@@ -16,15 +16,17 @@ import { OrganizationChannelsCard } from '@/features/organization-channels';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
+import { StaffDirectoryTable } from '@/widgets/staff-directory';
 
 export function OrganizationDetailPage() {
   const { organizationId = '' } = useParams();
   const registration = (useLocation().state as { registration?: OrganizationRegistrationResult } | null)
     ?.registration;
   const organization = useOrganization(organizationId);
-  const members = useOrganizationMembers(organizationId);
-  const deactivate = useDeactivateOrganizationMember(organizationId);
   const { data: principal } = useMe();
+  const seesDirectoryOnly = isAuthority(principal) && principal?.organization_id !== organizationId;
+  const members = useOrganizationMembers(seesDirectoryOnly ? '' : organizationId);
+  const deactivate = useDeactivateOrganizationMember(organizationId);
   // The admin manages every roster; staff manage their own organization's colleagues.
   const canManage = isAdmin(principal) || principal?.organization_id === organizationId;
   const org = organization.data;
@@ -114,71 +116,81 @@ export function OrganizationDetailPage() {
           </div>
         </div>
         <div className="card__body card__body--flush">
-          <AsyncState isLoading={members.isLoading} error={members.error} onRetry={() => void members.refetch()}>
-            {!members.data || members.data.length === 0 ? (
-              <EmptyState icon={<InboxIcon />} title="Сотрудников пока нет" />
-            ) : (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Сотрудник</th>
-                      <th>Роль</th>
-                      <th>MAX</th>
-                      <th>Добавлен</th>
-                      <th>Статус</th>
-                      {canManage && <th />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.data.map((member) => (
-                      <tr key={member.id}>
-                        <td data-label="Сотрудник">
-                          <div className="cell-primary">{member.display_name}</div>
-                          <div className="cell-muted">
-                            {member.login}
-                            {member.email ? ` · ${member.email}` : ''}
-                          </div>
-                        </td>
-                        <td className="cell-secondary" data-label="Роль">{roleLabel(member.role_code)}</td>
-                        <td data-label="MAX">
-                          <Pill
-                            tone={member.has_max_account ? 'success' : 'neutral'}
-                            label={member.has_max_account ? 'Привязан' : 'Не привязан'}
-                          />
-                        </td>
-                        <td className="cell-muted" data-label="Добавлен">{formatDateTime(member.created_at)}</td>
-                        <td data-label="Статус">
-                          <Pill
-                            tone={member.is_active ? 'success' : 'neutral'}
-                            label={member.is_active ? 'Активен' : 'Отключён'}
-                          />
-                        </td>
-                        {canManage && (
-                          <td data-label="Действия">
-                            {member.is_active && member.user_id !== principal?.actor_id && (
-                              <button
-                                type="button"
-                                className="btn btn--danger-ghost btn--small"
-                                disabled={deactivate.isPending}
-                                onClick={() => {
-                                  if (window.confirm(`Отключить сотрудника «${member.display_name}» от организации?`)) {
-                                    deactivate.mutate(member.id);
-                                  }
-                                }}
-                              >
-                                Отключить
-                              </button>
-                            )}
-                          </td>
-                        )}
+          {seesDirectoryOnly ? (
+            <StaffDirectoryTable organizationId={organizationId} showOrganization={false} />
+          ) : (
+            <AsyncState isLoading={members.isLoading} error={members.error} onRetry={() => void members.refetch()}>
+              {!members.data || members.data.length === 0 ? (
+                <EmptyState icon={<InboxIcon />} title="Сотрудников пока нет" />
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Сотрудник</th>
+                        <th>Роль</th>
+                        <th>MAX</th>
+                        <th>Добавлен</th>
+                        <th>Статус</th>
+                        {canManage && <th />}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </AsyncState>
+                    </thead>
+                    <tbody>
+                      {members.data.map((member) => (
+                        <tr key={member.id}>
+                          <td data-label="Сотрудник">
+                            <div className="cell-primary">{member.display_name}</div>
+                            <div className="cell-muted">
+                              {member.login}
+                              {member.email ? ` · ${member.email}` : ''}
+                            </div>
+                          </td>
+                          <td className="cell-secondary" data-label="Роль">
+                            {roleLabel(member.role_code)}
+                          </td>
+                          <td data-label="MAX">
+                            <Pill
+                              tone={member.has_max_account ? 'success' : 'neutral'}
+                              label={member.has_max_account ? 'Привязан' : 'Не привязан'}
+                            />
+                          </td>
+                          <td className="cell-muted" data-label="Добавлен">
+                            {formatDateTime(member.created_at)}
+                          </td>
+                          <td data-label="Статус">
+                            <Pill
+                              tone={member.is_active ? 'success' : 'neutral'}
+                              label={member.is_active ? 'Активен' : 'Отключён'}
+                            />
+                          </td>
+                          {canManage && (
+                            <td data-label="Действия">
+                              {member.is_active && member.user_id !== principal?.actor_id && (
+                                <button
+                                  type="button"
+                                  className="btn btn--danger-ghost btn--small"
+                                  disabled={deactivate.isPending}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(`Отключить сотрудника «${member.display_name}» от организации?`)
+                                    ) {
+                                      deactivate.mutate(member.id);
+                                    }
+                                  }}
+                                >
+                                  Отключить
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AsyncState>
+          )}
         </div>
       </div>
 
@@ -196,8 +208,7 @@ export function OrganizationDetailPage() {
             <div>
               <div className="card__title">Новый сотрудник</div>
               <div className="card__meta">
-                Учётная запись создаётся сразу в этой организации, логин и временный пароль придут коллеге на
-                почту
+                Учётная запись создаётся сразу в этой организации, логин и временный пароль придут коллеге на почту
               </div>
             </div>
           </div>

@@ -82,6 +82,15 @@ class ResidentSelfUpdateRequest:
 
 
 @dataclass(slots=True)
+class StaffDirectoryEntry:
+    member_id: UUID
+    display_name: str
+    role_code: str
+    organization_id: UUID
+    organization_name: str
+
+
+@dataclass(slots=True)
 class OperatorUserSummary:
     """Flat, frontend-friendly staff summary for the admin panel's roster listing -
     joined through the operator's *active* ``OrganizationMember`` row (all the

@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from maxsmartcity.ml.data.splits import DatasetSplit, assert_no_scenario_leakage, split_by_scenario
-from maxsmartcity.ml.data.synthetic.config import load_synthetic_config
-from maxsmartcity.ml.data.synthetic.generator import SyntheticWorldGenerator
-from maxsmartcity.ml.data.synthetic.writer import SyntheticDatasetWriter
+from src.ml.data.splits import DatasetSplit, assert_no_scenario_leakage, split_by_scenario
+from src.ml.data.synthetic.config import load_synthetic_config
+from src.ml.data.synthetic.generator import SyntheticWorldGenerator
+from src.ml.data.synthetic.writer import SyntheticDatasetWriter
 
 CONFIG = load_synthetic_config(Path("ml/configs/synthetic.v2.json"))
 GOLDEN_TEST_DATASET_HASH = "67becd81440269e73f6fac88cc09b5a1aa7da733797055a2fd9633f6637732e5"

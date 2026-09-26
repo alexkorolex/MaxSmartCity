@@ -2,16 +2,16 @@ from datetime import UTC, datetime
 
 import pytest
 
-from maxsmartcity.ml.application.decision_service import DecisionService
-from maxsmartcity.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
-from maxsmartcity.ml.domain.results import (
+from src.ml.application.decision_service import DecisionService
+from src.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
+from src.ml.domain.results import (
     DecisionResponse,
     ExtractedFeatures,
     RankingResult,
     ScoredCandidate,
     validate_allowed_candidates,
 )
-from maxsmartcity.ml.ports.models import ComponentUnavailableError
+from src.ml.ports.models import ComponentUnavailableError
 
 
 class UnavailableModel:

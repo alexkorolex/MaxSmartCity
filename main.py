@@ -1,6 +1,6 @@
 """Application entry point for the standalone ML inference service."""
 
-from maxsmartcity.ml.service import create_app
+from src.ml.service import create_app
 
 app = create_app()
 

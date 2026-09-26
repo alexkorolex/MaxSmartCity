@@ -22,7 +22,7 @@
 Локальная пересборка:
 
 ```powershell
-.venv\Scripts\python.exe -m maxsmartcity.ml.data.matching.cli `
+.venv\Scripts\python.exe -m src.ml.data.matching.cli `
   --config ml/configs/matching-dataset.v1.json
 ```
 

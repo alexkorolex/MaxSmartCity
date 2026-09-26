@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import httpx
 
-from maxsmartcity.ml.service.runtime import parse_decision_request
 from src.common.enums import Priority
 from src.domains.incidents.enums import IncidentStatus
 from src.domains.incidents.models import Incident
@@ -13,6 +12,7 @@ from src.domains.ml.mapping import build_decision_request
 from src.domains.reports.enums import ReportSourceType, ReportStatus
 from src.domains.reports.models import Report
 from src.main import create_app
+from src.ml.service.runtime import parse_decision_request
 
 
 def test_backend_exposes_ml_gateway_routes() -> None:

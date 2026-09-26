@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from maxsmartcity.ml.data.other_synthetic import (
+from src.ml.data.other_synthetic import (
     build_generation_tasks,
     materialize_dataset,
     select_houses,

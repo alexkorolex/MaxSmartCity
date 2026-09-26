@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from maxsmartcity.ml.adapters.models.jev import (
+from src.ml.adapters.models.jev import (
     UntrainedJevIncidentRanker,
     build_incident_nli_examples,
 )
-from maxsmartcity.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
-from maxsmartcity.ml.ports.models import ComponentUnavailableError
+from src.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
+from src.ml.ports.models import ComponentUnavailableError
 
 
 def make_request() -> DecisionRequest:

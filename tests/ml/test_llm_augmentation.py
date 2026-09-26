@@ -5,26 +5,26 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from maxsmartcity.ml.data.llm.config import load_llm_generation_config
-from maxsmartcity.ml.data.llm.input import load_scenario_facts
-from maxsmartcity.ml.data.llm.models import (
+from src.ml.data.llm.config import load_llm_generation_config
+from src.ml.data.llm.input import load_scenario_facts
+from src.ml.data.llm.models import (
     GeneratedVariant,
     GenerationPass,
     GenerationResponse,
     GenerationUsage,
     ScenarioFact,
 )
-from maxsmartcity.ml.data.llm.prompt import build_messages, load_system_prompt
-from maxsmartcity.ml.data.llm.review import build_review_rows, build_review_summary
-from maxsmartcity.ml.data.llm.runner import LlmGenerationRunner
-from maxsmartcity.ml.data.llm.selection import (
+from src.ml.data.llm.prompt import build_messages, load_system_prompt
+from src.ml.data.llm.review import build_review_rows, build_review_summary
+from src.ml.data.llm.runner import LlmGenerationRunner
+from src.ml.data.llm.selection import (
     build_selection_manifest,
     load_selection_config,
     load_selection_ids,
     select_facts,
     write_selection_manifest,
 )
-from maxsmartcity.ml.data.llm.validator import GeneratedVariantValidator
+from src.ml.data.llm.validator import GeneratedVariantValidator
 
 ROOT = Path(__file__).parents[2]
 CONFIG = load_llm_generation_config(ROOT / "ml/configs/llm-augmentation.v2.json")

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from maxsmartcity.ml.evaluation.other_matching import evaluate_other_matching
+from src.ml.evaluation.other_matching import evaluate_other_matching
 
 
 class FixedProvider:

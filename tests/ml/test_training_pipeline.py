@@ -7,14 +7,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from maxsmartcity.ml.evaluation.classification import (
+from src.ml.evaluation.classification import (
     evaluate_category_predictions,
     select_abstain_threshold,
 )
-from maxsmartcity.ml.inference.category import CategoryArtifact
-from maxsmartcity.ml.training.config import CategoryTrainingConfig
-from maxsmartcity.ml.training.dataset import assert_scenario_disjoint, load_split
-from maxsmartcity.ml.training.trainer import CategoryTrainer
+from src.ml.inference.category import CategoryArtifact
+from src.ml.training.config import CategoryTrainingConfig
+from src.ml.training.dataset import assert_scenario_disjoint, load_split
+from src.ml.training.trainer import CategoryTrainer
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from maxsmartcity.ml.data.config import load_rule_baseline, load_taxonomy
+from src.ml.data.config import load_rule_baseline, load_taxonomy
 
 CONFIG_DIR = Path("ml/configs")
 

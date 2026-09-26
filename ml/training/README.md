@@ -23,7 +23,7 @@ sh ml/scripts/train_category_baseline.sh
 Прямая команда:
 
 ```bash
-uv run --locked python -m maxsmartcity.ml.training.cli \
+uv run --locked python -m src.ml.training.cli \
   --config ml/configs/training/category-tfidf-logreg.v2.json
 ```
 

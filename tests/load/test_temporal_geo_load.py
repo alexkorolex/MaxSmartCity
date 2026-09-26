@@ -4,7 +4,7 @@ from time import perf_counter
 
 import pytest
 
-from maxsmartcity.ml.evaluation.temporal_geo import (
+from src.ml.evaluation.temporal_geo import (
     ArrivalBurst,
     CityBounds,
     aggregate_heatmap,

@@ -39,7 +39,7 @@ Backend-aligned dataset находится в [`data/gold/v2`](data/gold/v2/READ
 ## Структура
 
 ```text
-maxsmartcity/ml/
+src/ml/
 ├── domain/          # requests, results, feedback, async events
 ├── application/     # use cases, fallback and input policy
 ├── ports/           # model/backend/ingestion interfaces
@@ -63,7 +63,7 @@ ml/
 ## Локальная генерация
 
 ```bash
-uv run python -m maxsmartcity.ml.data.synthetic.cli \
+uv run python -m src.ml.data.synthetic.cli \
   --config ml/configs/synthetic.v2.json \
   --seed 42 \
   --output-dir ml/data/synthetic/dev-v2 \
@@ -89,7 +89,7 @@ Seed каждого Scenario и Report выводится независимо �
 Массовый stress dataset:
 
 ```bash
-uv run python -m maxsmartcity.ml.data.synthetic.cli \
+uv run python -m src.ml.data.synthetic.cli \
   --config ml/configs/synthetic.v2.json \
   --seed 20260920 \
   --output-dir ml/data/synthetic/stress-mass-outage-v2 \
@@ -107,7 +107,7 @@ uv run python -m maxsmartcity.ml.data.synthetic.cli \
 ```powershell
 uv sync --locked --group dev
 .\ml\scripts\train_category_baseline.ps1
-uv run --locked python -m maxsmartcity.ml.inference.cli `
+uv run --locked python -m src.ml.inference.cli `
   --artifact ml/artifacts/category-tfidf-logreg-v2 `
   --text "В доме 12 третий час нет холодной воды"
 ```

@@ -12,7 +12,24 @@ Backend на [Litestar](https://litestar.dev/): учёт городских ин
 - Grafana + Loki + Promtail — просмотр логов всех контейнеров
 - Prometheus-метрики (`/metrics`)
 - Авторизация — Keycloak (штаб/сотрудники, с LDAP-федерацией) + собственный JWT для жителей через бота MAX
-- Docker Compose — вся оркестрация (`db`, `redis`, `migrate`, `keycloak`, `backend`, `loki`, `promtail`, `grafana`)
+- Docker Compose — вся оркестрация Backend, ML, resident/admin web, хранилищ, миграций,
+  seed-данных, авторизации и наблюдаемости
+
+## Архитектура
+
+```text
+MAX Bot ─┐
+Mini App ├─> Backend (`src/domains`) ─> PostgreSQL/PostGIS, Redis, MinIO
+Admin UI ┘             │
+                      ├─HTTP─> ML service (`src/ml`)
+                      └─> MAX API / Keycloak
+
+Ingestion (`src/domains/ingestion`) ─> общие geo/ingestion-таблицы
+Prometheus + Tempo + Loki ─> Grafana
+```
+
+`src/ml` — изолированный runtime ML-сервиса. `src/domains/ml` — только Backend gateway
+и преобразование доменных данных в HTTP-контракт; смешивать эти слои нельзя.
 
 ## Быстрый старт
 
@@ -49,10 +66,16 @@ uv run litestar up
 | Сервис | Порт | Назначение |
 |---|---|---|
 | `backend` | `APP_PORT` (8000) | API, `/schema` — Swagger, `/metrics` — Prometheus |
+| `ml-service` | `ML_PORT` (8001) | ML HTTP API, `/health`, `/ready`, `/v1/*` |
+| `frontend` | `FRONTEND_PORT` (8082) | Mini App жителя |
+| `admin` | `ADMIN_PORT` (8083) | Рабочее место сотрудников |
 | `db` | `DB_PORT` (5432) | PostgreSQL + PostGIS |
 | `redis` | `REDIS_PORT` (6379) | кеш ответов |
+| `minio` | `MINIO_PORT` (9000) | S3-совместимое хранилище вложений |
 | `grafana` | `GRAFANA_PORT` (3000) | UI, логин из `GRAFANA_USER`/`GRAFANA_PASSWORD` |
 | `loki` | `LOKI_PORT` (3100) | хранилище логов (datasource уже прописан в Grafana) |
+| `prometheus` | `PROMETHEUS_PORT` (9090) | сбор метрик |
+| `tempo` | `TEMPO_PORT` (3200) | хранилище трассировок |
 | `keycloak` | `KEYCLOAK_PORT` (8080) | IdP для сотрудников, realm `maxsmartcity` импортируется автоматически |
 
 `migrate` и `ingest` — одноразовые сервисы без портов; `backend` стартует после их
@@ -254,8 +277,11 @@ Incident Core проводит обращение от регистрации д
 инфраструктура и «Другое». Клиент передаёт выбранную категорию и
 `house_id` в `POST /reports/intake`; операция атомарно создаёт `Report`, ищет похожий
 активный `Incident` в том же доме и категории и либо связывает обращение, либо создаёт
-новый инцидент. Для «Другое» применяется тот же онлайн-поиск по русским символьным
-n-граммам. Неоднозначное совпадение переводит обращение в `NEEDS_CLARIFICATION`.
+новый инцидент. Для статических категорий решение принимает детерминированная политика
+по числу активных кандидатов. Для «Другое» автоматическая привязка запрещена:
+обращение переводится в `NEEDS_CLARIFICATION`, после чего пользователь подтверждает
+семантическую рекомендацию ML или создаёт отдельный инцидент. Incident Core не анализирует
+свободный текст регулярными выражениями или n-граммами.
 
 Основные ручки:
 
@@ -285,6 +311,10 @@ n-граммам. Неоднозначное совпадение перевод
 является обязательной зависимостью intake — категорию подтверждает пользователь.
 
 ## ML decision layer
+
+Реализация ML-сервиса находится в отдельном верхнеуровневом слое `src/ml`.
+Backend-интеграция с ним изолирована в `src/domains/ml`: доменный backend не импортирует
+runtime модели и общается с сервисом только по версионированному HTTP-контракту.
 
 `ml-service` — отдельный stateless Litestar-сервис. Он классифицирует текст обращения,
 извлекает наблюдаемые признаки и ранжирует только переданные backend-кандидаты. Результат

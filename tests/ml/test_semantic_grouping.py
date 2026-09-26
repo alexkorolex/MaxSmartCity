@@ -3,14 +3,14 @@ from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
-from maxsmartcity.ml.inference.semantic_grouping import (
+from src.ml.inference.semantic_grouping import (
     SemanticAction,
     SemanticGroupingConfig,
     SemanticGroupingService,
     SemanticIncidentCandidate,
     suggest_cluster_title,
 )
-from maxsmartcity.ml.ports.models import ComponentUnavailableError
+from src.ml.ports.models import ComponentUnavailableError
 
 NOW = datetime(2026, 9, 25, 12, tzinfo=UTC)
 

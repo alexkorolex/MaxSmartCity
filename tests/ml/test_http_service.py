@@ -4,15 +4,15 @@ from pathlib import Path
 import numpy as np
 from litestar.testing import TestClient
 
-from maxsmartcity.ml.adapters.baselines import RuleBaselineDecisionModel, RuleIncidentRanker
-from maxsmartcity.ml.adapters.extraction import RuleFeatureExtractor
-from maxsmartcity.ml.application.decision_service import DecisionService
-from maxsmartcity.ml.data.config import load_rule_baseline
-from maxsmartcity.ml.inference.category import CategoryArtifact
-from maxsmartcity.ml.inference.decision import ArtifactDecisionModel
-from maxsmartcity.ml.inference.semantic_grouping import SemanticGroupingService
-from maxsmartcity.ml.service import create_app
-from maxsmartcity.ml.service.runtime import MLRuntime
+from src.ml.adapters.baselines import RuleBaselineDecisionModel, RuleIncidentRanker
+from src.ml.adapters.extraction import RuleFeatureExtractor
+from src.ml.application.decision_service import DecisionService
+from src.ml.data.config import load_rule_baseline
+from src.ml.inference.category import CategoryArtifact
+from src.ml.inference.decision import ArtifactDecisionModel
+from src.ml.inference.semantic_grouping import SemanticGroupingService
+from src.ml.service import create_app
+from src.ml.service.runtime import MLRuntime
 
 
 class FixedPipeline:

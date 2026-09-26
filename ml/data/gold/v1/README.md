@@ -25,7 +25,7 @@
 Локальная пересборка из сохранённого запуска AI Tunnel:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.gold.cli `
+uv run --locked python -m src.ml.data.gold.cli `
   --config ml/configs/gold-mvp.v1.json `
   --taxonomy ml/configs/taxonomy.v1.json `
   --canonical ml/data/external/canonical/v1/scenarios.jsonl `

@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from maxsmartcity.ml.data.config import load_taxonomy
-from maxsmartcity.ml.data.gold.models import GoldReportAnnotation
-from maxsmartcity.ml.data.gold.validator import GoldDatasetValidator
+from src.ml.data.config import load_taxonomy
+from src.ml.data.gold.models import GoldReportAnnotation
+from src.ml.data.gold.validator import GoldDatasetValidator
 
 VALIDATOR = GoldDatasetValidator(load_taxonomy(Path("ml/configs/taxonomy.v1.json")))
 

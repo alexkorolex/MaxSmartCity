@@ -5,19 +5,19 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from maxsmartcity.ml.data.llm.input import load_scenario_facts
-from maxsmartcity.ml.data.llm.models import (
+from src.ml.data.llm.input import load_scenario_facts
+from src.ml.data.llm.models import (
     GeneratedVariant,
     GenerationResponse,
     GenerationUsage,
 )
-from maxsmartcity.ml.data.template_generation.canonical import (
+from src.ml.data.template_generation.canonical import (
     CanonicalTemplateSeedGenerator,
     load_canonical_seed_config,
 )
-from maxsmartcity.ml.data.template_generation.config import load_template_generation_config
-from maxsmartcity.ml.data.template_generation.generator import TemplateExampleGenerator
-from maxsmartcity.ml.data.template_generation.paraphrase import (
+from src.ml.data.template_generation.config import load_template_generation_config
+from src.ml.data.template_generation.generator import TemplateExampleGenerator
+from src.ml.data.template_generation.paraphrase import (
     TemplateParaphraseRunner,
     TemplateParaphraseValidator,
     build_paraphrase_messages,
@@ -25,7 +25,7 @@ from maxsmartcity.ml.data.template_generation.paraphrase import (
     select_one_seed_per_frame,
     select_scenarios,
 )
-from maxsmartcity.ml.data.template_generation.writer import (
+from src.ml.data.template_generation.writer import (
     load_template_examples,
     write_template_preview,
 )

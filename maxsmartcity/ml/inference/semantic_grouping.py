@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
-from itertools import pairwise
 from typing import Final
 
 import numpy as np
@@ -15,42 +13,7 @@ import numpy as np
 from maxsmartcity.ml.ports.embeddings import TextEmbeddingProvider
 from maxsmartcity.ml.ports.models import ComponentUnavailableError
 
-SEMANTIC_SCORER_VERSION: Final = "multilingual-embedding-cosine-v1"
-_TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
-_TITLE_STOPWORDS = frozenset(
-    {
-        "а",
-        "без",
-        "бы",
-        "в",
-        "во",
-        "вот",
-        "где",
-        "да",
-        "для",
-        "до",
-        "дом",
-        "дома",
-        "есть",
-        "и",
-        "из",
-        "к",
-        "как",
-        "на",
-        "не",
-        "нет",
-        "но",
-        "о",
-        "по",
-        "под",
-        "с",
-        "со",
-        "у",
-        "уже",
-        "что",
-        "это",
-    }
-)
+SEMANTIC_SCORER_VERSION: Final = "multilingual-e5-query-passage-cosine-v2"
 
 
 class SemanticAction(StrEnum):
@@ -62,11 +25,11 @@ class SemanticAction(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SemanticGroupingConfig:
-    attach_threshold: float = 0.88
-    clarify_threshold: float = 0.84
-    minimum_margin: float = 0.05
+    attach_threshold: float = 0.92
+    clarify_threshold: float = 0.88
+    minimum_margin: float = 0.02
     candidate_window: timedelta = timedelta(days=3)
-    max_candidates: int = 128
+    max_candidates: int = 16
     max_profile_characters: int = 4_000
 
     def __post_init__(self) -> None:
@@ -147,11 +110,12 @@ class SemanticGroupingService:
 
         profiles = tuple(self._profile(candidate) for candidate in eligible)
         try:
-            vectors = self.embedding_provider.embed((normalized_text, *profiles))
-            if vectors.shape[0] != len(eligible) + 1:
+            query_vectors = self.embedding_provider.embed_queries((normalized_text,))
+            document_vectors = self.embedding_provider.embed_documents(profiles)
+            if query_vectors.shape[0] != 1 or document_vectors.shape[0] != len(eligible):
                 raise ComponentUnavailableError("SEMANTIC_MODEL_OUTPUT_INVALID")
-            query = _normalize(vectors[0])
-            document_vectors = np.asarray([_normalize(vector) for vector in vectors[1:]])
+            query = _normalize(query_vectors[0])
+            document_vectors = np.asarray([_normalize(vector) for vector in document_vectors])
         except ComponentUnavailableError:
             return self._abstain("SEMANTIC_MODEL_UNAVAILABLE")
         scores = document_vectors @ query
@@ -216,29 +180,10 @@ class SemanticGroupingService:
 
 
 def suggest_cluster_title(texts: tuple[str, ...]) -> str:
-    """Return a deterministic one- or two-word extractive title.
+    """Use stable presentation metadata without interpreting free-form text."""
 
-    The title is presentation metadata only and never affects grouping.
-    """
-
-    counts: dict[str, int] = {}
-    first_seen: dict[str, int] = {}
-    position = 0
-    for text in texts:
-        tokens = [
-            token.casefold()
-            for token in _TOKEN_RE.findall(text)
-            if len(token) > 2 and token.casefold() not in _TITLE_STOPWORDS and not token.isdigit()
-        ]
-        terms = tokens + [" ".join(pair) for pair in pairwise(tokens)]
-        for term in terms:
-            counts[term] = counts.get(term, 0) + 1
-            first_seen.setdefault(term, position)
-            position += 1
-    if not counts:
-        return "Другая проблема"
-    best = min(counts, key=lambda term: (-counts[term], -len(term.split()), first_seen[term], term))
-    return best[:1].upper() + best[1:]
+    del texts
+    return "Другая проблема"
 
 
 def _normalize(vector: np.ndarray) -> np.ndarray:

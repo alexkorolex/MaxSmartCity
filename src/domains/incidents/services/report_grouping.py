@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from decimal import Decimal
 from uuid import UUID
 
@@ -80,9 +79,15 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
 
         await self._lock_group(report.house_id, report.category_id)
         candidates = await self._load_candidates(report)
-        event_time = report.occurred_at or report.received_at or report.created_at
-        profiles = await self._build_profiles(candidates)
-        proposal = propose_grouping(report.text or "", profiles, occurred_at=event_time, config=self.config)
+        category_code = await self.session.scalar(
+            select(ProblemCategory.code).where(ProblemCategory.id == report.category_id)
+        )
+        if category_code is None:
+            raise IncidentCoreConflictError("Report category does not exist")
+        proposal = propose_grouping(
+            self._candidate_refs(candidates),
+            allow_single_auto_attach=category_code != "other",
+        )
 
         if command.mode is GroupingMode.CONFIRM_INCIDENT:
             if command.confirmed_incident_id is None:
@@ -93,11 +98,10 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
                     "Confirmed incident is not an active candidate for this house and category"
                 )
             selected = command.confirmed_incident_id
-            score = next((item.score for item in proposal.ranked if item.incident_id == selected), None)
             return await self._attach(
                 report,
                 selected,
-                score,
+                None,
                 command,
                 ["USER_CONFIRMED", "SAME_HOUSE", "SAME_CATEGORY"],
                 proposal,
@@ -110,7 +114,7 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
             return await self._attach(
                 report,
                 proposal.selected_incident_id,
-                proposal.ranked[0].score,
+                None,
                 command,
                 list(proposal.reason_codes),
                 proposal,
@@ -138,32 +142,11 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
         )
         return list((await self.session.scalars(statement)).all())
 
-    async def _build_profiles(self, candidates: list[Incident]) -> tuple[IncidentCandidate, ...]:
-        if not candidates:
-            return ()
-        candidate_ids = [candidate.id for candidate in candidates]
-        rows = (
-            await self.session.execute(
-                select(IncidentReportLink.incident_id, Report.text)
-                .join(Report, Report.id == IncidentReportLink.report_id)
-                .where(
-                    IncidentReportLink.incident_id.in_(candidate_ids),
-                    IncidentReportLink.is_active.is_(True),
-                    Report.text.is_not(None),
-                )
-                .order_by(Report.received_at.desc())
-            )
-        ).all()
-        texts: dict[UUID, list[str]] = defaultdict(list)
-        for incident_id, value in rows:
-            if value and len(texts[incident_id]) < 20:
-                texts[incident_id].append(value)
+    @staticmethod
+    def _candidate_refs(candidates: list[Incident]) -> tuple[IncidentCandidate, ...]:
         return tuple(
             IncidentCandidate(
                 incident_id=candidate.id,
-                text=" ".join(
-                    part for part in (candidate.title, candidate.description, *texts[candidate.id]) if part
-                ),
                 last_activity_at=(
                     candidate.last_report_at or candidate.first_report_at or candidate.created_at
                 ),
@@ -283,16 +266,14 @@ class IncidentGroupingMixin(IncidentNotificationsMixin):
         command: GroupReportCommand,
         proposal: GroupingProposal | None,
     ) -> GroupReportResult:
-        ranked = proposal.ranked if proposal is not None else ()
-        candidate_ids = [item.incident_id for item in ranked]
-        runner_up_score = ranked[1].score if len(ranked) > 1 else None
+        candidate_ids = list(proposal.candidate_incident_ids) if proposal is not None else []
         self.session.add(
             IncidentGroupingDecision(
                 report_id=report.id,
                 outcome=outcome,
                 selected_incident_id=incident_id,
                 score=_decimal(score),
-                runner_up_score=_decimal(runner_up_score),
+                runner_up_score=None,
                 candidate_incident_ids=[str(item) for item in candidate_ids],
                 reason_codes=reasons,
                 policy_version=POLICY_VERSION,
@@ -337,5 +318,4 @@ def _decimal(value: float | None) -> Decimal | None:
 
 
 def _best_score(proposal: GroupingProposal | None) -> float | None:
-    ranked = proposal.ranked if proposal is not None else ()
-    return ranked[0].score if ranked else None
+    return None

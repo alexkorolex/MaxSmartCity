@@ -21,15 +21,23 @@ class FixedEmbeddingProvider:
     def __init__(self, vectors: tuple[tuple[float, ...], ...]) -> None:
         self.vectors = vectors
 
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
-        assert len(texts) == len(self.vectors)
-        return np.asarray(self.vectors, dtype=np.float32)
+    def embed_queries(self, texts: Sequence[str]) -> np.ndarray:
+        assert len(texts) == 1
+        return np.asarray(self.vectors[:1], dtype=np.float32)
+
+    def embed_documents(self, texts: Sequence[str]) -> np.ndarray:
+        assert len(texts) == len(self.vectors) - 1
+        return np.asarray(self.vectors[1:], dtype=np.float32)
 
 
 class UnavailableEmbeddingProvider:
     model_name = "unavailable"
 
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
+    def embed_queries(self, texts: Sequence[str]) -> np.ndarray:
+        del texts
+        raise ComponentUnavailableError
+
+    def embed_documents(self, texts: Sequence[str]) -> np.ndarray:
         del texts
         raise ComponentUnavailableError
 
@@ -83,7 +91,7 @@ def test_no_candidates_recommends_creation_with_short_title_without_embedding_ca
     result = service.recommend("сломана детская площадка", (), occurred_at=NOW)
 
     assert result.action is SemanticAction.CREATE
-    assert result.suggested_title == "Сломана детская"
+    assert result.suggested_title == "Другая проблема"
 
 
 def test_unavailable_model_abstains_instead_of_breaking_core_flow() -> None:
@@ -135,4 +143,4 @@ def test_cluster_title_is_deterministic_and_never_controls_grouping() -> None:
         )
     )
 
-    assert title == "Детская площадка"
+    assert title == "Другая проблема"

@@ -21,6 +21,14 @@ export function isAdmin(principal: Principal | undefined): boolean {
  * a housing worker (жилищник) only ever sees their own - mirrors the backend's
  * `_ORGANIZATION_DIRECTORY_ROLES` / `_HOUSE_MANAGEMENT_AUTHORITY_ROLES`.
  */
+export function isAuthority(principal: Principal | undefined): boolean {
+  return Boolean(principal && !isAdmin(principal) && principal.roles.includes(STAFF_ROLES.districtAdmin));
+}
+
+export function canSeeResidentData(principal: Principal | undefined): boolean {
+  return Boolean(principal && !isAuthority(principal));
+}
+
 export function canBrowseOrganizations(principal: Principal | undefined): boolean {
   return Boolean(
     principal?.roles.some((role) => role === STAFF_ROLES.admin || role === STAFF_ROLES.districtAdmin),
@@ -43,7 +51,7 @@ export function roleLabel(role: string): string {
     case STAFF_ROLES.admin:
       return 'Администратор платформы';
     case STAFF_ROLES.districtAdmin:
-      return 'Сотрудник управы';
+      return 'Сотрудник органа власти';
     case STAFF_ROLES.housingWorker:
       return 'Сотрудник управляющей компании';
     default:

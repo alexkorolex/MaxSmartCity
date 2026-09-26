@@ -19,6 +19,7 @@ class ModelRegistry:
             "ingestion",
             "notifications",
             "news",
+            "correspondence",
         )
 
     @classmethod

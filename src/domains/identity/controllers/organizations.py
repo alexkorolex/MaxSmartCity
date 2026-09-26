@@ -1,6 +1,7 @@
 """Organizations directory, and an admin registering a УК/ТСЖ with its first employee."""
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
@@ -21,6 +22,7 @@ from src.domains.identity.models import (
     Organization,
 )
 from src.domains.identity.schemas import (
+    AuthorityRegistrationRequest,
     OrganizationCreateDTO,
     OrganizationReadDTO,
     OrganizationRegistrationRequest,
@@ -44,10 +46,18 @@ def provide_organization_service(db_session: NamedDependency[AsyncSession]) -> O
     return OrganizationService(session=db_session, auto_commit=True)
 
 
-_ORGANIZATION_DIRECTORY_ROLES = ("admin", "district_admin")
-"""May browse every organization: the platform admin, and the district administration
-(Управа) that appoints managers for houses. A ``housing_worker`` only ever sees their own
-organization - never other УК/ТСЖ."""
+@asynccontextmanager
+async def _registration_errors() -> AsyncIterator[None]:
+    try:
+        yield
+    except (OrganizationRequisitesError, StaffAccountError) as exc:
+        raise ClientException(status_code=400, detail=str(exc)) from exc
+    except IdentityNotFoundError as exc:
+        raise NotFoundException(str(exc)) from exc
+    except IdentityConflictError as exc:
+        raise ClientException(status_code=409, detail=str(exc)) from exc
+    except KeycloakAdminError as exc:
+        raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
 
 
 class OrganizationController(Controller):
@@ -75,11 +85,9 @@ class OrganizationController(Controller):
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[Organization]:
         with database_action("list", "identity.Organization"):
-            criteria = []
-            if not principal.has_role(*_ORGANIZATION_DIRECTORY_ROLES):
-                if principal.organization_id is None:
-                    return []
-                criteria.append(Organization.id == principal.organization_id)
+            criteria = service.directory_criteria(principal)
+            if criteria is None:
+                return []
             if registration_status is not None:
                 criteria.append(Organization.registration_status == registration_status)
             return await service.get_many(
@@ -101,18 +109,40 @@ class OrganizationController(Controller):
         """Register a management company / HOA together with its first employee (a new
         staff login). Admin-only: the organization is active immediately."""
         with database_action("create", "identity.Organization"):
-            try:
+            async with _registration_errors():
                 organization, member = await OrganizationService(session=db_session).register_with_employee(
                     data, registered_by=principal.actor_id
                 )
-            except (OrganizationRequisitesError, StaffAccountError) as exc:
-                raise ClientException(status_code=400, detail=str(exc)) from exc
-            except IdentityNotFoundError as exc:
-                raise NotFoundException(str(exc)) from exc
-            except IdentityConflictError as exc:
-                raise ClientException(status_code=409, detail=str(exc)) from exc
-            except KeycloakAdminError as exc:
-                raise HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc)) from exc
+            await db_session.commit()
+            employee = await OrganizationMemberController.load_summary(db_session, member.id)
+        credentials_email = await send_credentials_email(
+            email=data.employee.email,
+            display_name=employee.display_name,
+            login=employee.login,
+            password=data.employee.password,
+            organization_name=organization.name,
+        )
+        return OrganizationRegistrationResult(
+            organization_id=organization.id, employee=employee, credentials_email=credentials_email
+        )
+
+    @post(
+        "/authorities",
+        return_dto=None,
+        name="identity:Organization:register-authority",
+        guards=[require_roles("admin")],
+    )
+    async def register_authority(
+        self,
+        data: AuthorityRegistrationRequest,
+        db_session: NamedDependency[AsyncSession],
+        principal: NamedDependency[Principal],
+    ) -> OrganizationRegistrationResult:
+        with database_action("create", "identity.Organization"):
+            async with _registration_errors():
+                organization, member = await OrganizationService(session=db_session).register_authority(
+                    data, registered_by=principal.actor_id
+                )
             await db_session.commit()
             employee = await OrganizationMemberController.load_summary(db_session, member.id)
         credentials_email = await send_credentials_email(
@@ -133,9 +163,9 @@ class OrganizationController(Controller):
         service: NamedDependency[OrganizationService],
         principal: NamedDependency[Principal],
     ) -> Organization:
-        if not principal.has_role(*_ORGANIZATION_DIRECTORY_ROLES) and item_id != principal.organization_id:
-            raise NotFoundException(f"Organization {item_id} was not found")
         with database_action("get", "identity.Organization"):
+            if not await service.is_visible_to(item_id, principal):
+                raise NotFoundException(f"Organization {item_id} was not found")
             return await service.get(item_id)
 
     @post(

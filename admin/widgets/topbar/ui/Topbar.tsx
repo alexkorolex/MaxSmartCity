@@ -8,15 +8,18 @@ import { LogOutIcon, MenuIcon } from '@/shared/ui';
 import './Topbar.css';
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
-  { prefix: ROUTES.organizations, title: 'Организации', subtitle: 'Управы, УК и ТСЖ' },
+  { prefix: ROUTES.organizations, title: 'Организации', subtitle: 'Органы власти, УК и ТСЖ' },
   { prefix: ROUTES.houses, title: 'Дома', subtitle: 'Дома в управлении УК и ТСЖ' },
   { prefix: ROUTES.messages, title: 'Сообщения', subtitle: 'Переписка с жителями по обращениям' },
-  { prefix: ROUTES.staff, title: 'Сотрудники', subtitle: 'Управы, жилищники и администраторы' },
+  { prefix: ROUTES.staff, title: 'Сотрудники', subtitle: 'Органы власти, жилищники и администраторы' },
   { prefix: ROUTES.residents, title: 'Жители', subtitle: 'Жители и их заявки' },
   { prefix: ROUTES.reports, title: 'Обращение', subtitle: 'Карточка обращения' },
   { prefix: ROUTES.incidents, title: 'Инциденты', subtitle: 'Инциденты и обсуждения по ним' },
   { prefix: ROUTES.news, title: 'Новости', subtitle: 'Публикации для жителей' },
   { prefix: ROUTES.profile, title: 'Мой профиль', subtitle: 'Личные данные, пароль и уведомления' },
+  { prefix: ROUTES.territories, title: 'Территории', subtitle: 'Город, округа, районы и их дома' },
+  { prefix: ROUTES.analytics, title: 'Статистика', subtitle: 'Обращения, инциденты и дома по территории' },
+  { prefix: ROUTES.correspondence, title: 'Переписка', subtitle: 'Органы власти, УК и администрация платформы' },
 ];
 
 function resolveTitle(pathname: string): { title: string; subtitle: string } {

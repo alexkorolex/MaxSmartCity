@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from src.domains.ingestion.importer.territories import place_house
+
 
 async def _create_address(connection: AsyncConnection, row: dict[str, Any]) -> UUID:
     address_id = uuid4()
@@ -192,4 +194,5 @@ async def write_house(
             "provenance": json.dumps(row["provenance"], ensure_ascii=False),
         },
     )
+    await place_house(connection, house_id, row["city"], row["okrug"], row["district"])
     return status

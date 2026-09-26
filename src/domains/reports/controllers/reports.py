@@ -17,7 +17,7 @@ from src.common.enums import ActorType
 from src.common.state_machine import InvalidStateTransition
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House
-from src.domains.identity.admin_scope import resolve_organization_scope
+from src.domains.identity.admin_scope import RESIDENT_DATA_ROLES, resolve_organization_scope
 from src.domains.incidents.enums import GroupingMode
 from src.domains.incidents.schemas import (
     CloseReportCommand,
@@ -59,7 +59,7 @@ def provide_s3_settings() -> S3Settings:
     return S3Settings.from_environment()
 
 
-_STAFF_ADMIN_ROLES = ("admin", "district_admin", "housing_worker")
+_STAFF_ADMIN_ROLES = RESIDENT_DATA_ROLES
 
 
 async def authorize_report_access(db_session: AsyncSession, *, report: Report, principal: Principal) -> None:

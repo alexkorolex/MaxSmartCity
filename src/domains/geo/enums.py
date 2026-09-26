@@ -3,5 +3,8 @@ from enum import StrEnum
 
 class AdministrativeAreaType(StrEnum):
     CITY = "CITY"
+    ADMINISTRATIVE_OKRUG = "ADMINISTRATIVE_OKRUG"
     DISTRICT = "DISTRICT"
+    MUNICIPALITY = "MUNICIPALITY"
+    SETTLEMENT = "SETTLEMENT"
     OTHER = "OTHER"

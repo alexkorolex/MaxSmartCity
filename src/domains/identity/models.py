@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -17,7 +18,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.models import Association, Entity
-from src.domains.identity.enums import BotStatus, OrganizationRegistrationStatus, OrganizationType
+from src.domains.identity.enums import (
+    AuthorityKind,
+    BotStatus,
+    OrganizationRegistrationStatus,
+    OrganizationType,
+)
 
 
 class Resident(Entity):
@@ -57,7 +63,13 @@ class OperatorUser(Entity):
 
 class Organization(Entity):
     __tablename__ = "organization"
-    __table_args__ = ({"schema": "identity"},)
+    __table_args__ = (
+        CheckConstraint(
+            "(type = 'ADMINISTRATION') = (authority_kind IS NOT NULL AND territory_id IS NOT NULL)",
+            name="authority_has_territory",
+        ),
+        {"schema": "identity"},
+    )
 
     code: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -93,6 +105,10 @@ class Organization(Entity):
     )
     """Defaults to APPROVED so existing rows and admin-direct-CRUD-created orgs are
     unaffected; the self-registration endpoint overrides this to PENDING."""
+    authority_kind: Mapped[AuthorityKind | None] = mapped_column(
+        Enum(AuthorityKind, native_enum=False, create_constraint=True, name="organization_authority_kind")
+    )
+    territory_id: Mapped[UUID | None] = mapped_column(ForeignKey("geo.administrative_area.id"), index=True)
     in_reserve_registry: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     """Included in the government's Перечень (list) of organizations eligible to be
     assigned as a fallback manager for a house whose residents haven't chosen one -

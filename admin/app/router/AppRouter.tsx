@@ -1,5 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 
+import { AnalyticsPage } from '@/pages/analytics';
+import { ConversationPage, CorrespondencePage } from '@/pages/correspondence';
 import { HomePage } from '@/pages/home';
 import { HousesPage } from '@/pages/houses';
 import { MessagesPage } from '@/pages/messages';
@@ -14,6 +16,7 @@ import { ReportDetailPage } from '@/pages/report-detail';
 import { ResidentDetailPage } from '@/pages/resident-detail';
 import { ResidentsPage } from '@/pages/residents';
 import { StaffPage } from '@/pages/staff';
+import { TerritoriesPage } from '@/pages/territories';
 import { ROUTES } from '@/shared/routes';
 
 import { AppLayout } from './AppLayout';
@@ -38,6 +41,10 @@ export function AppRouter() {
           <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
           <Route path={ROUTES.news} element={<NewsPage />} />
           <Route path={ROUTES.profile} element={<ProfilePage />} />
+          <Route path={ROUTES.territories} element={<TerritoriesPage />} />
+          <Route path={ROUTES.analytics} element={<AnalyticsPage />} />
+          <Route path={ROUTES.correspondence} element={<CorrespondencePage />} />
+          <Route path="/correspondence/:conversationId" element={<ConversationPage />} />
         </Route>
       </Route>
     </Routes>

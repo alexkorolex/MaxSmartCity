@@ -9,10 +9,13 @@ export {
   useOrganization,
   useOrganizationMembers,
   useOrganizations,
+  useRegisterAuthority,
   useRegisterOrganization,
 } from './model/queries';
-export { HOUSING_ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS } from './model/types';
+export { AUTHORITY_KIND_LABELS, AUTHORITY_KINDS, HOUSING_ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS } from './model/types';
 export type {
+  AuthorityKind,
+  AuthorityRegistrationPayload,
   HousingOrganizationType,
   Organization,
   OrganizationMember,

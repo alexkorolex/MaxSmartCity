@@ -183,7 +183,8 @@ def test_housing_worker_works_only_through_their_own_houses(
     admin = _headers(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]))
     org_a, worker_a = _register_housing_organization(api_client, monkeypatch, private_pem, admin, "УК А")
     org_b, worker_b = _register_housing_organization(api_client, monkeypatch, private_pem, admin, "УК Б")
-    house_a = _insert_house(database_url, formatted=f"ул. Первая, {uuid4().hex[:6]}")
+    marker = f"корпус{uuid4().hex[:6]}"
+    house_a = _insert_house(database_url, formatted=f"ул. Первая, {marker}")
     house_b = _insert_house(database_url, formatted=f"ул. Вторая, {uuid4().hex[:6]}")
 
     def take(house_id: str, organization_id: str, headers: dict[str, str]) -> int:
@@ -239,7 +240,7 @@ def test_housing_worker_works_only_through_their_own_houses(
     assert api_client.post(terminate_b, json={}, headers=worker_b).status_code == 200
 
     # The house picker shows who manages what, and searches by address.
-    found = api_client.get("/geo/houses/", params={"q": "ул. Первая"}, headers=worker_a).json()
+    found = api_client.get("/geo/houses/", params={"q": f"ул. Первая {marker}"}, headers=worker_a).json()
     picked = next(item for item in found if item["house_id"] == house_a)
     assert picked["managed_by_organization_name"] == "УК А"
 

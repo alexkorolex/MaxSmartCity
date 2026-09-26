@@ -24,7 +24,8 @@ from src.domains.geo.services import (
     house_management_summary_statement,
     to_house_management_summary,
 )
-from src.domains.identity.admin_scope import resolve_organization_scope
+from src.domains.geo.services.territories import jurisdiction_house_ids
+from src.domains.identity.admin_scope import AUTHORITY_ROLE, is_platform_admin, resolve_organization_scope
 from src.security.dependency import provide_principal
 from src.security.guards import require_roles
 from src.security.principal import Principal
@@ -37,6 +38,12 @@ _HOUSE_MANAGEMENT_AUTHORITY_ROLES = ("admin", "district_admin")
 current manager): the platform admin, or the district administration (Управа) acting as
 the local authority that appoints a УК from the Перечень. A ``housing_worker`` may only
 take a not-yet-managed house for, and release a house from, their own organization."""
+
+
+def _jurisdiction_of(principal: Principal) -> UUID | None:
+    if is_platform_admin(principal) or not principal.has_role(AUTHORITY_ROLE):
+        return None
+    return principal.organization_id or UUID(int=0)
 
 
 def provide_house_management_service(
@@ -73,6 +80,7 @@ class HouseManagementController(Controller):
         limit: Annotated[int, Parameter(ge=1, le=200)] = 50,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[HouseManagementSummary]:
+        jurisdiction = _jurisdiction_of(principal)
         if not principal.has_role(*_HOUSE_MANAGEMENT_AUTHORITY_ROLES):
             scope = resolve_organization_scope(principal, organization_id)
             if scope.sees_nothing:
@@ -80,6 +88,10 @@ class HouseManagementController(Controller):
             organization_id = scope.organization_id
         with database_action("list", "geo.HouseManagement"):
             statement = house_management_summary_statement()
+            if jurisdiction is not None:
+                statement = statement.where(
+                    HouseManagement.house_id.in_(jurisdiction_house_ids(jurisdiction))
+                )
             if house_id is not None:
                 statement = statement.where(HouseManagement.house_id == house_id)
             if organization_id is not None:
@@ -113,7 +125,10 @@ class HouseManagementController(Controller):
         with database_action("create", "geo.HouseManagement"):
             try:
                 management = await service.assign(
-                    data, changed_by=principal.actor_id, allow_replace=is_authority
+                    data,
+                    changed_by=principal.actor_id,
+                    allow_replace=is_authority,
+                    jurisdiction_of=_jurisdiction_of(principal),
                 )
             except HouseManagementNotFoundError as exc:
                 raise NotFoundException(str(exc)) from exc
@@ -144,7 +159,11 @@ class HouseManagementController(Controller):
         with database_action("update", "geo.HouseManagement"):
             try:
                 await service.terminate(
-                    item_id, data, changed_by=principal.actor_id, organization_id=own_organization
+                    item_id,
+                    data,
+                    changed_by=principal.actor_id,
+                    organization_id=own_organization,
+                    jurisdiction_of=_jurisdiction_of(principal),
                 )
             except HouseManagementNotFoundError as exc:
                 raise NotFoundException(str(exc)) from exc

@@ -90,7 +90,11 @@ docker compose run --rm ingest
 Формат файла — объект JSON версии `1` с `source` (`code`, `data_kind`: `REAL` или
 `DEMO`, `retrieved_at` с часовым поясом, опционально `url`) и массивами `houses`,
 `organizations`, `links`. Дом: `key`, `city`, `street`, `house_number`, опционально
-`formatted`, `external_id`, пара `latitude`/`longitude`. Организация: `key`, `name`,
+`formatted`, `external_id`, пара `latitude`/`longitude`, `district` (район) и `okrug`
+(административный округ — для городов вроде Москвы). По `city` дом попадает в
+территорию-город, по `okrug`/`district` — во вложенные деления; недостающие деления
+создаются автоматически. Без `district` дом остаётся на уровне города, а уже сделанная в
+панели разметка не сбрасывается. Организация: `key`, `name`,
 `type`, опционально `external_id`, `inn`, `ogrn`, массив `phones`, `email`,
 `website` и объект `provenance`. Телефоны приводятся к международному формату,
 email — к нижнему регистру. Связь: `house_key`, `organization_key`,

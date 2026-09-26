@@ -17,3 +17,4 @@
     .dashboard-hero p { font-size: 13px; }
     .dashboard-stat { min-height: 112px; }
 }
+.dashboard-more { align-self: flex-start; }

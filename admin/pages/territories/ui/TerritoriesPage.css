@@ -1,0 +1,49 @@
+.territories-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.territories-layout__tree {
+  position: sticky;
+  top: var(--space-5);
+}
+
+.territories-layout__detail {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.territory-path {
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.territory-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.territory-detail__authorities {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 18px;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .territories-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .territories-layout__tree {
+    position: static;
+  }
+}

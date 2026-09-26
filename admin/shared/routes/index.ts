@@ -15,4 +15,8 @@ export const ROUTES = {
   incident: (incidentId: string) => `/incidents/${incidentId}`,
   news: '/news',
   profile: '/profile',
+  territories: '/territories',
+  analytics: '/analytics',
+  correspondence: '/correspondence',
+  conversation: (conversationId: string) => `/correspondence/${conversationId}`,
 } as const;

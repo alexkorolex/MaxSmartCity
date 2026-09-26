@@ -1,10 +1,11 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import ClassVar, Literal
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.domains.geo.enums import AdministrativeAreaType
 from src.domains.geo.models import Address, AdministrativeArea, AffectedObject, House
 
 
@@ -226,3 +227,62 @@ class HouseMapFeatureCollection:
     features: list[HouseMapFeature]
     metadata: HouseMapMetadata
     type: Literal["FeatureCollection"] = "FeatureCollection"
+
+
+@dataclass(slots=True)
+class TerritoryNode:
+    id: UUID
+    parent_id: UUID | None
+    name: str
+    type: str
+    direct_house_count: int
+    house_count: int
+    authorities: list[str]
+
+
+@dataclass(slots=True)
+class TerritoryStreetShare:
+    territory_id: UUID
+    territory_name: str
+    house_count: int
+
+
+@dataclass(slots=True)
+class TerritoryStreet:
+    street: str
+    house_count: int
+    territories: list[TerritoryStreetShare]
+
+
+@dataclass(slots=True)
+class TerritoryHouse:
+    house_id: UUID
+    formatted: str
+    house_number: str | None
+    territory_id: UUID
+    territory_name: str
+
+
+@dataclass
+class TerritoryCreateCommand:
+    name: str
+    type: AdministrativeAreaType
+    parent_id: UUID | None = None
+
+
+@dataclass
+class TerritoryUpdateCommand:
+    name: str | None = None
+    type: AdministrativeAreaType | None = None
+    parent_id: UUID | None = None
+
+
+@dataclass
+class TerritoryAssignCommand:
+    streets: list[str] = field(default_factory=list)
+    house_ids: list[UUID] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class TerritoryAssignResult:
+    moved: int

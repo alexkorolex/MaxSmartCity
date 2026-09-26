@@ -21,6 +21,7 @@ from src.domains.geo.schemas import (
     HouseManagementSummary,
     TerminateHouseManagementCommand,
 )
+from src.domains.geo.services.territories import jurisdiction_house_ids
 from src.domains.identity.enums import OrganizationRegistrationStatus, OrganizationType
 from src.domains.identity.models import Organization
 from src.domains.identity.validation import HOUSING_ORGANIZATION_TYPES
@@ -103,17 +104,30 @@ def to_house_management_summary(row: Row[Any]) -> HouseManagementSummary:
 
 
 class HouseManagementService(SQLAlchemyAsyncRepositoryService[HouseManagement]):
+    async def _within_jurisdiction(self, house_id: UUID, authority_id: UUID | None) -> bool:
+        if authority_id is None:
+            return True
+        found = await self.repository.session.scalar(
+            select(House.id).where(House.id == house_id, House.id.in_(jurisdiction_house_ids(authority_id)))
+        )
+        return found is not None
+
     repository_type = HouseManagementRepository
 
     async def assign(
-        self, command: AssignHouseManagementCommand, *, changed_by: UUID, allow_replace: bool = True
+        self,
+        command: AssignHouseManagementCommand,
+        *,
+        changed_by: UUID,
+        allow_replace: bool = True,
+        jurisdiction_of: UUID | None = None,
     ) -> HouseManagement:
         """``allow_replace=False`` (an organization taking a house itself) only accepts a
         house nobody manages yet - moving a house away from another УК/ТСЖ is up to the
         admin or the district administration."""
         session = self.repository.session
         house = await session.scalar(select(House).where(House.id == command.house_id).with_for_update())
-        if house is None:
+        if house is None or not await self._within_jurisdiction(house.id, jurisdiction_of):
             raise HouseManagementNotFoundError(f"House {command.house_id} was not found")
         organization = await session.get(Organization, command.organization_id)
         if organization is None:
@@ -201,14 +215,17 @@ class HouseManagementService(SQLAlchemyAsyncRepositoryService[HouseManagement]):
         *,
         changed_by: UUID,
         organization_id: UUID | None = None,
+        jurisdiction_of: UUID | None = None,
     ) -> HouseManagement:
         """``organization_id`` confines the call to that organization's own houses."""
         session = self.repository.session
         management = await session.scalar(
             select(HouseManagement).where(HouseManagement.id == item_id).with_for_update()
         )
-        if management is None or (
-            organization_id is not None and management.organization_id != organization_id
+        if (
+            management is None
+            or (organization_id is not None and management.organization_id != organization_id)
+            or not await self._within_jurisdiction(management.house_id, jurisdiction_of)
         ):
             raise HouseManagementNotFoundError(f"House management {item_id} was not found")
         if not management.is_active:

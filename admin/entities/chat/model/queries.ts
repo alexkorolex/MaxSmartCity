@@ -34,6 +34,11 @@ export function useSendChatMessage(reportId: string) {
   });
 }
 
-export function useChatConversations() {
-  return useQuery({ queryKey: chatConversationsQueryKey, queryFn: fetchChatConversations, refetchInterval: 20_000 });
+export function useChatConversations(enabled = true) {
+  return useQuery({
+    queryKey: chatConversationsQueryKey,
+    queryFn: fetchChatConversations,
+    refetchInterval: 20_000,
+    enabled,
+  });
 }

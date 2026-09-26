@@ -1,6 +1,7 @@
 import { http } from '@/shared/api';
 
 import type {
+  AuthorityRegistrationPayload,
   Organization,
   OrganizationMember,
   OrganizationRegistrationPayload,
@@ -23,6 +24,10 @@ export function registerOrganization(
   payload: OrganizationRegistrationPayload,
 ): Promise<OrganizationRegistrationResult> {
   return http.post<OrganizationRegistrationResult>('/identity/organizations/register', payload);
+}
+
+export function registerAuthority(payload: AuthorityRegistrationPayload): Promise<OrganizationRegistrationResult> {
+  return http.post<OrganizationRegistrationResult>('/identity/organizations/authorities', payload);
 }
 
 export function fetchOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {

@@ -6,7 +6,7 @@ from uuid import UUID
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
 from src.domains.identity.credentials import CredentialsEmailResult
-from src.domains.identity.enums import OrganizationType
+from src.domains.identity.enums import AuthorityKind, OrganizationType
 from src.domains.identity.models import Department, Organization, Resident
 
 
@@ -145,6 +145,16 @@ class OrganizationRegistrationRequest:
     """Required for ``MANAGEMENT_COMPANY``, forbidden for ``HOA``."""
     in_reserve_registry: bool = False
     """Included in the Перечень (ГИС ЖКХ) - checked by the admin against the registry."""
+
+
+@dataclass
+class AuthorityRegistrationRequest:
+    name: str
+    authority_kind: AuthorityKind
+    territory_id: UUID
+    employee: StaffAccountRequest
+    inn: str | None = None
+    ogrn: str | None = None
 
 
 @dataclass

@@ -2,19 +2,15 @@ from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
-from advanced_alchemy.filters import LimitOffset
 from litestar import Controller, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
 from litestar.exceptions import PermissionDeniedException
 from litestar.params import FromPath, Parameter
-from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.common.enums import ActorType
 from src.database.logging import database_action
 from src.domains.identity.admin_scope import is_platform_admin
-from src.domains.news.audience import resident_audience, staff_audience
 from src.domains.news.models import NewsPost
 from src.domains.news.schemas import NewsPostCreateDTO, NewsPostReadDTO, NewsPostUpdateDTO
 from src.domains.news.services import NewsPostService
@@ -48,22 +44,7 @@ class NewsController(Controller):
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[NewsPost]:
         with database_action("list", "news.NewsPost"):
-            if principal.actor_type is ActorType.OPERATOR and is_platform_admin(principal):
-                criteria = ()
-            elif principal.actor_type is ActorType.OPERATOR:
-                criteria = (
-                    or_(
-                        and_(NewsPost.is_published.is_(True), staff_audience(principal.organization_id)),
-                        NewsPost.author_operator_id == principal.actor_id,
-                    ),
-                )
-            else:
-                criteria = (NewsPost.is_published.is_(True), resident_audience(principal.actor_id))
-            return await service.get_many(
-                LimitOffset(limit=limit, offset=offset),
-                *criteria,
-                order_by=("published_at", True),
-            )
+            return await service.feed(principal, limit=limit, offset=offset)
 
     @get("/{item_id:uuid}", name="news:NewsPost:get")
     async def get_item(

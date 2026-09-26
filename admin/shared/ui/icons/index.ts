@@ -1,6 +1,7 @@
 export {
   ArrowLeftIcon,
   BuildingIcon,
+  ChartIcon,
   ChevronRightIcon,
   CityIcon,
   CloseIcon,
@@ -9,6 +10,8 @@ export {
   HousesIcon,
   InboxIcon,
   LogOutIcon,
+  MailIcon,
+  MapIcon,
   MenuIcon,
   MoonIcon,
   NewsIcon,

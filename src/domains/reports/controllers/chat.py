@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.database.logging import database_action
-from src.domains.identity.admin_scope import STAFF_ROLES, resolve_organization_scope
+from src.domains.identity.admin_scope import RESIDENT_DATA_ROLES, resolve_organization_scope
 from src.domains.reports.chat import (
     MAX_WAIT_SECONDS,
     ChatConflictError,
@@ -38,7 +38,7 @@ def _staff_organization(principal: Principal) -> UUID | None:
     """Which organization a staff member chats for: ``None`` for the platform admin (every
     chat), their own one otherwise. 404 for staff outside any organization - not 403, so a
     report's existence isn't revealed."""
-    if not principal.has_role(*STAFF_ROLES):
+    if not principal.has_role(*RESIDENT_DATA_ROLES):
         raise PermissionDeniedException("Staff or resident authentication required")
     scope = resolve_organization_scope(principal)
     if scope.sees_nothing:
@@ -162,7 +162,11 @@ class ChatInboxController(Controller):
             "chat_events": Provide(provide_chat_events, sync_to_thread=False),
         }
 
-    @get("/conversations", name="reports:ReportChat:conversations", guards=[require_roles(*STAFF_ROLES)])
+    @get(
+        "/conversations",
+        name="reports:ReportChat:conversations",
+        guards=[require_roles(*RESIDENT_DATA_ROLES)],
+    )
     async def conversations(
         self,
         db_session: NamedDependency[AsyncSession],

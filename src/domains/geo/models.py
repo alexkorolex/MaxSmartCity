@@ -14,6 +14,13 @@ class AdministrativeArea(Entity):
     __tablename__ = "administrative_area"
     __table_args__ = (
         CheckConstraint("parent_id != id", name="ck_administrative_area_parent_not_self"),
+        CheckConstraint("parent_id IS NOT NULL OR type = 'CITY'", name="root_is_city"),
+        Index(
+            "uq_administrative_area_parent_name",
+            text("COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid)"),
+            text("lower(trim(name))"),
+            unique=True,
+        ),
         {"schema": "geo"},
     )
 
@@ -27,7 +34,7 @@ class AdministrativeArea(Entity):
             name="administrative_area_type",
         )
     )
-    geometry: Mapped[str] = mapped_column(GeometryText("MULTIPOLYGON", srid=4326))
+    geometry: Mapped[str | None] = mapped_column(GeometryText("MULTIPOLYGON", srid=4326))
 
 
 class Address(Entity):

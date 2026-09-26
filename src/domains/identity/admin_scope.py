@@ -13,6 +13,8 @@ from src.security.principal import Principal
 ADMIN_ROLE = "admin"
 STAFF_ROLES = ("admin", "district_admin", "housing_worker")
 """Every staff role - who may use the admin panel at all (then scoped by organization)."""
+AUTHORITY_ROLE = "district_admin"
+RESIDENT_DATA_ROLES = ("admin", "housing_worker")
 
 
 def is_platform_admin(principal: Principal) -> bool:

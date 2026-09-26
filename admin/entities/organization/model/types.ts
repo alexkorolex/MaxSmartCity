@@ -8,6 +8,14 @@ export type OrganizationType =
 
 export type HousingOrganizationType = Extract<OrganizationType, 'MANAGEMENT_COMPANY' | 'HOA'>;
 
+export type AuthorityKind =
+  | 'CITY_ADMINISTRATION'
+  | 'PREFECTURE'
+  | 'DISTRICT_ADMINISTRATION'
+  | 'DISTRICT_UPRAVA'
+  | 'INTRACITY_MUNICIPALITY'
+  | 'LOCAL_ADMINISTRATION';
+
 export interface Organization {
   id: string;
   code: string;
@@ -19,6 +27,17 @@ export interface Organization {
   ogrn: string | null;
   license_number: string | null;
   in_reserve_registry: boolean;
+  authority_kind: AuthorityKind | null;
+  territory_id: string | null;
+}
+
+export interface AuthorityRegistrationPayload {
+  name: string;
+  authority_kind: AuthorityKind;
+  territory_id: string;
+  inn?: string | null;
+  ogrn?: string | null;
+  employee: StaffAccountPayload;
 }
 
 export interface StaffAccountPayload {
@@ -74,7 +93,7 @@ export interface StaffAccountCreatedResult {
 }
 
 export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
-  ADMINISTRATION: 'Управа',
+  ADMINISTRATION: 'Орган власти',
   POWER_GRID: 'Энергосети',
   WATER_UTILITY: 'Водоканал',
   EMERGENCY: 'Аварийная служба',
@@ -83,3 +102,14 @@ export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
 };
 
 export const HOUSING_ORGANIZATION_TYPES: HousingOrganizationType[] = ['MANAGEMENT_COMPANY', 'HOA'];
+
+export const AUTHORITY_KIND_LABELS: Record<AuthorityKind, string> = {
+  CITY_ADMINISTRATION: 'Администрация города',
+  PREFECTURE: 'Префектура округа',
+  DISTRICT_ADMINISTRATION: 'Администрация района',
+  DISTRICT_UPRAVA: 'Управа района',
+  INTRACITY_MUNICIPALITY: 'Внутригородское МО',
+  LOCAL_ADMINISTRATION: 'Местная администрация',
+};
+
+export const AUTHORITY_KINDS = Object.keys(AUTHORITY_KIND_LABELS) as AuthorityKind[];

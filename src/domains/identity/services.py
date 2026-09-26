@@ -1,9 +1,11 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.geo.models import AdministrativeArea
+from src.domains.identity.admin_scope import AUTHORITY_ROLE, is_platform_admin
 from src.domains.identity.enums import BotStatus, OrganizationRegistrationStatus, OrganizationType
 from src.domains.identity.models import (
     Department,
@@ -21,13 +23,21 @@ from src.domains.identity.repositories import (
     ResidentRepository,
 )
 from src.domains.identity.schemas import (
+    AuthorityRegistrationRequest,
     OrganizationMemberCreateRequest,
     OrganizationRegistrationRequest,
     StaffAccountRequest,
 )
-from src.domains.identity.validation import validate_housing_requisites
+from src.domains.identity.validation import (
+    OrganizationRequisitesError,
+    is_valid_inn,
+    is_valid_ogrn,
+    validate_housing_requisites,
+)
+from src.domains.incidents.scope import visible_organization_ids
 from src.domains.infrastructure.models import OutboxEvent
 from src.security.keycloak_admin import create_staff_user
+from src.security.principal import Principal
 from src.security.settings import SecuritySettings
 
 HOUSING_WORKER_ROLE = "housing_worker"
@@ -68,6 +78,91 @@ def _clean(value: str | None) -> str | None:
 
 class OrganizationService(SQLAlchemyAsyncRepositoryService[Organization]):
     repository_type = OrganizationRepository
+
+    def directory_criteria(self, principal: Principal) -> list[ColumnElement[bool]] | None:
+        if is_platform_admin(principal):
+            return []
+        if principal.organization_id is None:
+            return None
+        if principal.has_role(AUTHORITY_ROLE):
+            return [Organization.id.in_(visible_organization_ids(principal.organization_id))]
+        return [Organization.id == principal.organization_id]
+
+    async def is_visible_to(self, organization_id: UUID, principal: Principal) -> bool:
+        criteria = self.directory_criteria(principal)
+        if criteria is None:
+            return False
+        found = await self.repository.session.scalar(
+            select(Organization.id).where(Organization.id == organization_id, *criteria)
+        )
+        return found is not None
+
+    async def register_authority(
+        self, data: AuthorityRegistrationRequest, *, registered_by: UUID
+    ) -> tuple[Organization, OrganizationMember]:
+        session = self.repository.session
+        name = " ".join(data.name.split())
+        if not name:
+            raise StaffAccountError("Authority name is required")
+        inn, ogrn = _clean(data.inn), _clean(data.ogrn)
+        if inn is not None and not is_valid_inn(inn):
+            raise OrganizationRequisitesError("INN is invalid")
+        if ogrn is not None and not is_valid_ogrn(ogrn):
+            raise OrganizationRequisitesError("OGRN is invalid")
+        territory = await session.get(AdministrativeArea, data.territory_id)
+        if territory is None:
+            raise IdentityNotFoundError(f"Territory {data.territory_id} was not found")
+        duplicate = await session.scalar(
+            select(Organization.id).where(
+                Organization.territory_id == territory.id, Organization.authority_kind == data.authority_kind
+            )
+        )
+        if duplicate is not None:
+            raise IdentityConflictError("This territory already has an authority of this kind")
+        if inn is not None and await session.scalar(select(Organization.id).where(Organization.inn == inn)):
+            raise IdentityConflictError(f"An organization with INN {inn} is already registered")
+        await _ensure_account_available(session, data.employee)
+        city = territory
+        while city.parent_id is not None:
+            parent = await session.get(AdministrativeArea, city.parent_id)
+            if parent is None:
+                break
+            city = parent
+        organization = Organization(
+            code=f"authority-{uuid4().hex[:12]}",
+            name=name,
+            type=OrganizationType.ADMINISTRATION,
+            authority_kind=data.authority_kind,
+            territory_id=territory.id,
+            city=city.name,
+            inn=inn,
+            ogrn=ogrn,
+            registration_status=OrganizationRegistrationStatus.APPROVED,
+            enabled=True,
+        )
+        session.add(organization)
+        await session.flush()
+        role_id = await _role_id(session, DISTRICT_ADMIN_ROLE)
+        member = await _create_member_account(
+            session, organization.id, role_id, DISTRICT_ADMIN_ROLE, data.employee
+        )
+        session.add(
+            OutboxEvent(
+                aggregate_type="ORGANIZATION",
+                aggregate_id=organization.id,
+                event_type="ORGANIZATION_REGISTERED",
+                payload={
+                    "organization_id": str(organization.id),
+                    "type": organization.type.value,
+                    "authority_kind": data.authority_kind.value,
+                    "territory_id": str(territory.id),
+                    "employee_id": str(member.user_id),
+                    "registered_by": str(registered_by),
+                },
+            )
+        )
+        await session.flush()
+        return organization, member
 
     async def register_with_employee(
         self, data: OrganizationRegistrationRequest, *, registered_by: UUID

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.logging import database_action
 from src.domains.geo.models import Address, House
-from src.domains.identity.admin_scope import STAFF_ROLES, resolve_organization_scope
+from src.domains.identity.admin_scope import RESIDENT_DATA_ROLES, resolve_organization_scope
 from src.domains.identity.models import (
     Resident,
 )
@@ -118,7 +118,7 @@ class ResidentController(Controller):
         super().__init__(owner)
         self.dependencies = {"principal": Provide(provide_principal)}
 
-    @get("/", name="identity:Resident:list", guards=[require_roles(*STAFF_ROLES)])
+    @get("/", name="identity:Resident:list", guards=[require_roles(*RESIDENT_DATA_ROLES)])
     async def list_items(
         self,
         db_session: NamedDependency[AsyncSession],
@@ -178,7 +178,7 @@ class ResidentController(Controller):
     @get(
         "/{item_id:uuid}",
         name="identity:Resident:get",
-        guards=[require_roles(*STAFF_ROLES)],
+        guards=[require_roles(*RESIDENT_DATA_ROLES)],
     )
     async def get_item(
         self,

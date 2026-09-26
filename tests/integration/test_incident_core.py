@@ -150,7 +150,7 @@ async def test_resident_intake_assignment_card_and_resolution_flow(
     organization = Organization(
         code=f"org-{uuid4().hex}",
         name="Test management company",
-        type=OrganizationType.ADMINISTRATION,
+        type=OrganizationType.MANAGEMENT_COMPANY,
     )
     db_session.add_all([resident, operator, organization])
     await db_session.flush()

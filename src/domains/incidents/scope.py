@@ -11,10 +11,11 @@ reporters. Each function returns a subquery of ids for ``column.in_(...)`` filte
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, select, union
+from sqlalchemy import Select, literal, select, union
 
 from src.domains.collaboration.models import Assignment
 from src.domains.geo.models import HouseManagement
+from src.domains.geo.services.territories import jurisdiction_house_ids
 from src.domains.identity.models import Resident
 from src.domains.incidents.models import IncidentAffectedHouse, IncidentReportLink
 from src.domains.reports.models import Report
@@ -27,12 +28,30 @@ def managed_house_ids(organization_id: UUID) -> Select[Any]:
     )
 
 
+def organization_house_ids(organization_id: UUID) -> Select[Any]:
+    return select(
+        union(managed_house_ids(organization_id), jurisdiction_house_ids(organization_id)).subquery()
+    )
+
+
+def visible_organization_ids(organization_id: UUID) -> Select[Any]:
+    return select(
+        union(
+            select(literal(organization_id)),
+            select(HouseManagement.organization_id).where(
+                HouseManagement.is_active.is_(True),
+                HouseManagement.house_id.in_(jurisdiction_house_ids(organization_id)),
+            ),
+        ).subquery()
+    )
+
+
 def organization_incident_ids(organization_id: UUID) -> Select[Any]:
     return select(
         union(
             select(Assignment.incident_id).where(Assignment.organization_id == organization_id),
             select(IncidentAffectedHouse.incident_id).where(
-                IncidentAffectedHouse.house_id.in_(managed_house_ids(organization_id))
+                IncidentAffectedHouse.house_id.in_(organization_house_ids(organization_id))
             ),
         ).subquery()
     )
@@ -41,7 +60,7 @@ def organization_incident_ids(organization_id: UUID) -> Select[Any]:
 def organization_report_ids(organization_id: UUID) -> Select[Any]:
     return select(
         union(
-            select(Report.id).where(Report.house_id.in_(managed_house_ids(organization_id))),
+            select(Report.id).where(Report.house_id.in_(organization_house_ids(organization_id))),
             select(IncidentReportLink.report_id).where(
                 IncidentReportLink.is_active.is_(True),
                 IncidentReportLink.incident_id.in_(organization_incident_ids(organization_id)),
@@ -53,7 +72,7 @@ def organization_report_ids(organization_id: UUID) -> Select[Any]:
 def organization_resident_ids(organization_id: UUID) -> Select[Any]:
     return select(
         union(
-            select(Resident.id).where(Resident.house_id.in_(managed_house_ids(organization_id))),
+            select(Resident.id).where(Resident.house_id.in_(organization_house_ids(organization_id))),
             select(Report.resident_id).where(
                 Report.resident_id.is_not(None),
                 Report.id.in_(organization_report_ids(organization_id)),

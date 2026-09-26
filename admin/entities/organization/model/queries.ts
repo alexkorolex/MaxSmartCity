@@ -6,9 +6,10 @@ import {
   fetchOrganization,
   fetchOrganizationMembers,
   fetchOrganizations,
+  registerAuthority,
   registerOrganization,
 } from '../api/organizations';
-import type { OrganizationRegistrationPayload, StaffAccountPayload } from './types';
+import type { AuthorityRegistrationPayload, OrganizationRegistrationPayload, StaffAccountPayload } from './types';
 
 export const organizationsQueryKey = ['organizations'] as const;
 export const organizationQueryKey = (organizationId: string) => ['organizations', organizationId] as const;
@@ -41,6 +42,18 @@ export function useRegisterOrganization() {
     mutationFn: (payload: OrganizationRegistrationPayload) => registerOrganization(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+}
+
+export function useRegisterAuthority() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AuthorityRegistrationPayload) => registerAuthority(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['territories'] });
       void queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
   });

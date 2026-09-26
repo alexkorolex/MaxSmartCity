@@ -32,6 +32,8 @@ def validate_house(row: object) -> dict[str, Any]:
     fields["management_method"] = optional_string(row, "management_method", 128)
     fields["canonical_address"] = optional_string(row, "canonical_address", 1000)
     fields["provenance"] = optional_object(row, "provenance")
+    fields["okrug"] = optional_string(row, "okrug", 255)
+    fields["district"] = optional_string(row, "district", 255)
     fields["street"] = normalize_street(fields["street"])
     fields["house_number"] = normalize_house_number(fields["house_number"])
     lat, lon = row.get("latitude"), row.get("longitude")

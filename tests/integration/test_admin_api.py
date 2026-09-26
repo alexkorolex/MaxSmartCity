@@ -149,7 +149,7 @@ def _insert_incident_comment(
 def _org_a_staff_setup(
     database_url: str, private_pem: str, *, city: str | None = None
 ) -> tuple[str, str, str]:
-    """Seed one organization with one active ``district_admin`` staff member.
+    """Seed one organization with one active ``housing_worker`` staff member.
     Returns ``(organization_id, operator_user_id, token)``."""
     organization_id = _insert_organization(database_url, name="Org A", city=city)
     role_id = _insert_role(database_url)
@@ -158,7 +158,7 @@ def _org_a_staff_setup(
     _insert_organization_member(
         database_url, organization_id=organization_id, user_id=operator_id, role_id=role_id
     )
-    token = _staff_token(private_pem, subject=subject, roles=["district_admin"])
+    token = _staff_token(private_pem, subject=subject, roles=["housing_worker"])
     return organization_id, operator_id, token
 
 
@@ -234,7 +234,7 @@ def test_admin_sees_all_organization_scoped_resources(
 # --- Non-admin staff: confined to their own organization ------------------------------
 
 
-def test_district_admin_sees_only_their_own_organization_and_404s_on_other_org_resources(
+def test_organization_staff_sees_only_their_own_organization_and_404s_on_other_org_resources(
     api_client: TestClient,
     database_url: str,
     rsa_keypair: tuple[str, str],  # noqa: F811
@@ -627,7 +627,7 @@ def test_staff_without_active_membership_gets_empty_lists(
     rsa_keypair: tuple[str, str],  # noqa: F811
 ) -> None:
     private_pem, _ = rsa_keypair
-    unassigned_token = _staff_token(private_pem, subject=str(uuid4()), roles=["district_admin"])
+    unassigned_token = _staff_token(private_pem, subject=str(uuid4()), roles=["housing_worker"])
     headers = {"Authorization": f"Bearer {unassigned_token}"}
 
     # Seed some organization-scoped data elsewhere so an empty result is a real assertion,
@@ -689,6 +689,45 @@ def _managed_house(database_url: str, organization_id: str, *, city: str, active
     return house_id
 
 
+def _insert_territory(database_url: str, name: str, parent_id: str | None = None) -> str:
+    territory_id = str(uuid4())
+    run_sql(
+        database_url,
+        "INSERT INTO geo.administrative_area(id, parent_id, name, type, created_at, updated_at) "
+        "VALUES (:id, :parent, :name, :type, now(), now())",
+        id=territory_id,
+        parent=parent_id,
+        name=name,
+        type="DISTRICT" if parent_id else "CITY",
+    )
+    return territory_id
+
+
+def _place(database_url: str, house_id: str, territory_id: str) -> None:
+    run_sql(
+        database_url,
+        "UPDATE geo.house SET administrative_area_id = :territory WHERE id = :house",
+        territory=territory_id,
+        house=house_id,
+    )
+
+
+def _insert_authority(database_url: str, name: str, kind: str, territory_id: str) -> str:
+    organization_id = str(uuid4())
+    run_sql(
+        database_url,
+        "INSERT INTO identity.organization"
+        "(id, code, name, type, authority_kind, territory_id, created_at, updated_at) "
+        "VALUES (:id, :code, :name, 'ADMINISTRATION', :kind, :territory, now(), now())",
+        id=organization_id,
+        code=uuid4().hex,
+        name=name,
+        kind=kind,
+        territory=territory_id,
+    )
+    return organization_id
+
+
 def test_news_reaches_only_the_residents_of_the_publishers_houses(
     api_client: TestClient,
     database_url: str,
@@ -696,15 +735,22 @@ def test_news_reaches_only_the_residents_of_the_publishers_houses(
 ) -> None:
     private_pem, _ = rsa_keypair
     city = f"Город-{uuid4().hex[:6]}"
+    city_territory = _insert_territory(database_url, city)
+    district_a = _insert_territory(database_url, "Район А", city_territory)
+    district_b = _insert_territory(database_url, "Район Б", city_territory)
     uk_a = _insert_organization(database_url, name="УК А", city=city, org_type="MANAGEMENT_COMPANY")
     uk_b = _insert_organization(database_url, name="УК Б", city=city, org_type="MANAGEMENT_COMPANY")
-    uprava = _insert_organization(
-        database_url, name="Управа", city=f" {city.upper()} ", org_type="ADMINISTRATION"
+    city_hall = _insert_authority(database_url, "Администрация города", "CITY_ADMINISTRATION", city_territory)
+    district_hall = _insert_authority(
+        database_url, "Администрация района А", "DISTRICT_ADMINISTRATION", district_a
     )
     house_a = _managed_house(database_url, uk_a, city=city)
     house_b = _managed_house(database_url, uk_b, city=city)
     house_former = _managed_house(database_url, uk_a, city=city, active=False)
     house_elsewhere = _insert_house(database_url, city="Другой город")
+    _place(database_url, house_a, district_a)
+    _place(database_url, house_b, district_b)
+    _place(database_url, house_former, city_territory)
 
     def publish(token: str, title: str) -> str:
         headers = {"Authorization": f"Bearer {token}"}
@@ -718,25 +764,34 @@ def test_news_reaches_only_the_residents_of_the_publishers_houses(
         assert published.status_code == 200, published.text
         return title
 
+    titles = {"Для всех", "От УК А", "От УК Б", "От города", "От района А"}
     publish(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]), "Для всех")
     worker_a = _staff_of(database_url, private_pem, uk_a, "housing_worker")
     publish(worker_a, "От УК А")
     publish(_staff_of(database_url, private_pem, uk_b, "housing_worker"), "От УК Б")
-    publish(_staff_of(database_url, private_pem, uprava, "district_admin"), "От Управы")
+    publish(_staff_of(database_url, private_pem, city_hall, "district_admin"), "От города")
+    district_worker = _staff_of(database_url, private_pem, district_hall, "district_admin")
+    publish(district_worker, "От района А")
 
     def feed(token: str) -> set[str]:
         response = api_client.get(
             "/news/", params={"limit": 100}, headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200, response.text
-        return {item["title"] for item in response.json()} & {"Для всех", "От УК А", "От УК Б", "От Управы"}
+        return {item["title"] for item in response.json()} & titles
 
-    assert feed(_resident_of(api_client, database_url, house_a)) == {"Для всех", "От УК А", "От Управы"}
-    assert feed(_resident_of(api_client, database_url, house_b)) == {"Для всех", "От УК Б", "От Управы"}
-    assert feed(_resident_of(api_client, database_url, house_former)) == {"Для всех", "От Управы"}
+    assert feed(_resident_of(api_client, database_url, house_a)) == {
+        "Для всех",
+        "От УК А",
+        "От города",
+        "От района А",
+    }
+    assert feed(_resident_of(api_client, database_url, house_b)) == {"Для всех", "От УК Б", "От города"}
+    assert feed(_resident_of(api_client, database_url, house_former)) == {"Для всех", "От города"}
     assert feed(_resident_of(api_client, database_url, house_elsewhere)) == {"Для всех"}
     assert feed(_resident_of(api_client, database_url, None)) == {"Для всех"}
     assert feed(worker_a) == {"Для всех", "От УК А"}
+    assert feed(district_worker) == {"Для всех", "От района А"}
 
 
 def test_news_audience_cannot_be_chosen_by_the_client(

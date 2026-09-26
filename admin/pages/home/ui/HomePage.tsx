@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
+import { useTerritorySummary } from '@/entities/analytics';
 import { useHouseManagement } from '@/entities/geo';
 import { useIncidents } from '@/entities/incident';
-import { useOrganizations } from '@/entities/organization';
+import { useOrganization, useOrganizations } from '@/entities/organization';
 import { useResidents } from '@/entities/resident';
-import { canBrowseOrganizations, isAdmin, primaryRole, roleLabel, useMe, useProfile } from '@/entities/session';
+import { canBrowseOrganizations, isAdmin, isAuthority, primaryRole, roleLabel, useMe, useProfile } from '@/entities/session';
 import { useStaffList } from '@/entities/staff';
-import { BuildingIcon, HousesIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
+import { ROUTES } from '@/shared/routes';
+import { BuildingIcon, CommentIcon, HousesIcon, PersonIcon, StaffIcon, WarningIcon } from '@/shared/ui';
 
 import './HomePage.css';
 
@@ -27,19 +30,59 @@ function StatCard({ label, value, isLoading, icon }: StatCardProps) {
   );
 }
 
-export function HomePage() {
+function OrganizationOverview() {
   const { data: principal } = useMe();
   const organizations = useOrganizations();
   const staff = useStaffList();
   const residents = useResidents();
   const incidents = useIncidents();
   const houses = useHouseManagement();
+
+  return (
+    <div className="stat-grid">
+      {canBrowseOrganizations(principal) && (
+        <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} icon={<BuildingIcon />} />
+      )}
+      <StatCard label="Дома в управлении" value={houses.data?.length} isLoading={houses.isLoading} icon={<HousesIcon />} />
+      <StatCard label="Сотрудники" value={staff.data?.length} isLoading={staff.isLoading} icon={<StaffIcon />} />
+      <StatCard label="Жители" value={residents.data?.length} isLoading={residents.isLoading} icon={<PersonIcon />} />
+      <StatCard label="Инциденты" value={incidents.data?.length} isLoading={incidents.isLoading} icon={<WarningIcon />} />
+    </div>
+  );
+}
+
+function AuthorityOverview({ organizationId }: { organizationId: string }) {
+  const organization = useOrganization(organizationId);
+  const summary = useTerritorySummary(organization.data?.territory_id ?? null);
+  const total = summary.data?.total;
+  const isLoading = organization.isLoading || summary.isLoading;
+
+  return (
+    <>
+      <div className="stat-grid">
+        <StatCard label="Дома на территории" value={total?.houses} isLoading={isLoading} icon={<HousesIcon />} />
+        <StatCard label="Жители в приложении" value={total?.residents} isLoading={isLoading} icon={<PersonIcon />} />
+        <StatCard label="Обращения в работе" value={total?.reports_open} isLoading={isLoading} icon={<CommentIcon />} />
+        <StatCard label="Открытые инциденты" value={total?.incidents_open} isLoading={isLoading} icon={<WarningIcon />} />
+        <StatCard label="УК и ТСЖ" value={total?.managing_organizations} isLoading={isLoading} icon={<BuildingIcon />} />
+      </div>
+      <Link className="btn btn--ghost dashboard-more" to={ROUTES.analytics}>
+        Подробная статистика по территории
+      </Link>
+    </>
+  );
+}
+
+export function HomePage() {
+  const { data: principal } = useMe();
   const { data: me } = useProfile();
 
   const role = primaryRole(principal);
   const scopeNote = isAdmin(principal)
     ? 'Данные по всем городам и организациям'
-    : 'Данные в рамках вашей организации';
+    : isAuthority(principal)
+      ? 'Данные по территории вашего органа власти'
+      : 'Данные в рамках вашей организации';
 
   return (
     <>
@@ -54,15 +97,11 @@ export function HomePage() {
         </div>
       </section>
 
-      <div className="stat-grid">
-        {canBrowseOrganizations(principal) && (
-          <StatCard label="Организации" value={organizations.data?.length} isLoading={organizations.isLoading} icon={<BuildingIcon />} />
-        )}
-        <StatCard label="Дома в управлении" value={houses.data?.length} isLoading={houses.isLoading} icon={<HousesIcon />} />
-        <StatCard label="Сотрудники" value={staff.data?.length} isLoading={staff.isLoading} icon={<StaffIcon />} />
-        <StatCard label="Жители" value={residents.data?.length} isLoading={residents.isLoading} icon={<PersonIcon />} />
-        <StatCard label="Инциденты" value={incidents.data?.length} isLoading={incidents.isLoading} icon={<WarningIcon />} />
-      </div>
+      {isAuthority(principal) && principal?.organization_id ? (
+        <AuthorityOverview organizationId={principal.organization_id} />
+      ) : (
+        principal && <OrganizationOverview />
+      )}
     </>
   );
 }

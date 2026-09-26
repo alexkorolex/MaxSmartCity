@@ -8,8 +8,9 @@ import {
   useUpdateNews,
   type NewsPost,
 } from '@/entities/news';
-import { useOrganizations } from '@/entities/organization';
-import { isAdmin, STAFF_ROLES, useMe, useProfile, type Principal } from '@/entities/session';
+import { useOrganization, useOrganizations } from '@/entities/organization';
+import { isAdmin, isAuthority, useMe, useProfile, type Principal } from '@/entities/session';
+import { useTerritories } from '@/entities/territory';
 import { formatDateTime } from '@/shared/lib';
 import { AsyncState, EmptyState, NewsIcon, Pill } from '@/shared/ui';
 
@@ -60,12 +61,17 @@ function housesLabel(count: number): string {
 function useAudienceNote(principal: Principal | undefined): string | null {
   const { data: profile } = useProfile();
   const organizationId = principal?.organization_id ?? undefined;
-  const houses = useHouseManagement(organizationId);
+  const authority = isAuthority(principal);
+  const houses = useHouseManagement(authority ? undefined : organizationId);
+  const authorityOrganization = useOrganization(authority ? (organizationId ?? '') : '');
+  const territories = useTerritories(authority);
   if (!principal) return null;
   if (isAdmin(principal)) return 'Публикацию увидят все жители платформы';
   if (!organizationId) return 'Вы не состоите в организации — публикацию увидят все жители';
-  if (principal.roles.includes(STAFF_ROLES.districtAdmin)) {
-    return 'Публикацию увидят жители домов вашего города';
+  if (authority) {
+    const territory = territories.data?.find((node) => node.id === authorityOrganization.data?.territory_id);
+    if (!territory) return 'Публикацию увидят жители вашей территории';
+    return `Публикацию увидят жители: ${territory.name} — ${housesLabel(territory.house_count)}`;
   }
   const organization = profile?.organization_name ? `«${profile.organization_name}»` : 'вашей организации';
   const count = houses.data?.length;

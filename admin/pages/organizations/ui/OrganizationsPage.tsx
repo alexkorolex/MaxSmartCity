@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useCities } from '@/entities/geo';
-import { ORGANIZATION_TYPE_LABELS, useOrganizations } from '@/entities/organization';
+import { AUTHORITY_KIND_LABELS, ORGANIZATION_TYPE_LABELS, useOrganizations, type Organization } from '@/entities/organization';
 import { canBrowseOrganizations, isAdmin, useMe } from '@/entities/session';
+import { useTerritories } from '@/entities/territory';
+import { RegisterAuthorityForm } from '@/features/register-authority';
 import { RegisterOrganizationForm } from '@/features/register-organization';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CitySelect, EmptyState, InboxIcon, Pill } from '@/shared/ui';
@@ -24,13 +26,45 @@ function OrganizationsDirectory() {
   const { data: cities } = useCities();
   const { data: principal } = useMe();
   const [city, setCity] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [registering, setRegistering] = useState<'housing' | 'authority' | null>(null);
+  const territories = useTerritories();
+  const territoryNames = useMemo(
+    () => new Map((territories.data ?? []).map((node) => [node.id, node.name])),
+    [territories.data],
+  );
 
   const filtered = useMemo(() => (data ?? []).filter((org) => !city || org.city === city), [data, city]);
 
+  function kindLabel(org: Organization): string {
+    return org.authority_kind ? AUTHORITY_KIND_LABELS[org.authority_kind] : ORGANIZATION_TYPE_LABELS[org.type];
+  }
+
   return (
     <>
-      {isRegistering && (
+      {registering === 'authority' && (
+        <div className="card">
+          <div className="card__header">
+            <div>
+              <div className="card__title">Регистрация органа власти</div>
+              <div className="card__meta">
+                Администрация города, района, префектура, управа или МО — вместе с первым сотрудником. Орган видит
+                статистику и инциденты своей территории, публикует новости её жителям.
+              </div>
+            </div>
+          </div>
+          <div className="card__body">
+            <RegisterAuthorityForm
+              onCancel={() => setRegistering(null)}
+              onRegistered={(organizationId, registration) => {
+                setRegistering(null);
+                navigate(ROUTES.organization(organizationId), { state: { registration } });
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {registering === 'housing' && (
         <div className="card">
           <div className="card__header">
             <div>
@@ -43,9 +77,9 @@ function OrganizationsDirectory() {
           </div>
           <div className="card__body">
             <RegisterOrganizationForm
-              onCancel={() => setIsRegistering(false)}
+              onCancel={() => setRegistering(null)}
               onRegistered={(organizationId, registration) => {
-                setIsRegistering(false);
+                setRegistering(null);
                 // The organization card tells the admin whether the credentials e-mail went out.
                 navigate(ROUTES.organization(organizationId), { state: { registration } });
               }}
@@ -58,12 +92,17 @@ function OrganizationsDirectory() {
         <div className="card__header">
           <div>
             <div className="card__title">Организации</div>
-            <div className="card__meta">Управы, управляющие компании, ТСЖ и городские службы</div>
+            <div className="card__meta">Органы власти, управляющие компании, ТСЖ и городские службы</div>
           </div>
-          {isAdmin(principal) && !isRegistering && (
-            <button type="button" className="btn" onClick={() => setIsRegistering(true)}>
-              Зарегистрировать УК / ТСЖ
-            </button>
+          {isAdmin(principal) && !registering && (
+            <div className="form-actions">
+              <button type="button" className="btn btn--ghost" onClick={() => setRegistering('authority')}>
+                Орган власти
+              </button>
+              <button type="button" className="btn" onClick={() => setRegistering('housing')}>
+                УК / ТСЖ
+              </button>
+            </div>
           )}
         </div>
         <div className="filter-bar">
@@ -97,7 +136,12 @@ function OrganizationsDirectory() {
                         }}
                       >
                         <td className="cell-primary" data-label="Название">{org.name}</td>
-                        <td className="cell-secondary" data-label="Тип">{ORGANIZATION_TYPE_LABELS[org.type]}</td>
+                        <td className="cell-secondary" data-label="Тип">
+                          {kindLabel(org)}
+                          {org.territory_id && territoryNames.has(org.territory_id) && (
+                            <div className="cell-muted">{territoryNames.get(org.territory_id)}</div>
+                          )}
+                        </td>
                         <td className="cell-secondary" data-label="Город">{org.city ?? '—'}</td>
                         <td className="cell-muted" data-label="ИНН">{org.inn ?? '—'}</td>
                         <td data-label="Статус">

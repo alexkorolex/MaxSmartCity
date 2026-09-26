@@ -210,6 +210,7 @@ def test_platform_admin_only_observes_report_chats(
     assert [(item["report_id"], item["unread_count"]) for item in inbox] == [(report, 1)]
     receipts = [m["read_at"] for m in api_client.get(chat, headers=resident).json()["messages"]]
     assert receipts == [None]
+    assert api_client.get(chat, headers=worker).status_code == 200
 
 
 def test_long_poll_answers_at_once_when_the_chat_changed_and_times_out_otherwise(

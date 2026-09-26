@@ -1,7 +1,9 @@
 import { Button, Flex, Typography } from '@maxhub/max-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { newsListQueryKey } from '@/entities/news';
 import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
 import { HouseSelector } from '@/features/select-house';
 import { ROUTES } from '@/shared/routes';
@@ -18,6 +20,7 @@ export function SelectHousePage() {
   const profile = useMyProfile();
   const updateProfile = useUpdateMyProfile();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const isOnboarding = (location.state as SelectHouseLocationState | null)?.mode === 'onboarding';
   const [houseId, setHouseId] = useState<string | null>(null);
@@ -32,7 +35,13 @@ export function SelectHousePage() {
     if (!houseId) return;
     updateProfile.mutate(
       { house_id: houseId },
-      { onSuccess: () => navigate(isOnboarding ? ROUTES.home : ROUTES.profile, { replace: true }) },
+      {
+        onSuccess: () => {
+          // News is per house (its managing organization and city) - the feed changes too.
+          void queryClient.invalidateQueries({ queryKey: newsListQueryKey });
+          navigate(isOnboarding ? ROUTES.home : ROUTES.profile, { replace: true });
+        },
+      },
     );
   };
 

@@ -9,7 +9,8 @@ from src.domains.news.models import NewsPost
 
 class NewsPostCreateDTO(SQLAlchemyDTO[NewsPost]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig(
-        exclude={"id", "created_at", "updated_at"}, forbid_unknown_fields=True
+        exclude={"id", "created_at", "updated_at", "author_operator_id", "organization_id"},
+        forbid_unknown_fields=True,
     )
 
 
@@ -19,5 +20,7 @@ class NewsPostReadDTO(SQLAlchemyDTO[NewsPost]):
 
 class NewsPostUpdateDTO(SQLAlchemyDTO[NewsPost]):
     config: ClassVar[SQLAlchemyDTOConfig] = SQLAlchemyDTOConfig(
-        exclude={"id", "created_at", "updated_at"}, partial=True, forbid_unknown_fields=True
+        exclude={"id", "created_at", "updated_at", "author_operator_id", "organization_id"},
+        partial=True,
+        forbid_unknown_fields=True,
     )

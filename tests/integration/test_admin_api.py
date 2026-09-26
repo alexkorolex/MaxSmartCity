@@ -650,3 +650,112 @@ def test_staff_without_active_membership_gets_empty_lists(
         headers=headers,
     )
     assert forbidden_comment.status_code == 403
+
+
+def _staff_of(database_url: str, private_pem: str, organization_id: str, role: str) -> str:
+    subject = str(uuid4())
+    operator_id = _insert_operator_user(database_url, keycloak_subject=subject, display_name=f"{role} worker")
+    _insert_organization_member(
+        database_url,
+        organization_id=organization_id,
+        user_id=operator_id,
+        role_id=_insert_role(database_url),
+    )
+    return _staff_token(private_pem, subject=subject, roles=[role])
+
+
+def _resident_of(api_client: TestClient, database_url: str, house_id: str | None) -> str:
+    resident_id, token = _resident_token(api_client)
+    run_sql(
+        database_url,
+        "UPDATE identity.resident SET house_id = :house WHERE id = :id",
+        house=house_id,
+        id=resident_id,
+    )
+    return token
+
+
+def _managed_house(database_url: str, organization_id: str, *, city: str, active: bool = True) -> str:
+    house_id = _insert_house(database_url, city=city, formatted=f"{city}, {uuid4().hex[:6]}")
+    run_sql(
+        database_url,
+        "INSERT INTO geo.house_management(id, house_id, organization_id, is_active, created_at, updated_at) "
+        "VALUES (:id, :house, :organization, :active, now(), now())",
+        id=str(uuid4()),
+        house=house_id,
+        organization=organization_id,
+        active=active,
+    )
+    return house_id
+
+
+def test_news_reaches_only_the_residents_of_the_publishers_houses(
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+) -> None:
+    private_pem, _ = rsa_keypair
+    city = f"Город-{uuid4().hex[:6]}"
+    uk_a = _insert_organization(database_url, name="УК А", city=city, org_type="MANAGEMENT_COMPANY")
+    uk_b = _insert_organization(database_url, name="УК Б", city=city, org_type="MANAGEMENT_COMPANY")
+    uprava = _insert_organization(
+        database_url, name="Управа", city=f" {city.upper()} ", org_type="ADMINISTRATION"
+    )
+    house_a = _managed_house(database_url, uk_a, city=city)
+    house_b = _managed_house(database_url, uk_b, city=city)
+    house_former = _managed_house(database_url, uk_a, city=city, active=False)
+    house_elsewhere = _insert_house(database_url, city="Другой город")
+
+    def publish(token: str, title: str) -> str:
+        headers = {"Authorization": f"Bearer {token}"}
+        created = api_client.post("/news/", json={"title": title, "body": "Body"}, headers=headers)
+        assert created.status_code == 201, created.text
+        published = api_client.patch(
+            f"/news/{created.json()['id']}",
+            json={"is_published": True, "published_at": datetime.now(UTC).isoformat()},
+            headers=headers,
+        )
+        assert published.status_code == 200, published.text
+        return title
+
+    publish(_staff_token(private_pem, subject=str(uuid4()), roles=["admin"]), "Для всех")
+    worker_a = _staff_of(database_url, private_pem, uk_a, "housing_worker")
+    publish(worker_a, "От УК А")
+    publish(_staff_of(database_url, private_pem, uk_b, "housing_worker"), "От УК Б")
+    publish(_staff_of(database_url, private_pem, uprava, "district_admin"), "От Управы")
+
+    def feed(token: str) -> set[str]:
+        response = api_client.get(
+            "/news/", params={"limit": 100}, headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200, response.text
+        return {item["title"] for item in response.json()} & {"Для всех", "От УК А", "От УК Б", "От Управы"}
+
+    assert feed(_resident_of(api_client, database_url, house_a)) == {"Для всех", "От УК А", "От Управы"}
+    assert feed(_resident_of(api_client, database_url, house_b)) == {"Для всех", "От УК Б", "От Управы"}
+    assert feed(_resident_of(api_client, database_url, house_former)) == {"Для всех", "От Управы"}
+    assert feed(_resident_of(api_client, database_url, house_elsewhere)) == {"Для всех"}
+    assert feed(_resident_of(api_client, database_url, None)) == {"Для всех"}
+    assert feed(worker_a) == {"Для всех", "От УК А"}
+
+
+def test_news_audience_cannot_be_chosen_by_the_client(
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+) -> None:
+    private_pem, _ = rsa_keypair
+    uk = _insert_organization(database_url, name="УК", org_type="MANAGEMENT_COMPANY")
+    other = _insert_organization(database_url, name="Чужая УК", org_type="MANAGEMENT_COMPANY")
+    worker = _staff_of(database_url, private_pem, uk, "housing_worker")
+
+    forged = api_client.post(
+        "/news/",
+        json={"title": "T", "body": "B", "organization_id": other},
+        headers={"Authorization": f"Bearer {worker}"},
+    )
+    assert forged.status_code == 400
+    created = api_client.post(
+        "/news/", json={"title": "T", "body": "B"}, headers={"Authorization": f"Bearer {worker}"}
+    )
+    assert created.json()["organization_id"] == uk

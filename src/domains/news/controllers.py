@@ -8,12 +8,13 @@ from litestar.di import NamedDependency, Provide
 from litestar.dto import DTOData
 from litestar.exceptions import PermissionDeniedException
 from litestar.params import FromPath, Parameter
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import ActorType
 from src.database.logging import database_action
 from src.domains.identity.admin_scope import is_platform_admin
+from src.domains.news.audience import resident_audience, staff_audience
 from src.domains.news.models import NewsPost
 from src.domains.news.schemas import NewsPostCreateDTO, NewsPostReadDTO, NewsPostUpdateDTO
 from src.domains.news.services import NewsPostService
@@ -46,18 +47,18 @@ class NewsController(Controller):
         limit: Annotated[int, Parameter(ge=1, le=100)] = 50,
         offset: Annotated[int, Parameter(ge=0)] = 0,
     ) -> Sequence[NewsPost]:
-        # Residents (and any non-staff caller) always get published-only, unchanged. Staff
-        # get broader visibility: `admin` sees every post (published or draft); a
-        # district_admin/housing_worker sees published posts plus their *own* drafts.
         with database_action("list", "news.NewsPost"):
             if principal.actor_type is ActorType.OPERATOR and is_platform_admin(principal):
                 criteria = ()
             elif principal.actor_type is ActorType.OPERATOR:
                 criteria = (
-                    or_(NewsPost.is_published.is_(True), NewsPost.author_operator_id == principal.actor_id),
+                    or_(
+                        and_(NewsPost.is_published.is_(True), staff_audience(principal.organization_id)),
+                        NewsPost.author_operator_id == principal.actor_id,
+                    ),
                 )
             else:
-                criteria = (NewsPost.is_published.is_(True),)
+                criteria = (NewsPost.is_published.is_(True), resident_audience(principal.actor_id))
             return await service.get_many(
                 LimitOffset(limit=limit, offset=offset),
                 *criteria,
@@ -71,8 +72,6 @@ class NewsController(Controller):
         service: NamedDependency[NewsPostService],
         principal: NamedDependency[Principal],
     ) -> NewsPost:
-        # `principal` is unused beyond dependency resolution: any authenticated caller
-        # may fetch a post by id, published or not.
         with database_action("get", "news.NewsPost"):
             return await service.get(item_id)
 
@@ -89,11 +88,9 @@ class NewsController(Controller):
         principal: NamedDependency[Principal],
     ) -> NewsPost:
         with database_action("create", "news.NewsPost"):
-            # Authorship always comes from the authenticated principal, never trusted from
-            # client input - otherwise a non-admin could post a draft under someone else's
-            # name and see it in their own "published + own drafts" listing regardless.
             post = data.create_instance()
             post.author_operator_id = principal.actor_id
+            post.organization_id = None if is_platform_admin(principal) else principal.organization_id
             return await service.create(post)
 
     @patch(
@@ -110,9 +107,6 @@ class NewsController(Controller):
         principal: NamedDependency[Principal],
     ) -> NewsPost:
         with database_action("update", "news.NewsPost"):
-            # Same ownership boundary as the listing: `admin` may edit any post, a
-            # district_admin/housing_worker only their own - otherwise one org could
-            # publish, alter, or unpublish another org's (or the admin's) announcement.
             existing = await service.get(item_id)
             if not is_platform_admin(principal) and existing.author_operator_id != principal.actor_id:
                 raise PermissionDeniedException("Cannot modify another author's news post")

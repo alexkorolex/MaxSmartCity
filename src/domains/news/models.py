@@ -16,3 +16,4 @@ class NewsPost(Entity):
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     author_operator_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.operator_user.id"))
+    organization_id: Mapped[UUID | None] = mapped_column(ForeignKey("identity.organization.id"), index=True)

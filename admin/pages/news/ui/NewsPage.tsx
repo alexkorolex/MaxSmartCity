@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 
+import { useHouseManagement } from '@/entities/geo';
 import {
   useCreateNews,
   useDeleteNews,
@@ -7,7 +8,8 @@ import {
   useUpdateNews,
   type NewsPost,
 } from '@/entities/news';
-import { isAdmin, useMe } from '@/entities/session';
+import { useOrganizations } from '@/entities/organization';
+import { isAdmin, STAFF_ROLES, useMe, useProfile, type Principal } from '@/entities/session';
 import { formatDateTime } from '@/shared/lib';
 import { AsyncState, EmptyState, NewsIcon, Pill } from '@/shared/ui';
 
@@ -45,10 +47,41 @@ function NewsRowActions({ post, canManage }: { post: NewsPost; canManage: boolea
   );
 }
 
+function housesLabel(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${count} домов`;
+  if (last === 1) return `${count} дом`;
+  if (last >= 2 && last <= 4) return `${count} дома`;
+  return `${count} домов`;
+}
+
+/** Who gets a post the signed-in staff member publishes - mirrors the backend's `news.audience`. */
+function useAudienceNote(principal: Principal | undefined): string | null {
+  const { data: profile } = useProfile();
+  const organizationId = principal?.organization_id ?? undefined;
+  const houses = useHouseManagement(organizationId);
+  if (!principal) return null;
+  if (isAdmin(principal)) return 'Публикацию увидят все жители платформы';
+  if (!organizationId) return 'Вы не состоите в организации — публикацию увидят все жители';
+  if (principal.roles.includes(STAFF_ROLES.districtAdmin)) {
+    return 'Публикацию увидят жители домов вашего города';
+  }
+  const organization = profile?.organization_name ? `«${profile.organization_name}»` : 'вашей организации';
+  const count = houses.data?.length;
+  if (count === 0) return `Публикацию пока никто не увидит: у ${organization} нет домов в управлении`;
+  return `Публикацию увидят только жители домов в управлении ${organization}${count ? ` — ${housesLabel(count)}` : ''}`;
+}
+
 export function NewsPage() {
   const { data, isLoading, error, refetch } = useNewsList();
   const { data: principal } = useMe();
   const createNews = useCreateNews();
+  const audienceNote = useAudienceNote(principal);
+  const showAudience = isAdmin(principal);
+  const organizations = useOrganizations();
+  const organizationName = (id: string | null) =>
+    id ? (organizations.data?.find((org) => org.id === id)?.name ?? 'Организация') : 'Все жители';
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -78,7 +111,10 @@ export function NewsPage() {
     <>
       <div className="card">
         <div className="card__header">
-          <div className="card__title">Новая публикация</div>
+          <div>
+            <div className="card__title">Новая публикация</div>
+            {audienceNote && <div className="card__meta">{audienceNote}</div>}
+          </div>
         </div>
         <div className="card__body">
           <form onSubmit={handleSubmit} className="news-form">
@@ -137,6 +173,7 @@ export function NewsPage() {
                   <thead>
                     <tr>
                       <th>Заголовок</th>
+                      {showAudience && <th>Для кого</th>}
                       <th>Статус</th>
                       <th>Опубликовано</th>
                       <th />
@@ -153,6 +190,11 @@ export function NewsPage() {
                             <div className="cell-primary">{post.title}</div>
                             <div className="cell-muted">{post.body.slice(0, 120)}</div>
                           </td>
+                          {showAudience && (
+                            <td className="cell-secondary" data-label="Для кого">
+                              {organizationName(post.organization_id)}
+                            </td>
+                          )}
                           <td data-label="Статус">
                             <Pill
                               tone={post.is_published ? 'success' : 'neutral'}

@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from maxsmartcity.ml.data.config import load_taxonomy
-from maxsmartcity.ml.data.external.builder import ExternalScenarioBuilder
-from maxsmartcity.ml.data.external.config import load_external_build_config
-from maxsmartcity.ml.data.external.importers import BmcCsvImporter, Sf311CsvImporter
-from maxsmartcity.ml.data.external.mapping import load_external_mapping
-from maxsmartcity.ml.data.external.models import BmcRecord, Sf311Record
-from maxsmartcity.ml.data.external.writer import ExternalScenarioWriter
+from src.ml.data.config import load_taxonomy
+from src.ml.data.external.builder import ExternalScenarioBuilder
+from src.ml.data.external.config import load_external_build_config
+from src.ml.data.external.importers import BmcCsvImporter, Sf311CsvImporter
+from src.ml.data.external.mapping import load_external_mapping
+from src.ml.data.external.models import BmcRecord, Sf311Record
+from src.ml.data.external.writer import ExternalScenarioWriter
 
 ROOT = Path(__file__).parents[2]
 CONFIG = load_external_build_config(ROOT / "ml/configs/external-scenarios.v1.json")

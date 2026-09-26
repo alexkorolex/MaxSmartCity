@@ -2,10 +2,10 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from maxsmartcity.ml.application.input_policy import InputPolicy
-from maxsmartcity.ml.domain.api import BatchDecisionRequest, ErrorCode, ErrorResponse
-from maxsmartcity.ml.domain.events import FeedbackType
-from maxsmartcity.ml.domain.requests import DecisionRequest, ReportInput
+from src.ml.application.input_policy import InputPolicy
+from src.ml.domain.api import BatchDecisionRequest, ErrorCode, ErrorResponse
+from src.ml.domain.events import FeedbackType
+from src.ml.domain.requests import DecisionRequest, ReportInput
 
 
 def test_input_policy_truncates_deterministically() -> None:

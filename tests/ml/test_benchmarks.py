@@ -2,7 +2,7 @@ from pathlib import Path
 
 import httpx
 
-from maxsmartcity.ml.evaluation.benchmark import (
+from src.ml.evaluation.benchmark import (
     evaluate_rule_matching,
     run_http_stress_benchmark,
 )

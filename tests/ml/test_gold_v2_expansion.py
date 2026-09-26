@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from maxsmartcity.ml.data.gold.expansion import ExpansionConfig, GoldV2ExpansionGenerator
+from src.ml.data.gold.expansion import ExpansionConfig, GoldV2ExpansionGenerator
 
 
 def test_gold_v2_expansion_is_balanced_deterministic_and_grounded() -> None:

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from maxsmartcity.ml.adapters.extraction import RuleFeatureExtractor
-from maxsmartcity.ml.domain.requests import DecisionRequest, ReportInput
+from src.ml.adapters.extraction import RuleFeatureExtractor
+from src.ml.domain.requests import DecisionRequest, ReportInput
 
 
 def _extract(text: str) -> dict[str, object]:

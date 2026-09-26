@@ -1,1 +1,0 @@
-"""MaxSmartCity application package."""

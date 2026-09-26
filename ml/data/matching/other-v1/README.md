@@ -24,7 +24,7 @@ AITUNNEL меняет только формулировку зафиксиров
 ## Воспроизведение
 
 ```powershell
-uv run python -m maxsmartcity.ml.data.other_synthetic_cli `
+uv run python -m src.ml.data.other_synthetic_cli `
   --houses-source <gis-zkh-json> `
   --output-dir ml/data/matching/other-v1 `
   --houses-per-city 10 `
@@ -37,7 +37,7 @@ uv run python -m maxsmartcity.ml.data.other_synthetic_cli `
 ## Benchmark
 
 ```powershell
-uv run python -m maxsmartcity.ml.evaluation.other_matching_cli `
+uv run python -m src.ml.evaluation.other_matching_cli `
   --dataset-dir ml/data/matching/other-v1 `
   --cache-dir ml/models `
   --output ml/evaluation/results/semantic-other-matching-v1.json

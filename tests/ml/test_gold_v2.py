@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from maxsmartcity.ml.data.gold.v2 import GoldV2MigrationConfig, GoldV2Migrator
+from src.ml.data.gold.v2 import GoldV2MigrationConfig, GoldV2Migrator
 
 
 def _migrator() -> GoldV2Migrator:

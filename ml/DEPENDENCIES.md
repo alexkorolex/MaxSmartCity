@@ -41,5 +41,5 @@
   `EMERGENCY`.
 - Backend хранит `ProblemCategory.id` как UUID и `ProblemCategory.code` как стабильный код. ML
   возвращает именно taxonomy code; backend adapter разрешает его в UUID.
-- `maxsmartcity/ml` остаётся отдельным пакетом: перенос под backend `src/` не нужен для merge и
-  не должен связывать ML domain с SQLAlchemy.
+- `src/ml` остаётся отдельным верхнеуровневым слоем: его не следует смешивать с backend-адаптером
+  `src/domains/ml` или связывать ML domain с SQLAlchemy.

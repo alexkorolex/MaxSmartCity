@@ -3,7 +3,7 @@
 Training сохраняет все метрики в `metrics.json`. Повторная оценка существующего checkpoint:
 
 ```bash
-uv run --locked python -m maxsmartcity.ml.evaluation.cli \
+uv run --locked python -m src.ml.evaluation.cli \
   --artifact ml/artifacts/category-tfidf-logreg-v2 \
   --split test \
   --output ml/artifacts/category-tfidf-logreg-v2/test-rerun.json
@@ -25,7 +25,7 @@ matrices, top-1 accuracy, Brier, ECE, coverage, selective accuracy, abstain rati
 Rule-based incident ranking на существующем `matching/dev-v1`:
 
 ```bash
-uv run python -m maxsmartcity.ml.evaluation.benchmark_cli \
+uv run python -m src.ml.evaluation.benchmark_cli \
   --output ml/evaluation/results/rule-matching-dev-v1.json \
   matching
 ```
@@ -34,7 +34,7 @@ Mass-outage stress test запущенного ML-сервиса. 10 000 обр�
 детерминированно в памяти и не записываются в dataset:
 
 ```bash
-uv run python -m maxsmartcity.ml.evaluation.benchmark_cli \
+uv run python -m src.ml.evaluation.benchmark_cli \
   --output ml/evaluation/results/stress-mass-outage-v1.json \
   stress --base-url http://127.0.0.1:8001 --reports 10000 --batch-size 256
 ```

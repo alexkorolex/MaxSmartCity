@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from maxsmartcity.ml.data.matching import MatchingDatasetBuilder
+from src.ml.data.matching import MatchingDatasetBuilder
 
 
 def _write(path: Path, rows: list[dict[str, object]]) -> None:

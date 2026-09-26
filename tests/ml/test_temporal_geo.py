@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from maxsmartcity.ml.evaluation.temporal_geo import (
+from src.ml.evaluation.temporal_geo import (
     ArrivalBurst,
     CityBounds,
     aggregate_heatmap,

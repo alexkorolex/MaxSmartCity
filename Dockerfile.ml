@@ -16,16 +16,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev --extra semantic
 
 COPY pyproject.toml uv.lock README.md main.py ./
-COPY maxsmartcity ./maxsmartcity
+COPY src/__init__.py ./src/__init__.py
+COPY src/ml ./src/ml
 COPY ml ./ml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra semantic \
-    && uv run python -m maxsmartcity.ml.training.cli \
+    && uv run python -m src.ml.training.cli \
        --config ml/configs/training/category-tfidf-logreg.v2.json
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv run python -c "from pathlib import Path; from maxsmartcity.ml.adapters.embeddings import FastEmbedProvider; FastEmbedProvider(cache_dir=Path('/app/ml/models')).embed(('проверка модели',))"
+    uv run python -c "from pathlib import Path; from src.ml.adapters.embeddings import FastEmbedProvider; FastEmbedProvider(cache_dir=Path('/app/ml/models')).embed(('проверка модели',))"
 
 
 FROM python:3.12-slim AS runtime
@@ -37,7 +38,8 @@ WORKDIR /app
 
 COPY --from=builder --chown=app:app /app/.venv ./.venv
 COPY --from=builder --chown=app:app /app/main.py ./main.py
-COPY --from=builder --chown=app:app /app/maxsmartcity ./maxsmartcity
+COPY --from=builder --chown=app:app /app/src/__init__.py ./src/__init__.py
+COPY --from=builder --chown=app:app /app/src/ml ./src/ml
 COPY --from=builder --chown=app:app /app/ml/configs ./ml/configs
 COPY --from=builder --chown=app:app /app/ml/artifacts ./ml/artifacts
 COPY --from=builder --chown=app:app /app/ml/models ./ml/models

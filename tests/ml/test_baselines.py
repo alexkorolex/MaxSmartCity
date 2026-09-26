@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from maxsmartcity.ml.adapters.baselines import RuleBaselineDecisionModel, RuleIncidentRanker
-from maxsmartcity.ml.data.config import load_rule_baseline
-from maxsmartcity.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
+from src.ml.adapters.baselines import RuleBaselineDecisionModel, RuleIncidentRanker
+from src.ml.data.config import load_rule_baseline
+from src.ml.domain.requests import DecisionRequest, IncidentCandidate, ReportInput
 
 NOW = datetime(2026, 9, 20, 10, tzinfo=UTC)
 

@@ -4,4 +4,4 @@ param(
 
 $ErrorActionPreference = "Stop"
 $env:UV_CACHE_DIR = Join-Path (Get-Location) ".uv-cache"
-uv run python -m maxsmartcity.ml.training.cli --config $Config
+uv run python -m src.ml.training.cli --config $Config

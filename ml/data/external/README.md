@@ -24,7 +24,7 @@ OOD. Исходные и промежуточные файлы остаются 
 ## Пересборка
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.external.cli `
+uv run --locked python -m src.ml.data.external.cli `
   --config ml/configs/external-scenarios.v1.json `
   --taxonomy ml/configs/taxonomy.v1.json `
   --sf311-mapping ml/data/external/mappings/sf311-taxonomy.v1.json `
@@ -55,7 +55,7 @@ uv run --locked python -m maxsmartcity.ml.data.external.cli `
 Сборка 362 текущих локальных исходных текстов без вызова API:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.template_generation.canonical_cli `
+uv run --locked python -m src.ml.data.template_generation.canonical_cli `
   --config ml/configs/canonical-template-seeds.v1.json `
   --canonical ml/data/external/canonical/v1/scenarios.jsonl `
   --output-dir ml/data/external/interim/canonical-template-seeds-v1
@@ -65,7 +65,7 @@ uv run --locked python -m maxsmartcity.ml.data.template_generation.canonical_cli
 запрашивает 362 варианта:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.template_generation.paraphrase_cli `
+uv run --locked python -m src.ml.data.template_generation.paraphrase_cli `
   --seeds-file ml/data/external/interim/canonical-template-seeds-v1/examples.jsonl `
   --llm-config ml/configs/template-paraphrase.full-v1.json `
   --output-dir ml/data/external/interim/template-paraphrase-full-v1
@@ -88,7 +88,7 @@ uv run --locked python -m maxsmartcity.ml.data.template_generation.paraphrase_cl
 Git. Сначала проверьте бесплатный план:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.llm.cli `
+uv run --locked python -m src.ml.data.llm.cli `
   --config ml/configs/llm-augmentation.v2.json `
   --input ml/data/external/canonical/v1/scenarios.jsonl `
   --output-dir ml/data/external/interim/llm-pilot-v1
@@ -97,7 +97,7 @@ uv run --locked python -m maxsmartcity.ml.data.llm.cli `
 Выполнение одного подготовленного сценария — три вызова API и десять запрошенных вариантов:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.llm.cli `
+uv run --locked python -m src.ml.data.llm.cli `
   --config ml/configs/llm-augmentation.v2.json `
   --input ml/data/external/canonical/v1/scenarios.jsonl `
   --output-dir ml/data/external/interim/llm-pilot-v1 `
@@ -116,7 +116,7 @@ uv run --locked python -m maxsmartcity.ml.data.llm.cli `
 циклически выбираются по подкатегориям. Перед генерацией пересоберите манифест:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.llm.selection_cli `
+uv run --locked python -m src.ml.data.llm.selection_cli `
   --config ml/configs/llm-selection.v1.json `
   --input ml/data/external/canonical/v1/scenarios.jsonl `
   --output ml/data/external/selections/llm-batch-v1.json
@@ -130,7 +130,7 @@ uv run --locked python -m maxsmartcity.ml.data.llm.selection_cli `
 После генерации создайте локальную очередь ручной проверки из автоматически принятых кандидатов:
 
 ```powershell
-uv run --locked python -m maxsmartcity.ml.data.llm.review_cli `
+uv run --locked python -m src.ml.data.llm.review_cli `
   --candidates ml/data/external/interim/llm-main-v2/candidates.jsonl `
   --canonical ml/data/external/canonical/v1/scenarios.jsonl `
   --output ml/data/external/interim/llm-main-v2/review.csv

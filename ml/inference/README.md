@@ -3,7 +3,7 @@
 Локальный smoke-test обученного category checkpoint:
 
 ```bash
-uv run --locked python -m maxsmartcity.ml.inference.cli \
+uv run --locked python -m src.ml.inference.cli \
   --artifact ml/artifacts/category-tfidf-logreg-v2 \
   --text "В доме 12 третий час нет холодной воды"
 ```

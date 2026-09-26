@@ -30,15 +30,14 @@ export interface Incident {
   version: number;
 }
 
-export type ResolutionDisputeStatus = 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED';
+export interface ResidentIncidentReport {
+  report_id: string;
+  has_open_dispute: boolean;
+}
 
-export interface ResolutionDispute {
-  id: string;
+export interface ResolutionFeedbackResult {
   incident_id: string;
-  resident_id: string;
-  report_id: string | null;
-  status: ResolutionDisputeStatus;
-  comment: string | null;
-  resolved_at: string | null;
-  created_at: string;
+  report_id: string;
+  incident_status: IncidentStatus;
+  feedback: 'CONFIRMED' | 'PROBLEM_CONTINUES';
 }

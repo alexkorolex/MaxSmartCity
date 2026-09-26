@@ -8,6 +8,9 @@ import type {
   ReportAttachment,
   ReportChatThread,
   ReportCreatePayload,
+  ReportCreateResult,
+  GroupingResult,
+  GroupingDecision,
 } from '../model/types';
 
 export function fetchMyReports(): Promise<Report[]> {
@@ -18,8 +21,16 @@ export function fetchReport(reportId: string): Promise<Report> {
   return http.get<Report>(`/reports/${reportId}`);
 }
 
-export function createReport(payload: ReportCreatePayload): Promise<Report> {
-  return http.post<Report>('/reports/', payload);
+export function createReport(payload: ReportCreatePayload): Promise<ReportCreateResult> {
+  return http.post<ReportCreateResult>('/reports/intake', payload);
+}
+
+export function fetchReportGrouping(reportId: string): Promise<GroupingResult> {
+  return http.get<GroupingResult>(`/reports/${reportId}/grouping`);
+}
+
+export function decideReportGrouping(reportId: string, decision: GroupingDecision): Promise<GroupingResult> {
+  return http.post<GroupingResult>(`/reports/${reportId}/grouping-decision`, decision);
 }
 
 export function fetchProblemCategories(): Promise<ProblemCategory[]> {

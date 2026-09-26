@@ -253,6 +253,20 @@ class IncidentTransitionsMixin(IncidentNotificationsMixin):
         now = utc_now()
         if target is IncidentStatus.RESOLVED:
             incident.resolved_at = now
+            disputes = (
+                await self.session.scalars(
+                    select(ResolutionDispute)
+                    .where(
+                        ResolutionDispute.incident_id == incident.id,
+                        ResolutionDispute.status == ResolutionDisputeStatus.OPEN,
+                    )
+                    .with_for_update()
+                )
+            ).all()
+            for dispute in disputes:
+                dispute.status = ResolutionDisputeStatus.RESOLVED
+                dispute.resolved_at = now
+                dispute.resolved_by = actor_id if actor_type is ActorType.OPERATOR else None
         elif target is IncidentStatus.CLOSED:
             incident.closed_at = now
         elif target is IncidentStatus.REOPENED:

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyDTO, SQLAlchemyDTOConfig
 
+from src.common.enums import Priority
 from src.domains.incidents.schemas import GroupReportResult
 from src.domains.reports.models import ProblemCategory, Report
 
@@ -52,6 +53,8 @@ class CreateReportCommand:
     house_id: UUID
     category_code: str
     text: str
+    urgency: Priority | None = None
+    problem_continues: bool | None = None
     occurred_at: datetime | None = None
     request_id: UUID | None = None
 

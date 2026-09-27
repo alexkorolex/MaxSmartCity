@@ -5,6 +5,8 @@ export interface MaxBridgeInitDataUnsafe {
     first_name?: string;
     last_name?: string;
     username?: string;
+    /** Profile photo supplied by MAX Bridge for the current mini-app user. */
+    photo_url?: string;
   };
 }
 

@@ -1,24 +1,14 @@
-import { Avatar, Button, CellHeader, CellList, CellSimple, Flex, Input, Typography } from '@maxhub/max-ui';
+import { Button, CellHeader, CellList, CellSimple, Flex, Input, Typography } from '@maxhub/max-ui';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useHouse } from '@/entities/geo';
-import { useMyProfile, useUpdateMyProfile } from '@/entities/user';
+import { UserAvatar, useMyProfile, useUpdateMyProfile } from '@/entities/user';
 import { LogoutButton } from '@/features/logout';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, HelpIcon, HouseIcon, ListCard, PageLayout, SettingsIcon } from '@/shared/ui';
 
 import './ProfilePage.css';
-
-function initialsOf(name: string | null): string {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-}
 
 export function ProfilePage() {
   const profile = useMyProfile();
@@ -41,13 +31,7 @@ export function ProfilePage() {
               align="center"
               className="surface-card profile-hero"
             >
-              <Avatar.Container size={64}>
-                <Avatar.Image
-                  alt={displayName || 'Резидент'}
-                  fallback={initialsOf(profile.data.display_name)}
-                  fallbackGradient="blue"
-                />
-              </Avatar.Container>
+              <UserAvatar name={displayName || profile.data.username || 'Резидент'} size={64} />
               <Flex className="profile-hero__copy" direction="column" gap="var(--space-1)">
                 <Typography.Text className="profile-hero__name" variant="title" color="primary">
                   {profile.data.display_name || 'Житель города'}

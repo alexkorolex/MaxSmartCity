@@ -1,6 +1,4 @@
 .empty-state {
-    min-height: min(48vh, 360px);
-    min-height: min(48dvh, 360px);
     justify-content: center;
     padding: clamp(28px, 8vw, 44px) var(--space-5);
     text-align: center;

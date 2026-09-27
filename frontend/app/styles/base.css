@@ -112,3 +112,148 @@ a {
         outline-color: var(--blue) !important;
     }
 }
+
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .house-info__source a {
+        text-decoration-color: var(--blue) !important;
+    }
+
+    .report-chat__header {
+        background: var(--surface-raised) !important;
+        box-shadow: none !important;
+    }
+
+    .report-chat__avatar {
+        box-shadow: none !important;
+    }
+
+    .report-chat__presence i {
+        box-shadow: none !important;
+    }
+
+    .report-chat__messages,
+    .report-chat__empty {
+        background: var(--background-secondary) !important;
+    }
+
+    .chat-day span {
+        background: var(--surface) !important;
+        box-shadow: none !important;
+    }
+
+    .chat-row__avatar {
+        background: var(--blue-soft) !important;
+        border-color: var(--border-soft) !important;
+    }
+
+    .chat-message {
+        border-color: var(--border) !important;
+        box-shadow: none !important;
+    }
+
+    .chat-row--mine .chat-message {
+        background: var(--blue-strong) !important;
+        box-shadow: none !important;
+    }
+
+    .chat-message__receipt {
+        color: rgba(255, 255, 255, 0.92) !important;
+    }
+
+    .chat-composer {
+        box-shadow: none !important;
+    }
+
+    .chat-composer__field:focus-within {
+        border-color: var(--border) !important;
+        box-shadow: none !important;
+    }
+
+    .chat-composer button:hover:not(:disabled) {
+        box-shadow: none !important;
+    }
+
+    .house-search-card {
+        background: var(--surface) !important;
+    }
+
+    .house-selection-summary {
+        background: var(--surface) !important;
+        border-color: var(--success) !important;
+    }
+
+    .category-picker__group--critical {
+        background: var(--surface-raised) !important;
+        border-color: var(--border-soft) !important;
+    }
+
+    .category-option--critical {
+        border-color: var(--error) !important;
+    }
+
+    [data-theme="dark"] .category-option {
+        background: var(--surface) !important;
+        border-color: var(--border-soft) !important;
+    }
+
+    [data-theme="dark"] .category-option--critical {
+        background: var(--surface-raised) !important;
+        border-color: var(--error) !important;
+    }
+
+    .photo-picker__add {
+        border-color: var(--blue) !important;
+    }
+
+    .incident-resolution-callout {
+        background: var(--surface) !important;
+        border-color: var(--warning) !important;
+    }
+
+    .incident-resolution-summary__icon {
+        background: var(--surface) !important;
+        border-color: var(--success) !important;
+    }
+
+    .profile-hero {
+        background: var(--surface) !important;
+    }
+
+    .house-selection-actions > button:first-child:not(:disabled):active {
+        background: var(--blue-strong) !important;
+    }
+
+    .house-selection-error {
+        background: var(--surface) !important;
+        border-color: var(--error) !important;
+    }
+
+    .status-badge--info {
+        background: var(--surface) !important;
+        border-color: var(--info) !important;
+    }
+
+    .status-badge--success {
+        background: var(--surface) !important;
+        border-color: var(--success) !important;
+    }
+
+    .status-badge--warning {
+        background: var(--surface) !important;
+        border-color: var(--warning) !important;
+    }
+
+    .status-badge--error {
+        background: var(--surface) !important;
+        border-color: var(--error) !important;
+    }
+
+    .form-feedback {
+        background: var(--surface) !important;
+        border-color: var(--error) !important;
+    }
+
+    .sticky-submit {
+        background: var(--background) !important;
+    }
+}

@@ -22,7 +22,7 @@ export function AuthByCodeStatus() {
       <EmptyState
         icon={<WarningIcon width={28} height={28} />}
         title="Ссылка устарела"
-        description="Она уже использована или истекла. Вернитесь в бота MAX и запросите новую командой /login."
+        description="Она уже использована или истекла. Вернитесь в бота MAX и отправьте /start."
       />
     );
   }

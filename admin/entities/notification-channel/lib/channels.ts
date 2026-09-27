@@ -22,7 +22,7 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
   },
   MAX_CHAT: {
     label: 'Чат MAX',
-    description: 'Одно сообщение в групповой чат диспетчерской. Добавьте бота в чат и напишите там /chatid.',
+    description: 'Одно сообщение в групповой чат диспетчерской. Добавьте бота в чат администратором и напишите там /chatid.',
     targetLabel: 'ID чата',
     placeholder: '-100123456789',
     adminOnly: false,

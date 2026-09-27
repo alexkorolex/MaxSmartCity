@@ -11,13 +11,11 @@ from src.max_bot.settings import MaxBotSettings
 logger = logging.getLogger(__name__)
 
 START_COMMANDS = frozenset({"/start", "старт", "начать"})
-LOGIN_COMMANDS = frozenset({"/login", "войти", "вход"})
 CHAT_ID_COMMANDS = frozenset({"/chatid", "/chat_id"})
 MY_ID_COMMANDS = frozenset({"/id", "/myid", "/my_id"})
 
 BOT_COMMANDS: tuple[tuple[str, str], ...] = (
-    ("start", "Начать и получить ссылку для входа"),
-    ("login", "Войти в приложение Smart City"),
+    ("start", "Начать и войти в приложение Smart City"),
     ("myid", "Узнать свой MAX ID"),
     ("chatid", "Узнать ID группового чата"),
 )
@@ -32,17 +30,19 @@ WELCOME_TEXT = (
     "Нажмите кнопку ниже, чтобы войти."
 )
 
-LOGIN_TEXT = "Вот ваша ссылка для входа в приложение. Она одноразовая и действует 5 минут."
-
-LOGIN_PROMPT_TEXT = (
-    "Напишите /login, чтобы получить ссылку для входа, либо /start, чтобы узнать, что умеет бот."
-)
+LOGIN_PROMPT_TEXT = "Напишите /start, чтобы войти в приложение и узнать, что умеет бот."
 
 
 CHAT_ID_TEXT = (
     "ID этого чата: {chat_id}\n\n"
     "Чтобы получать сюда уведомления о заявках жителей, укажите его в панели Smart City: "
     "«Моя организация» → «Уведомления о заявках» → «Чат MAX»."
+)
+
+CHAT_ID_DIALOG_TEXT = (
+    "ID этого диалога: {chat_id}\n\n"
+    "Для уведомлений диспетчерской добавьте бота в групповой чат администратором "
+    "и отправьте /chatid уже там - бот пришлёт ID группы."
 )
 
 MY_ID_TEXT = (
@@ -65,16 +65,18 @@ def browser_login_url(settings: MaxBotSettings, code: str, next_path: str | None
     return f"{settings.web_app_login_url}?{query}"
 
 
-async def login_button(
-    code: str, settings: MaxBotSettings, client: MaxClient, *, browser_link: bool = True
-) -> list[dict[str, Any]]:
+def _command(text: str) -> str:
+    words = [word for word in text.split() if not word.startswith("@")]
+    return words[0].split("@", 1)[0] if words else ""
+
+
+async def login_button(code: str, settings: MaxBotSettings, client: MaxClient) -> list[dict[str, Any]]:
     row: list[dict[str, Any]] = []
 
     bot_username = await client.bot_username()
     if bot_username:
         row.append({"type": "open_app", "text": "Открыть в MAX", "web_app": bot_username, "payload": code})
-
-    if browser_link or not row:
+    else:
         row.append({"type": "link", "text": "Открыть в браузере", "url": browser_login_url(settings, code)})
 
     return keyboard(row)
@@ -90,7 +92,6 @@ async def _issue_login_button(
     settings: MaxBotSettings,
     text: str,
     chat_id: int | None,
-    browser_link: bool,
 ) -> None:
     with database_action("upsert", "identity.Resident"):
         resident = await resident_service.upsert_by_max_user_id(
@@ -102,7 +103,7 @@ async def _issue_login_button(
         user_id=max_user_id,
         chat_id=chat_id,
         text=text,
-        attachments=await login_button(code, settings, client, browser_link=browser_link),
+        attachments=await login_button(code, settings, client),
     )
 
 
@@ -120,7 +121,6 @@ async def handle_bot_started(
         settings=settings,
         text=WELCOME_TEXT,
         chat_id=update.get("chat_id"),
-        browser_link=False,
     )
 
 
@@ -140,7 +140,7 @@ async def handle_message_created(
     recipient = message["recipient"]
     body = message["body"]
     text = (body.get("text") or "").strip().lower()
-    command = text.split("@", 1)[0]
+    command = _command(text)
     client = MaxClient(settings)
 
     if recipient.get("chat_type") != "dialog":
@@ -149,13 +149,18 @@ async def handle_message_created(
             await client.send_message(chat_id=chat_id, text=CHAT_ID_TEXT.format(chat_id=chat_id))
         return
 
+    if command in CHAT_ID_COMMANDS and recipient.get("chat_id"):
+        chat_id = recipient["chat_id"]
+        await client.send_message(chat_id=chat_id, text=CHAT_ID_DIALOG_TEXT.format(chat_id=chat_id))
+        return
+
     if command in MY_ID_COMMANDS:
         user_id = sender["user_id"]
         await client.send_message(user_id=user_id, text=MY_ID_TEXT.format(user_id=user_id))
         return
 
     chat_id = recipient.get("chat_id")
-    if text in START_COMMANDS or text in LOGIN_COMMANDS:
+    if text in START_COMMANDS or command in START_COMMANDS:
         await _issue_login_button(
             max_user_id=sender["user_id"],
             username=sender.get("username"),
@@ -163,9 +168,8 @@ async def handle_message_created(
             resident_service=resident_service,
             client=client,
             settings=settings,
-            text=WELCOME_TEXT if text in START_COMMANDS else LOGIN_TEXT,
+            text=WELCOME_TEXT,
             chat_id=chat_id,
-            browser_link=text in LOGIN_COMMANDS,
         )
         return
 

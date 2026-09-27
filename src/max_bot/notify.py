@@ -17,7 +17,7 @@ from src.max_bot.settings import MaxBotSettings
 
 logger = logging.getLogger(__name__)
 
-RELOGIN_HINT = "\n\nЕсли кнопка уже не работает, напишите боту /login."
+RELOGIN_HINT = "\n\nЕсли кнопка уже не работает, напишите боту /start."
 
 
 def reachable_in_max(resident: Resident) -> bool:

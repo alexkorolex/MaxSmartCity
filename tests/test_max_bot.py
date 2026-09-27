@@ -224,7 +224,7 @@ async def test_handle_message_created_ignores_bot_senders(
     assert service.upserts == []
 
 
-async def test_handle_message_created_login_command_issues_login_link(
+async def test_login_command_is_gone_and_points_to_start(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sent: list[dict[str, Any]] = []
@@ -246,12 +246,61 @@ async def test_handle_message_created_login_command_issues_login_link(
 
     await handlers.handle_message_created(update, cast(ResidentService, service), settings)
 
-    assert service.upserts == [{"max_user_id": 99, "username": "res", "display_name": "Res", "chat_id": None}]
+    assert service.upserts == []
+    assert sent == [{"user_id": 99, "text": handlers.LOGIN_PROMPT_TEXT}]
+    assert "login" not in [name for name, _ in handlers.BOT_COMMANDS]
+
+
+async def test_chatid_command_in_a_dialog_replies_with_the_dialog_id(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 7, "is_bot": False},
+            "recipient": {"chat_type": "dialog", "chat_id": 7007},
+            "body": {"mid": "m3", "text": "/chatid"},
+        },
+    }
+
+    await handlers.handle_message_created(update, cast(ResidentService, _FakeResidentService()), settings)
+
     assert len(sent) == 1
-    assert "ссылка" in sent[0]["text"].lower()
-    open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
-    assert open_app_button["type"] == "open_app"
-    assert link_button["url"].startswith("https://app.example.com/auth/max?code=")
+    assert sent[0]["chat_id"] == 7007
+    assert "7007" in sent[0]["text"]
+
+
+@pytest.mark.parametrize("text", ["@max_smart_city_bot /chatid", "/chatid@max_smart_city_bot", "/ChatId"])
+async def test_chatid_command_in_a_group_is_recognized_with_a_mention(
+    text: str, settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    group_message = {
+        "sender": {"user_id": 7, "is_bot": False},
+        "recipient": {"chat_type": "chat", "chat_id": -70001},
+        "body": {"mid": "m1", "text": text},
+    }
+
+    await handlers.handle_message_created(
+        {"update_type": "message_created", "message": group_message},
+        cast(ResidentService, _FakeResidentService()),
+        settings,
+    )
+
+    assert len(sent) == 1
+    assert sent[0]["chat_id"] == -70001
+    assert "-70001" in sent[0]["text"]
 
 
 async def test_any_dialog_message_remembers_the_chat_without_registering(
@@ -418,12 +467,7 @@ async def test_auto_subscribe_never_raises_on_api_failure(
 
 
 def test_every_listed_bot_command_is_handled() -> None:
-    handled = (
-        handlers.START_COMMANDS
-        | handlers.LOGIN_COMMANDS
-        | handlers.CHAT_ID_COMMANDS
-        | handlers.MY_ID_COMMANDS
-    )
+    handled = handlers.START_COMMANDS | handlers.CHAT_ID_COMMANDS | handlers.MY_ID_COMMANDS
 
     for name, description in handlers.BOT_COMMANDS:
         assert f"/{name}" in handled

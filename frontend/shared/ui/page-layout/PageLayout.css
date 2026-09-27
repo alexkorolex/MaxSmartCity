@@ -1,5 +1,6 @@
 .app-page {
     width: min(100%, 820px);
+    min-height: 100vh;
     min-height: 100dvh;
     margin: 0 auto;
     padding: max(14px, env(safe-area-inset-top, 0px)) var(--page-gutter) var(--space-6);
@@ -14,6 +15,7 @@
 
 .app-page--fill {
     display: flex;
+    height: 100vh;
     height: 100dvh;
     min-height: 0;
     flex-direction: column;

@@ -251,58 +251,6 @@ async def test_login_command_is_gone_and_points_to_start(
     assert "login" not in [name for name, _ in handlers.BOT_COMMANDS]
 
 
-async def test_chatid_command_in_a_dialog_replies_with_the_dialog_id(
-    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    sent: list[dict[str, Any]] = []
-
-    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
-        sent.append(kwargs)
-
-    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
-    update = {
-        "update_type": "message_created",
-        "message": {
-            "sender": {"user_id": 7, "is_bot": False},
-            "recipient": {"chat_type": "dialog", "chat_id": 7007},
-            "body": {"mid": "m3", "text": "/chatid"},
-        },
-    }
-
-    await handlers.handle_message_created(update, cast(ResidentService, _FakeResidentService()), settings)
-
-    assert len(sent) == 1
-    assert sent[0]["chat_id"] == 7007
-    assert "7007" in sent[0]["text"]
-
-
-@pytest.mark.parametrize("text", ["@max_smart_city_bot /chatid", "/chatid@max_smart_city_bot", "/ChatId"])
-async def test_chatid_command_in_a_group_is_recognized_with_a_mention(
-    text: str, settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    sent: list[dict[str, Any]] = []
-
-    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
-        sent.append(kwargs)
-
-    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
-    group_message = {
-        "sender": {"user_id": 7, "is_bot": False},
-        "recipient": {"chat_type": "chat", "chat_id": -70001},
-        "body": {"mid": "m1", "text": text},
-    }
-
-    await handlers.handle_message_created(
-        {"update_type": "message_created", "message": group_message},
-        cast(ResidentService, _FakeResidentService()),
-        settings,
-    )
-
-    assert len(sent) == 1
-    assert sent[0]["chat_id"] == -70001
-    assert "-70001" in sent[0]["text"]
-
-
 async def test_any_dialog_message_remembers_the_chat_without_registering(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -467,7 +415,7 @@ async def test_auto_subscribe_never_raises_on_api_failure(
 
 
 def test_every_listed_bot_command_is_handled() -> None:
-    handled = handlers.START_COMMANDS | handlers.CHAT_ID_COMMANDS | handlers.MY_ID_COMMANDS
+    handled = handlers.START_COMMANDS | handlers.MY_ID_COMMANDS
 
     for name, description in handlers.BOT_COMMANDS:
         assert f"/{name}" in handled
@@ -516,7 +464,7 @@ async def test_auto_register_commands_skips_when_bot_is_not_configured(
     assert calls == []
 
 
-async def test_chatid_command_in_a_group_replies_with_the_chat_id(
+async def test_group_chat_messages_are_ignored(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sent: list[dict[str, Any]] = []
@@ -526,23 +474,19 @@ async def test_chatid_command_in_a_group_replies_with_the_chat_id(
 
     monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
     service = _FakeResidentService()
-    group_message = {
-        "sender": {"user_id": 7, "is_bot": False},
-        "recipient": {"chat_type": "chat", "chat_id": -70001},
-        "body": {"mid": "m1", "text": "/chatid"},
-    }
+    for mid, text in (("m1", "/chatid"), ("m2", "/start"), ("m3", "привет")):
+        group_message = {
+            "sender": {"user_id": 7, "is_bot": False},
+            "recipient": {"chat_type": "chat", "chat_id": -70001},
+            "body": {"mid": mid, "text": text},
+        }
+        await handlers.handle_message_created(
+            {"update_type": "message_created", "message": group_message},
+            cast(ResidentService, service),
+            settings,
+        )
 
-    await handlers.handle_message_created(
-        {"update_type": "message_created", "message": group_message}, cast(ResidentService, service), settings
-    )
-    chatter = {**group_message, "body": {"mid": "m2", "text": "привет"}}
-    await handlers.handle_message_created(
-        {"update_type": "message_created", "message": chatter}, cast(ResidentService, service), settings
-    )
-
-    assert len(sent) == 1
-    assert sent[0]["chat_id"] == -70001
-    assert "-70001" in sent[0]["text"]
+    assert sent == []
     assert service.upserts == []
 
 

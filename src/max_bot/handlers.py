@@ -11,13 +11,11 @@ from src.max_bot.settings import MaxBotSettings
 logger = logging.getLogger(__name__)
 
 START_COMMANDS = frozenset({"/start", "старт", "начать"})
-CHAT_ID_COMMANDS = frozenset({"/chatid", "/chat_id"})
 MY_ID_COMMANDS = frozenset({"/id", "/myid", "/my_id"})
 
 BOT_COMMANDS: tuple[tuple[str, str], ...] = (
     ("start", "Начать и войти в приложение Smart City"),
     ("myid", "Узнать свой MAX ID"),
-    ("chatid", "Узнать ID группового чата"),
 )
 
 WELCOME_TEXT = (
@@ -32,18 +30,6 @@ WELCOME_TEXT = (
 
 LOGIN_PROMPT_TEXT = "Напишите /start, чтобы войти в приложение и узнать, что умеет бот."
 
-
-CHAT_ID_TEXT = (
-    "ID этого чата: {chat_id}\n\n"
-    "Чтобы получать сюда уведомления о заявках жителей, укажите его в панели Smart City: "
-    "«Моя организация» → «Уведомления о заявках» → «Чат MAX»."
-)
-
-CHAT_ID_DIALOG_TEXT = (
-    "ID этого диалога: {chat_id}\n\n"
-    "Для уведомлений диспетчерской добавьте бота в групповой чат администратором "
-    "и отправьте /chatid уже там - бот пришлёт ID группы."
-)
 
 MY_ID_TEXT = (
     "Ваш MAX ID: {user_id}\n\n"
@@ -144,14 +130,6 @@ async def handle_message_created(
     client = MaxClient(settings)
 
     if recipient.get("chat_type") != "dialog":
-        if command in CHAT_ID_COMMANDS and recipient.get("chat_id"):
-            chat_id = recipient["chat_id"]
-            await client.send_message(chat_id=chat_id, text=CHAT_ID_TEXT.format(chat_id=chat_id))
-        return
-
-    if command in CHAT_ID_COMMANDS and recipient.get("chat_id"):
-        chat_id = recipient["chat_id"]
-        await client.send_message(chat_id=chat_id, text=CHAT_ID_DIALOG_TEXT.format(chat_id=chat_id))
         return
 
     if command in MY_ID_COMMANDS:

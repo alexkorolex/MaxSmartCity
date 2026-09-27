@@ -19,6 +19,7 @@ body {
 }
 
 body {
+    min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
     color: var(--text-primary);
@@ -31,6 +32,7 @@ body {
 }
 
 #root {
+    min-height: 100vh;
     min-height: 100dvh;
 }
 
@@ -67,5 +69,46 @@ a {
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
+    }
+}
+
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .app-page {
+        --states-button-ghost-hover: rgba(17, 24, 28, 0.05);
+        --states-button-ghost-pressed: rgba(17, 24, 28, 0.09);
+        --controls-inactive: rgba(92, 109, 117, 0.18);
+
+        background: var(--background) !important;
+    }
+
+    [data-theme="dark"] .app-page {
+        --states-button-ghost-hover: rgba(242, 248, 250, 0.05);
+        --states-button-ghost-pressed: rgba(242, 248, 250, 0.09);
+        --controls-inactive: rgba(143, 162, 169, 0.18);
+    }
+
+    body {
+        background: var(--background) !important;
+    }
+
+    .surface-card,
+    .content-card,
+    .page-heading__back,
+    .bottom-nav {
+        border-color: var(--border-soft) !important;
+    }
+
+    .page-heading__back,
+    .bottom-nav {
+        background: var(--surface-raised) !important;
+    }
+
+    [data-theme="dark"] .bottom-nav__item--active {
+        background: var(--blue-soft) !important;
+        box-shadow: none !important;
+    }
+
+    :focus-visible {
+        outline-color: var(--blue) !important;
     }
 }

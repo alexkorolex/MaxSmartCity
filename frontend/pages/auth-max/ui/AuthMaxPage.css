@@ -1,4 +1,5 @@
 .auth-max-page__stage {
+    min-height: calc(100vh - 32px);
     min-height: calc(100dvh - 32px);
     justify-content: center;
 }

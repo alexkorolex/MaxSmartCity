@@ -22,7 +22,7 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
   },
   MAX_CHAT: {
     label: 'Чат MAX',
-    description: 'Одно сообщение в групповой чат диспетчерской. Добавьте бота в чат администратором и напишите там /chatid.',
+    description: 'Одно сообщение в групповой чат диспетчерской. Добавьте бота в чат администратором и укажите ID чата.',
     targetLabel: 'ID чата',
     placeholder: '-100123456789',
     adminOnly: false,
@@ -52,7 +52,7 @@ export function channelTargetError(type: ChannelType, target: string): string | 
     case 'MAX_MEMBERS':
       return null;
     case 'MAX_CHAT':
-      return /^-?\d+$/.test(value) ? null : 'ID чата — число, его присылает бот в ответ на /chatid';
+      return /^-?\d+$/.test(value) ? null : 'ID чата — число';
     case 'EMAIL':
       return /^[^\s@]+@[^\s@]+$/.test(value) ? null : 'Укажите адрес электронной почты';
     case 'WEBHOOK':

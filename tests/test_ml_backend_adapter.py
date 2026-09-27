@@ -13,6 +13,7 @@ from src.domains.reports.enums import ReportSourceType, ReportStatus
 from src.domains.reports.models import Report
 from src.main import create_app
 from src.ml.service.runtime import parse_decision_request
+from src.observability.logs import stop_logging_queue_listeners
 
 
 def test_backend_exposes_ml_gateway_routes() -> None:
@@ -20,7 +21,10 @@ def test_backend_exposes_ml_gateway_routes() -> None:
         "postgresql+asyncpg://test:test@localhost:5432/test",
         redis_url="redis://localhost:6379/0",
     )
-    schema = app.openapi_schema.to_schema()
+    try:
+        schema = app.openapi_schema.to_schema()
+    finally:
+        stop_logging_queue_listeners()
 
     assert "get" in schema["paths"]["/ml/health"]
     assert "post" in schema["paths"]["/ml/decide"]

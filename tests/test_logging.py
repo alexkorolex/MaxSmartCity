@@ -15,7 +15,13 @@ from litestar.exceptions import NotFoundException
 from litestar.testing import TestClient
 from opentelemetry.sdk.trace import TracerProvider
 
-from src.observability.logs import StructuredQueueHandler, logging_config, structlog_plugin
+from src.observability.logs import (
+    StructuredQueueHandler,
+    logging_config,
+    logging_queue_lifespan,
+    stop_logging_queue_listeners,
+    structlog_plugin,
+)
 
 logger = logging.getLogger("src.tests.logging_probe")
 tracer = TracerProvider().get_tracer(__name__)
@@ -34,12 +40,18 @@ async def missing() -> None:
 @pytest.fixture
 def client(capfd: pytest.CaptureFixture[str]) -> Iterator[TestClient]:
     # ``capfd`` first: the loggers bind to whatever stdout/stderr is when the app starts.
-    with TestClient(Litestar([unhandled, missing], plugins=[structlog_plugin])) as test_client:
+    app = Litestar(
+        [unhandled, missing],
+        plugins=[structlog_plugin],
+        lifespan=[logging_queue_lifespan],
+    )
+    with TestClient(app) as test_client:
         yield test_client
 
 
 def _entries(capfd: pytest.CaptureFixture[str], *, until: str) -> list[dict[str, Any]]:
     """Standard-library records are written by a background listener thread - wait for them."""
+    stop_logging_queue_listeners()
     lines: list[str] = []
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:

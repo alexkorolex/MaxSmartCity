@@ -18,11 +18,15 @@ import copy
 import logging
 import logging.handlers
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import structlog
+from litestar import Litestar
 from litestar.exceptions import HTTPException
 from litestar.logging import StructLoggingConfig
 from litestar.logging.config import LoggingConfig, default_json_serializer, stdlib_json_serializer
+from litestar.logging.standard import LoggingQueueListener
 from litestar.middleware.logging import LoggingMiddlewareConfig
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
@@ -109,6 +113,34 @@ class StructuredQueueHandler(logging.handlers.QueueHandler):
         return record
 
 
+class StructuredLoggingQueueListener(LoggingQueueListener):
+    """Make listener shutdown safe for both application teardown and Python ``atexit``."""
+
+    def stop(self) -> None:
+        if getattr(self, "_thread", None) is not None:
+            super().stop()
+
+
+@asynccontextmanager
+async def logging_queue_lifespan(_app: Litestar) -> AsyncIterator[None]:
+    """Drain and stop active logging queues before their output streams are closed."""
+
+    try:
+        yield
+    finally:
+        stop_logging_queue_listeners()
+
+
+def stop_logging_queue_listeners() -> None:
+    """Synchronously drain every structured queue listener exactly once."""
+
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, StructuredQueueHandler):
+            listener = getattr(handler, "listener", None)
+            if isinstance(listener, StructuredLoggingQueueListener):
+                listener.stop()
+
+
 def _standard_lib_logging_config() -> LoggingConfig:
     """Our code logs through ``logging.getLogger(__name__)`` - render those records with the
     very same processors as structlog's own entries."""
@@ -132,7 +164,7 @@ def _standard_lib_logging_config() -> LoggingConfig:
                 "class": f"{__name__}.StructuredQueueHandler",
                 "level": "DEBUG",
                 "queue": {"()": "queue.Queue", "maxsize": -1},
-                "listener": "litestar.logging.standard.LoggingQueueListener",
+                "listener": f"{__name__}.StructuredLoggingQueueListener",
                 "handlers": ["console"],
             },
         },

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "purpose": "Reproducible API verification scenarios; not training data",
+  "house_lookup": {
+    "city": "Брянск",
+    "query": "Евдокимова 8",
+    "source_file": "ingestion/data/bryansk.json"
+  },
+  "reports": [
+    {
+      "case_id": "other-create-new",
+      "category_code": "other",
+      "text": "В подъезде появился сильный неприятный запах",
+      "expected_initial_outcome": ["NEEDS_CLARIFICATION", "CREATED"],
+      "allowed_user_decisions": ["CONFIRM_INCIDENT", "FORCE_NEW"]
+    },
+    {
+      "case_id": "water-deterministic",
+      "category_code": "water",
+      "text": "В доме нет холодной воды",
+      "expected_rule": "The result depends only on active incidents for the same house, category and time window"
+    }
+  ],
+  "notes": [
+    "Resolve house_id through GET /geo/houses after ingestion because database UUIDs are generated locally.",
+    "Generate source_external_id and request_id once per run; reuse them only for the idempotency check.",
+    "ML recommendations are optional. FORCE_NEW must remain available when the ML service is unavailable."
+  ]
+}

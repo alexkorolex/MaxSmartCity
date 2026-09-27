@@ -1,3 +1,5 @@
+"""Transform public GIS ЖКХ archives into the versioned ingestion JSON contract."""
+
 import argparse
 import csv
 import gzip

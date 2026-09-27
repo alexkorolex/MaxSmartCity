@@ -1,0 +1,150 @@
+schema_version: "1.0"
+solution: MaxSmartCity
+base_url: "${PUBLIC_API_BASE_URL}"
+
+accounts:
+  staff_admin:
+    role: admin
+    username: "${TEST_ADMIN_USERNAME}"
+    password: "${TEST_ADMIN_PASSWORD}"
+  resident:
+    role: resident
+    bearer_token: "${TEST_RESIDENT_BEARER_TOKEN}"
+
+checks:
+  - id: staff-login
+    description: Получить JWT сотрудника для административного сценария.
+    method: POST
+    path: /auth/staff/login
+    role: anonymous
+    headers:
+      Content-Type: application/json
+    body:
+      username: "${TEST_ADMIN_USERNAME}"
+      password: "${TEST_ADMIN_PASSWORD}"
+    expected:
+      status_codes: [201]
+      content_type: application/json
+      required_fields: [token, refresh_token, expires_in, refresh_expires_in]
+
+  - id: problem-categories
+    description: Получить фиксированный каталог категорий обращения.
+    method: GET
+    path: /reports/categories?limit=100&offset=0
+    role: resident
+    headers:
+      Authorization: "Bearer ${TEST_RESIDENT_BEARER_TOKEN}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      json_type: array
+
+  - id: find-test-house
+    description: Найти импортированный пилотный дом и сохранить его id как TEST_HOUSE_ID.
+    method: GET
+    path: /geo/houses?city=Брянск&q=Евдокимова%208&limit=10&offset=0
+    role: resident
+    headers:
+      Authorization: "Bearer ${TEST_RESIDENT_BEARER_TOKEN}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      json_type: array
+      required_item_fields: [id, formatted, city, street, house_number]
+      save:
+        TEST_HOUSE_ID: "$[0].id"
+
+  - id: create-other-report
+    description: Создать обращение категории «Другое» без автоматического объединения.
+    method: POST
+    path: /reports/intake
+    role: resident
+    headers:
+      Authorization: "Bearer ${TEST_RESIDENT_BEARER_TOKEN}"
+      Content-Type: application/json
+    body:
+      source_external_id: "organizer-check-${RUN_ID}"
+      house_id: "${TEST_HOUSE_ID}"
+      category_code: other
+      text: "В подъезде появился сильный неприятный запах"
+      request_id: "${REQUEST_UUID}"
+    expected:
+      status_codes: [201]
+      content_type: application/json
+      required_fields: [report_id, grouping]
+      assertions:
+        - path: grouping.outcome
+          one_of: [NEEDS_CLARIFICATION, CREATED]
+
+  - id: read-grouping-recommendations
+    description: Получить необязательные похожие инциденты для сохранённого обращения.
+    method: GET
+    path: /reports/${REPORT_ID}/grouping
+    role: resident
+    headers:
+      Authorization: "Bearer ${TEST_RESIDENT_BEARER_TOKEN}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      required_fields:
+        - report_id
+        - outcome
+        - candidate_incident_ids
+        - candidate_incidents
+        - policy_version
+        - scorer_version
+
+  - id: force-new-incident
+    description: Подтвердить безопасный fallback «Создать новый инцидент».
+    method: POST
+    path: /reports/${REPORT_ID}/grouping-decision
+    role: resident
+    headers:
+      Authorization: "Bearer ${TEST_RESIDENT_BEARER_TOKEN}"
+      Content-Type: application/json
+    body:
+      mode: FORCE_NEW
+      request_id: "${DECISION_REQUEST_UUID}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      required_fields: [report_id, outcome, incident_id, reason_codes]
+      assertions:
+        - path: outcome
+          equals: CREATED
+
+  - id: incident-card
+    description: Прочитать агрегированную карточку созданного инцидента.
+    method: GET
+    path: /incidents/${INCIDENT_ID}/card
+    role: staff_admin
+    headers:
+      Authorization: "Bearer ${STAFF_BEARER_TOKEN}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      required_fields:
+        - incident_id
+        - title
+        - status
+        - version
+        - houses
+        - reports
+        - assignments
+        - disputes
+        - history
+
+  - id: house-map
+    description: Получить GeoJSON домов; отсутствие координат выражается geometry=null.
+    method: GET
+    path: /geo/houses/geojson?city=Брянск&limit=100&offset=0
+    role: staff_admin
+    headers:
+      Authorization: "Bearer ${STAFF_BEARER_TOKEN}"
+    expected:
+      status_codes: [200]
+      content_type: application/json
+      required_fields: [type, features, metadata]
+      assertions:
+        - path: type
+          equals: FeatureCollection

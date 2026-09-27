@@ -20,7 +20,7 @@ from src.domains.reports.chat import chat_events_lifespan
 from src.max_bot.cli import MaxBotCLIPlugin
 from src.max_bot.controllers import MaxWebhookController
 from src.max_bot.startup import auto_register_max_commands, auto_subscribe_max_webhook
-from src.observability.logs import structlog_plugin
+from src.observability.logs import logging_queue_lifespan, structlog_plugin
 from src.observability.prometheus import prometheus_config
 from src.observability.tracing import TracingSettings, configure_tracing
 from src.security.keycloak import TOKEN_VERIFIER_STATE_KEY, KeycloakTokenVerifier
@@ -60,7 +60,11 @@ def create_app(database_url: str | None = None, redis_url: str | None = None) ->
         stores={"response_cache": cache_settings.response_cache_store()},
         response_cache_config=ResponseCacheConfig(store="response_cache", default_expiration=300),
         on_startup=[auto_subscribe_max_webhook, auto_register_max_commands],
-        lifespan=[chat_events_lifespan(cache_settings), background_jobs_lifespan(db_config)],
+        lifespan=[
+            chat_events_lifespan(cache_settings),
+            background_jobs_lifespan(db_config),
+            logging_queue_lifespan,
+        ],
         openapi_config=OpenAPIConfig(
             title="Smart City Project",
             version="0.0.1",

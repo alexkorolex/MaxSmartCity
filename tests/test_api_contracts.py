@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from typing import Any
 from uuid import uuid4
 
@@ -9,15 +10,19 @@ from litestar.testing import TestClient
 from src.domains.incidents.models import Incident
 from src.domains.incidents.schemas import IncidentCreateDTO
 from src.main import create_app
+from src.observability.logs import stop_logging_queue_listeners
 
 
 @pytest.fixture
-def api_schema() -> dict[str, Any]:
+def api_schema() -> Iterator[dict[str, Any]]:
     app = create_app(
         "postgresql+asyncpg://test:test@localhost:5432/test",
         redis_url="redis://localhost:6379/0",
     )
-    return app.openapi_schema.to_schema()
+    try:
+        yield app.openapi_schema.to_schema()
+    finally:
+        stop_logging_queue_listeners()
 
 
 def test_crud_schemas_are_generated_from_domain_models(api_schema: dict[str, Any]) -> None:

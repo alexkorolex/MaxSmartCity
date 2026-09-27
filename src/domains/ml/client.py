@@ -19,6 +19,8 @@ class MLHTTPResult:
 
 
 class MLDecisionClient:
+    """Call the optional ML service and convert transport failures into stable envelopes."""
+
     def __init__(
         self,
         base_url: str,
@@ -32,6 +34,8 @@ class MLDecisionClient:
 
     @classmethod
     def from_environment(cls) -> MLDecisionClient:
+        """Build the client from the service URL and positive request timeout."""
+
         base_url = os.environ.get("ML_SERVICE_URL", "http://ml-service:8000")
         timeout = float(os.environ.get("ML_REQUEST_TIMEOUT_SECONDS", "5"))
         if timeout <= 0:
@@ -39,9 +43,13 @@ class MLDecisionClient:
         return cls(base_url, timeout_seconds=timeout)
 
     async def readiness(self) -> MLHTTPResult:
+        """Return ML readiness without raising for an unavailable service."""
+
         return await self._request("GET", "/ready")
 
     async def decide(self, payload: dict[str, Any]) -> MLHTTPResult:
+        """Request the general read-only ML decision contract."""
+
         return await self._request("POST", "/v1/decide", json=payload)
 
     async def recommend_grouping(self, payload: dict[str, Any]) -> MLHTTPResult:

@@ -87,10 +87,11 @@ Backend не возвращает фронтенду набор исходных
 - `incidents.incident_report_link` — подтверждённая связь;
 - `incidents.incident_grouping_decision` — аудит решения.
 
-В `incident_grouping_decision` для полного аудита желательно добавить nullable JSONB
-`candidate_scores` вида `[{"incident_id": "...", "score": 0.91}]`. Остальные необходимые
-поля уже есть: выбранный инцидент, top score, runner-up, candidate ids, reason codes,
-`policy_version`, `scorer_version` и `request_id`.
+`incident_grouping_decision` сохраняет исход правила, выбранный инцидент, candidate IDs,
+reason codes, `policy_version`, `scorer_version` и `request_id`. Полный снимок показанных
+score сейчас не сохраняется. Для MVP это не мешает пользовательскому сценарию, но для
+будущего human-reviewed набора стоит добавить отдельную запись показа рекомендаций и ответа
+пользователя, не изменяя неизменяемый журнал решений Incident Core.
 
 Синтетические `reports.jsonl` и `incidents.jsonl` в рабочую БД не импортируются: это только
 версионированный benchmark и нагрузочные fixtures.

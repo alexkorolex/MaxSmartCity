@@ -408,6 +408,7 @@ services:
         KC_HTTP_ENABLED: "true"
         KC_PROXY_HEADERS: xforwarded
         KC_HEALTH_ENABLED: "true"
+        KC_CACHE: local
         KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       volumes:
         - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
@@ -427,8 +428,9 @@ services:
         - no-new-privileges:true
       tmpfs:
         - /tmp
-      mem_limit: 768m
-      pids_limit: 150
+      mem_limit: 1536m
+      mem_reservation: 1g
+      pids_limit: 1024
       restart: unless-stopped
 
       healthcheck:
@@ -436,7 +438,8 @@ services:
         interval: 10s
         timeout: 5s
         retries: 10
-        start_period: 60s
+        start_period: 300s
+        start_interval: 5s
 
     prometheus:
       image: prom/prometheus:v3.0.1

@@ -1,0 +1,577 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-backend-image: &backend-image ${IMAGE_PREFIX:-maxsmartcity}/backend:${IMAGE_TAG:-latest}
+
+x-database-url: &database-url postgresql+asyncpg://${DB_USER:?DB_USER is required}:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/${DB_NAME:?DB_NAME is required}
+
+x-oneshot: &oneshot
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp
+  pids_limit: 50
+  mem_limit: 256m
+  restart: "no"
+
+services:
+    traefik:
+      image: traefik:v3.6
+      container_name: traefik
+      command:
+        - --global.checknewversion=false
+        - --global.sendanonymoususage=false
+        - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+        - --accesslog=true
+        - --ping=true
+        - --providers.docker=true
+        - --providers.docker.exposedbydefault=false
+        - --providers.docker.network=maxsmartcity_edge
+        - --entrypoints.web.address=:80
+        - --entrypoints.web.http.redirections.entrypoint.to=websecure
+        - --entrypoints.web.http.redirections.entrypoint.scheme=https
+        - --entrypoints.websecure.address=:443
+        - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+        - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME_EMAIL is required}
+        - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+        - --certificatesresolvers.letsencrypt.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+        - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - traefik_letsencrypt:/letsencrypt
+      networks:
+        - edge
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 256m
+      pids_limit: 100
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD", "traefik", "healthcheck", "--ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+    db:
+      image: postgis/postgis:17-3.4-alpine
+      container_name: db
+      environment:
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_DB: ${DB_NAME}
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+    keycloak-db-init:
+      <<: *oneshot
+      image: postgis/postgis:17-3.4-alpine
+      container_name: keycloak-db-init
+      depends_on:
+        db:
+          condition: service_healthy
+      environment:
+        PGHOST: db
+        PGUSER: ${DB_USER}
+        PGPASSWORD: ${DB_PASSWORD}
+        PGDATABASE: ${DB_NAME}
+        KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME:-keycloak}
+      entrypoint: sh
+      command:
+        - -c
+        - |
+          psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$$KEYCLOAK_DB_NAME'" | grep -q 1 ||
+          psql -c "CREATE DATABASE \"$$KEYCLOAK_DB_NAME\""
+
+    redis:
+      image: redis:7-alpine
+      container_name: redis
+      command: redis-server --save "" --appendonly no
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+    minio:
+      image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+      container_name: minio
+      command: server /data --console-address ":9001"
+      environment:
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      volumes:
+        - minio_data:/data
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 512m
+      mem_reservation: 256m
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
+
+    minio-init:
+      <<: *oneshot
+      image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
+      container_name: minio-init
+      depends_on:
+        minio:
+          condition: service_healthy
+      entrypoint: sh
+      command:
+        - -c
+        - |
+          mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+          mc mb --ignore-existing local/maxsmartcity-reports
+      environment:
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      tmpfs:
+        - /tmp
+        - /root/.mc
+      mem_limit: 128m
+
+    migrate:
+      <<: *oneshot
+      image: *backend-image
+      container_name: migrate
+      pull_policy: never
+      environment:
+        DATABASE_URL: *database-url
+      command: ["alembic", "upgrade", "head"]
+      depends_on:
+        db:
+          condition: service_healthy
+
+    ingest:
+      <<: *oneshot
+      image: *backend-image
+      container_name: ingest
+      pull_policy: never
+      environment:
+        DATABASE_URL: *database-url
+      command:
+        - sh
+        - -c
+        - python -m src.domains.ingestion ingestion/data/bryansk.json && python -m src.domains.ingestion ingestion/data/bryansk_cian.json && python -m src.domains.ingestion ingestion/data/bakhchysarai.json && python -m src.domains.ingestion ingestion/data/gis_zkh_pilot.json
+      depends_on:
+        migrate:
+          condition: service_completed_successfully
+
+    houses-import:
+      <<: *oneshot
+      image: *backend-image
+      container_name: houses-import
+      pull_policy: never
+      profiles: ["import"]
+      environment:
+        DATABASE_URL: *database-url
+      volumes:
+        - ./datasets:/datasets:ro
+      command:
+        - python
+        - -m
+        - src.domains.ingestion.bulk
+        - /datasets/houses.json
+        - --batch-size
+        - ${HOUSES_IMPORT_BATCH_SIZE:-2000}
+      depends_on:
+        migrate:
+          condition: service_completed_successfully
+      mem_limit: 2g
+      pids_limit: 100
+
+    backend:
+      image: *backend-image
+      container_name: backend
+      build:
+        context: .
+        dockerfile: Dockerfile
+      environment:
+        DATABASE_URL: *database-url
+        REDIS_URL: redis://redis:6379/0
+        WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+        KEYCLOAK_ISSUER: https://keycloak.${DOMAIN}/realms/${KEYCLOAK_REALM:-maxsmartcity}
+        KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/${KEYCLOAK_REALM:-maxsmartcity}/protocol/openid-connect/certs
+        KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+        KEYCLOAK_REALM: ${KEYCLOAK_REALM:-maxsmartcity}
+        KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-maxsmartcity-backend}
+        KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-maxsmartcity-backend}
+        KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?KEYCLOAK_CLIENT_SECRET is required}
+        KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:?KEYCLOAK_ADMIN is required}
+        KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+        RESIDENT_JWT_SECRET: ${RESIDENT_JWT_SECRET:?RESIDENT_JWT_SECRET is required}
+        BOT_SHARED_SECRET: ${BOT_SHARED_SECRET:?BOT_SHARED_SECRET is required}
+        STAFF_BOOTSTRAP_SECRET: ${STAFF_BOOTSTRAP_SECRET:-}
+        ML_SERVICE_URL: http://ml-service:8000
+        ML_REQUEST_TIMEOUT_SECONDS: ${ML_REQUEST_TIMEOUT_SECONDS:-5}
+        MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:?MAX_BOT_TOKEN is required}
+        MAX_WEBHOOK_SECRET: ${MAX_WEBHOOK_SECRET:?MAX_WEBHOOK_SECRET is required}
+        MAX_API_BASE_URL: ${MAX_API_BASE_URL:-https://platform-api2.max.ru}
+        MAX_WEBHOOK_PUBLIC_URL: ${MAX_WEBHOOK_PUBLIC_URL:-https://frontend.${DOMAIN}/webhook/max}
+        WEB_APP_LOGIN_URL: ${WEB_APP_LOGIN_URL:-https://frontend.${DOMAIN}/auth/max}
+        BACKGROUND_JOBS_INTERVAL_SECONDS: ${BACKGROUND_JOBS_INTERVAL_SECONDS:-30}
+        SMTP_HOST: ${SMTP_HOST:-}
+        SMTP_PORT: ${SMTP_PORT:-587}
+        SMTP_USERNAME: ${SMTP_USERNAME:-}
+        SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+        SMTP_FROM: ${SMTP_FROM:-}
+        SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+        SMTP_SSL: ${SMTP_SSL:-}
+        ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-https://admin.${DOMAIN}}
+        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+        S3_BUCKET: maxsmartcity-reports
+        S3_INTERNAL_ENDPOINT_URL: http://minio:9000
+        S3_PUBLIC_ENDPOINT_URL: https://frontend.${DOMAIN}
+        MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+        MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+        OTEL_SERVICE_NAME: maxsmartcity-backend
+        PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        migrate:
+          condition: service_completed_successfully
+        ingest:
+          condition: service_completed_successfully
+        keycloak:
+          condition: service_healthy
+        minio-init:
+          condition: service_completed_successfully
+        tempo:
+          condition: service_healthy
+      networks:
+        - default
+        - edge
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.backend.rule=Host(`backend.${DOMAIN}`)
+        - traefik.http.routers.backend.entrypoints=websecure
+        - traefik.http.services.backend.loadbalancer.server.port=8000
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 512m
+      mem_reservation: 256m
+      cpus: "1.0"
+      restart: unless-stopped
+
+    frontend:
+      image: ${IMAGE_PREFIX:-maxsmartcity}/frontend:${IMAGE_TAG:-latest}
+      container_name: frontend
+      build:
+        context: .
+        dockerfile: Dockerfile.frontend
+      depends_on:
+        backend:
+          condition: service_healthy
+      networks:
+        - default
+        - edge
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.frontend.rule=Host(`frontend.${DOMAIN:?DOMAIN is required}`)
+        - traefik.http.routers.frontend.entrypoints=websecure
+        - traefik.http.services.frontend.loadbalancer.server.port=8080
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 50
+      mem_limit: 128m
+      mem_reservation: 64m
+      cpus: "0.5"
+      restart: unless-stopped
+
+    admin:
+      image: ${IMAGE_PREFIX:-maxsmartcity}/admin:${IMAGE_TAG:-latest}
+      container_name: admin
+      build:
+        context: .
+        dockerfile: Dockerfile.admin
+      depends_on:
+        backend:
+          condition: service_healthy
+      networks:
+        - default
+        - edge
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.admin.rule=Host(`admin.${DOMAIN}`)
+        - traefik.http.routers.admin.entrypoints=websecure
+        - traefik.http.services.admin.loadbalancer.server.port=8080
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 50
+      mem_limit: 128m
+      mem_reservation: 64m
+      cpus: "0.5"
+      restart: unless-stopped
+
+    ml-service:
+      image: ${IMAGE_PREFIX:-maxsmartcity}/ml-service:${IMAGE_TAG:-latest}
+      container_name: ml-service
+      build:
+        context: .
+        dockerfile: Dockerfile.ml
+      environment:
+        ML_MAX_INPUT_CHARACTERS: ${ML_MAX_INPUT_CHARACTERS:-4000}
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 1536m
+      mem_reservation: 768m
+      cpus: "2.0"
+      restart: unless-stopped
+
+    keycloak:
+      image: quay.io/keycloak/keycloak:26.0
+      container_name: keycloak
+      command: ["start", "--import-realm"]
+      environment:
+        KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+        KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+        KC_DB: postgres
+        KC_DB_URL: jdbc:postgresql://db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+        KC_DB_USERNAME: ${DB_USER}
+        KC_DB_PASSWORD: ${DB_PASSWORD}
+        KC_HOSTNAME: https://keycloak.${DOMAIN}
+        KC_HTTP_ENABLED: "true"
+        KC_PROXY_HEADERS: xforwarded
+        KC_HEALTH_ENABLED: "true"
+        KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      volumes:
+        - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      depends_on:
+        keycloak-db-init:
+          condition: service_completed_successfully
+      networks:
+        - default
+        - edge
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.keycloak.rule=Host(`keycloak.${DOMAIN}`)
+        - traefik.http.routers.keycloak.entrypoints=websecure
+        - traefik.http.services.keycloak.loadbalancer.server.port=8080
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      tmpfs:
+        - /tmp
+      mem_limit: 768m
+      pids_limit: 150
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 60s
+
+    prometheus:
+      image: prom/prometheus:v3.0.1
+      container_name: prometheus
+      command:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      volumes:
+        - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+        - prometheus_data:/prometheus
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      mem_limit: 512m
+      pids_limit: 100
+      restart: unless-stopped
+      depends_on:
+        backend:
+          condition: service_healthy
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
+
+    tempo:
+      image: grafana/tempo:2.6.1
+      container_name: tempo
+      command: -config.file=/etc/tempo/tempo-config.yaml
+      volumes:
+        - ./observability/tempo/tempo-config.yaml:/etc/tempo/tempo-config.yaml:ro
+        - tempo_data:/var/tempo
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 512m
+      pids_limit: 100
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:3200/ready || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 30s
+
+    loki:
+      image: grafana/loki:3.3.2
+      container_name: loki
+      command: -config.file=/etc/loki/local-config.yaml
+      volumes:
+        - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+        - loki_data:/loki
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 512m
+      pids_limit: 100
+      restart: unless-stopped
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+    promtail:
+      image: grafana/promtail:3.3.2
+      container_name: promtail
+      command: -config.file=/etc/promtail/promtail-config.yaml
+      volumes:
+        - ./observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      mem_limit: 256m
+      pids_limit: 50
+      restart: unless-stopped
+      depends_on:
+        loki:
+          condition: service_healthy
+
+    grafana:
+      image: grafana/grafana:11.4.0
+      container_name: grafana
+      environment:
+        GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:?GRAFANA_USER is required}
+        GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+        GF_SERVER_ROOT_URL: https://monitoring.${DOMAIN}
+        GF_USERS_ALLOW_SIGN_UP: "false"
+      volumes:
+        - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+        - grafana_data:/var/lib/grafana
+      networks:
+        - default
+        - edge
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.grafana.rule=Host(`monitoring.${DOMAIN}`)
+        - traefik.http.routers.grafana.entrypoints=websecure
+        - traefik.http.services.grafana.loadbalancer.server.port=3000
+      logging: *logging
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      mem_limit: 256m
+      pids_limit: 50
+      restart: unless-stopped
+      depends_on:
+        loki:
+          condition: service_healthy
+        tempo:
+          condition: service_healthy
+        prometheus:
+          condition: service_healthy
+
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+networks:
+  default:
+  edge:
+    name: maxsmartcity_edge
+
+volumes:
+  postgres_data:
+  loki_data:
+  tempo_data:
+  prometheus_data:
+  grafana_data:
+  minio_data:
+  traefik_letsencrypt:

@@ -546,3 +546,112 @@ uv run --locked pytest
 uv run --locked ruff check --fix .
 uv run --locked ruff format .
 ```
+
+## Продакшн и CI/CD
+
+Прод поднимается из [docker-compose.prod.yml](docker-compose.prod.yml): наружу открыт только
+Traefik (80/443, сертификаты Let's Encrypt, редирект HTTP → HTTPS). Поддомен сервиса совпадает
+с именем контейнера:
+
+| Адрес | Сервис |
+|---|---|
+| `https://frontend.<DOMAIN>` | приложение жителя (+ `/webhook/max`, файлы MinIO) |
+| `https://admin.<DOMAIN>` | админ-панель |
+| `https://backend.<DOMAIN>` | API |
+| `https://keycloak.<DOMAIN>` | Keycloak |
+| `https://monitoring.<DOMAIN>` | Grafana |
+
+`db`, `redis`, `minio`, `ml-service`, `prometheus`, `loki`, `tempo` доступны только внутри
+docker-сети. Для каждого поддомена нужна A-запись (или `*.<DOMAIN>`) на IP сервера.
+
+Пайплайн [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) выполняется на
+self-hosted runner, установленном на прод-сервере:
+
+1. на PR и push в `main` — ruff, ty, pytest, ESLint/stylelint, `tsc`, тесты frontend и admin
+   (кеш uv и npm через GitHub Actions cache);
+2. на push в `main` — сборка образов `maxsmartcity/<сервис>:<sha>` (слои кешируются BuildKit
+   на runner'е, старые образы и кеш старше `BUILD_CACHE_TTL` чистятся после успешного деплоя),
+   генерация `$DEPLOY_DIR/.env` из Variables и Secrets окружения `main`,
+   `docker compose up` и ожидание healthcheck'ов всех сервисов;
+3. после успешного деплоя — создание главного администратора (`STAFF_ADMIN_LOGIN`,
+   роль `admin`) через `POST /auth/staff/register` с `X-Bootstrap-Secret`: пользователь
+   заводится в Keycloak и в `identity.operator_user`. Если он уже есть (HTTP 409), шаг
+   ничего не делает; пароль существующего админа не меняется;
+4. затем — загрузка домов Брянска и Бахчисарая в БД: JSON скачивается по
+   `HOUSES_DATASET_URL` и импортируется пакетным импортёром `src.domains.ingestion.bulk`
+   (одноразовый сервис `houses-import`, профиль `import`). Если файл не изменился с прошлого
+   импорта (сравнивается SHA-256), шаг пропускается; принудительно — ручной запуск workflow
+   с галочкой `force_houses_import`. Импорт идемпотентен, упавший можно просто перезапустить;
+5. если деплой не поднялся — логи контейнеров, сборки и проверок (секреты вырезаются)
+   сохраняются артефактом запуска и кратко выводятся в summary, затем стек откатывается
+   на предыдущий тег. Упавшие проверки тоже сохраняют свои логи артефактом.
+
+Variables и Secrets заводятся в GitHub: Settings → Environments → `main`. Любая Variable или
+Secret окружения попадает в `.env` на сервере, так что новую переменную достаточно завести
+в GitHub и сослаться на неё в `docker-compose.prod.yml`. Шаблон со значениями по умолчанию —
+[.env.prod.example](.env.prod.example).
+
+**Variables** (`vars`) — несекретные настройки:
+
+| Переменная | Обязательна | По умолчанию | Назначение |
+|---|---|---|---|
+| `DOMAIN` | да | — | общий домен, сервисы доступны на `<контейнер>.<DOMAIN>` |
+| `ACME_EMAIL` | да | — | e-mail для Let's Encrypt |
+| `DB_USER` | да | — | пользователь PostgreSQL |
+| `DB_NAME` | да | — | база приложения |
+| `MINIO_ROOT_USER` | да | — | пользователь MinIO |
+| `KEYCLOAK_ADMIN` | да | — | администратор Keycloak |
+| `GRAFANA_USER` | да | — | администратор Grafana |
+| `KEYCLOAK_REALM` | нет | `maxsmartcity` | realm Keycloak |
+| `KEYCLOAK_CLIENT_ID` | нет | `maxsmartcity-backend` | клиент backend в Keycloak |
+| `KEYCLOAK_AUDIENCE` | нет | `maxsmartcity-backend` | `aud` в токенах |
+| `KEYCLOAK_DB_NAME` | нет | `keycloak` | база Keycloak |
+| `WEB_CONCURRENCY` | нет | `2` | воркеры backend |
+| `ML_REQUEST_TIMEOUT_SECONDS` | нет | `5` | таймаут запросов к ML |
+| `ML_MAX_INPUT_CHARACTERS` | нет | `4000` | лимит текста для ML |
+| `BACKGROUND_JOBS_INTERVAL_SECONDS` | нет | `30` | период фоновых задач, `0` — выключить |
+| `MAX_API_BASE_URL` | нет | `https://platform-api2.max.ru` | MAX API |
+| `MAX_WEBHOOK_PUBLIC_URL` | нет | `https://frontend.<DOMAIN>/webhook/max` | webhook бота |
+| `WEB_APP_LOGIN_URL` | нет | `https://frontend.<DOMAIN>/auth/max` | страница входа жителя |
+| `ADMIN_PANEL_URL` | нет | `https://admin.<DOMAIN>` | ссылка в письмах сотрудникам |
+| `CORS_ALLOWED_ORIGINS` | нет | — | доп. origin'ы для API |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_STARTTLS`, `SMTP_SSL` | нет | `SMTP_PORT=587`, `SMTP_STARTTLS=true` | почта |
+| `PROMETHEUS_RETENTION` | нет | `15d` | срок хранения метрик |
+| `TRAEFIK_LOG_LEVEL` | нет | `INFO` | уровень логов Traefik |
+| `ACME_CA_SERVER` | нет | боевой Let's Encrypt | staging CA для отладки сертификатов |
+| `DEPLOY_DIR` | нет | `/opt/maxsmartcity` | каталог деплоя на сервере |
+| `COMPOSE_PROJECT_NAME` | нет | `maxsmartcity` | имя compose-проекта |
+| `IMAGE_PREFIX` | нет | `maxsmartcity` | префикс имён образов |
+| `DEPLOY_WAIT_TIMEOUT` | нет | `900` | сколько секунд ждать healthcheck'и |
+| `BUILD_CACHE_TTL` | нет | `336h` | возраст кеша BuildKit для очистки |
+| `LOG_RETENTION_DAYS` | нет | `30` | срок хранения артефактов с логами |
+| `HOUSES_DATASET_URL` | нет | `https://storage.yandexcloud.net/massivehousesbryansk/gis_zkh_bryansk_bakhchysarai.json` | откуда скачивать JSON с домами |
+| `STAFF_ADMIN_LOGIN` | нет | — | логин главного администратора, без него шаг пропускается |
+| `STAFF_ADMIN_DISPLAY_NAME` | нет | `Главный администратор` | отображаемое имя администратора |
+| `STAFF_ADMIN_EMAIL` | нет | — | e-mail администратора |
+| `HOUSES_IMPORT_ENABLED` | нет | `true` | `false` — не импортировать дома при деплое |
+| `HOUSES_IMPORT_BATCH_SIZE` | нет | `2000` | размер пакета импорта |
+
+**Secrets** (`secrets`) — пароли, токены и ключи:
+
+| Секрет | Обязателен | Назначение |
+|---|---|---|
+| `DB_PASSWORD` | да | пароль PostgreSQL (hex, чтобы не ломать `DATABASE_URL`) |
+| `MINIO_ROOT_PASSWORD` | да | пароль MinIO |
+| `KEYCLOAK_ADMIN_PASSWORD` | да | пароль администратора Keycloak |
+| `KEYCLOAK_CLIENT_SECRET` | да | секрет клиента backend, подставляется и в realm при импорте |
+| `RESIDENT_JWT_SECRET` | да | подпись JWT жителей |
+| `BOT_SHARED_SECRET` | да | секрет бота для выпуска токенов жителей |
+| `MAX_BOT_TOKEN` | да | токен бота MAX |
+| `MAX_WEBHOOK_SECRET` | да | секрет webhook MAX |
+| `GRAFANA_PASSWORD` | да | пароль администратора Grafana |
+| `STAFF_BOOTSTRAP_SECRET` | для создания админа | секрет `X-Bootstrap-Secret` для создания первого администратора |
+| `STAFF_ADMIN_PASSWORD` | для создания админа | пароль главного администратора при первом создании |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | нет | авторизация на SMTP |
+
+Секреты генерируются командой `openssl rand -hex 32`. Значения Variables и Secrets не должны
+содержать одинарных кавычек и переводов строк.
+
+Требования к серверу: Docker Engine с Compose v2, `jq`, `rsync`, `git`, runner с метками
+`self-hosted, Linux`, пользователь runner'а в группе `docker`. Миграции применяются при
+каждом деплое, поэтому откат возвращает только код — схема БД остаётся новой.

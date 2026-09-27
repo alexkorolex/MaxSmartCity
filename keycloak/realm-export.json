@@ -28,7 +28,7 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
-      "secret": "maxsmartcity-backend-dev-secret",
+      "secret": "${KEYCLOAK_CLIENT_SECRET:maxsmartcity-backend-dev-secret}",
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "serviceAccountsEnabled": false,

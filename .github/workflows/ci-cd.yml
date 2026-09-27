@@ -1,0 +1,233 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_houses_import:
+        description: Import the houses dataset even if it has not changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI_LOGS: ${{ github.workspace }}/.ci-logs
+  LOG_RETENTION_DAYS: ${{ vars.LOG_RETENTION_DAYS || 30 }}
+
+jobs:
+  backend-checks:
+    name: Backend checks
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        run: |
+          mkdir -p "$CI_LOGS"
+          uv sync --locked 2>&1 | tee "$CI_LOGS/uv-sync.log"
+
+      - name: Ruff lint
+        run: uv run --locked ruff check --output-format=github . 2>&1 | tee "$CI_LOGS/ruff-check.log"
+
+      - name: Ruff format
+        run: uv run --locked ruff format --check . 2>&1 | tee "$CI_LOGS/ruff-format.log"
+
+      - name: ty
+        run: uv run --locked ty check 2>&1 | tee "$CI_LOGS/ty.log"
+
+      - name: pytest
+        run: uv run --locked pytest --junitxml="$CI_LOGS/pytest.xml" 2>&1 | tee "$CI_LOGS/pytest.log"
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-checks-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-logs/
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+          if-no-files-found: ignore
+
+  web-checks:
+    name: Web checks (${{ matrix.app }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [frontend, admin]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          mkdir -p "$CI_LOGS"
+          npm ci --no-audit --no-fund 2>&1 | tee "$CI_LOGS/npm-ci.log"
+
+      - name: Lint
+        run: npm run lint 2>&1 | tee "$CI_LOGS/lint.log"
+
+      - name: Typecheck
+        run: npm run typecheck 2>&1 | tee "$CI_LOGS/typecheck.log"
+
+      - name: Test
+        run: npm test 2>&1 | tee "$CI_LOGS/test.log"
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-checks-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-logs/
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+          if-no-files-found: ignore
+
+  deploy:
+    name: Build & deploy
+    needs: [backend-checks, web-checks]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 120
+    environment:
+      name: main
+      url: https://frontend.${{ vars.DOMAIN }}
+    concurrency:
+      group: deploy-main
+      cancel-in-progress: false
+    env:
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/maxsmartcity' }}
+      COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME || 'maxsmartcity' }}
+      COMPOSE_FILE: docker-compose.prod.yml
+      COMPOSE_BAKE: "true"
+      DOCKER_BUILDKIT: "1"
+      BUILDKIT_PROGRESS: plain
+      IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || 'maxsmartcity' }}
+      IMAGE_TAG: ${{ github.sha }}
+      WAIT_TIMEOUT: ${{ vars.DEPLOY_WAIT_TIMEOUT || 900 }}
+      BUILD_CACHE_TTL: ${{ vars.BUILD_CACHE_TTL || '336h' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Prepare deploy directory
+        run: |
+          mkdir -p "$CI_LOGS" "$DEPLOY_DIR/keycloak" "$DEPLOY_DIR/observability" "$DEPLOY_DIR/max-certs"
+          install -m 644 docker-compose.prod.yml "$DEPLOY_DIR/docker-compose.prod.yml"
+          rsync -a --inplace --delete keycloak/ "$DEPLOY_DIR/keycloak/"
+          rsync -a --inplace --delete observability/ "$DEPLOY_DIR/observability/"
+          echo "PREVIOUS_TAG=$(cat "$DEPLOY_DIR/.deployed_tag" 2>/dev/null || true)" >>"$GITHUB_ENV"
+
+      - name: Fetch MAX API trust anchors
+        run: |
+          if uv run --locked --no-default-groups --group backend \
+              python -c "from src.max_bot.certs import fetch_russian_trusted_ca_certs as f; f()"; then
+            cp etc/max_api/certs/*.crt "$DEPLOY_DIR/max-certs/"
+          else
+            echo "::warning::Could not download MAX certificates, using the copy from the last deploy"
+            mkdir -p etc/max_api/certs
+            cp "$DEPLOY_DIR"/max-certs/*.crt etc/max_api/certs/
+          fi
+
+      - name: Write .env from variables and secrets
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: deploy/write-env.sh "$DEPLOY_DIR/.env"
+
+      - name: Validate compose file
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: docker compose config --quiet 2>&1 | tee "$CI_LOGS/compose-config.log"
+
+      - name: Build images
+        run: |
+          docker compose --env-file "$DEPLOY_DIR/.env" build 2>&1 | tee "$CI_LOGS/build.log"
+
+      - name: Deploy
+        id: deploy
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          docker compose up --detach --no-build --remove-orphans 2>&1 | tee "$CI_LOGS/up.log"
+          "$GITHUB_WORKSPACE/deploy/wait-healthy.sh" 2>&1 | tee "$CI_LOGS/health.log"
+          echo "$IMAGE_TAG" >.deployed_tag
+
+      - name: Bootstrap main admin
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          STAFF_ADMIN_LOGIN: ${{ vars.STAFF_ADMIN_LOGIN }}
+          STAFF_ADMIN_DISPLAY_NAME: ${{ vars.STAFF_ADMIN_DISPLAY_NAME }}
+          STAFF_ADMIN_EMAIL: ${{ vars.STAFF_ADMIN_EMAIL }}
+          STAFF_ADMIN_PASSWORD: ${{ secrets.STAFF_ADMIN_PASSWORD }}
+        run: '"$GITHUB_WORKSPACE/deploy/bootstrap-admin.sh" 2>&1 | tee "$CI_LOGS/bootstrap-admin.log"'
+
+      - name: Import houses dataset
+        if: vars.HOUSES_IMPORT_ENABLED != 'false'
+        working-directory: ${{ env.DEPLOY_DIR }}
+        timeout-minutes: 60
+        env:
+          HOUSES_DATASET_URL: ${{ vars.HOUSES_DATASET_URL || 'https://storage.yandexcloud.net/massivehousesbryansk/gis_zkh_bryansk_bakhchysarai.json' }}
+          FORCE_IMPORT: ${{ inputs.force_houses_import || false }}
+        run: '"$GITHUB_WORKSPACE/deploy/import-houses.sh" 2>&1 | tee "$CI_LOGS/houses-import.log"'
+
+      - name: Collect failure logs
+        if: failure()
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: '"$GITHUB_WORKSPACE/deploy/collect-logs.sh" "$CI_LOGS"'
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-logs/
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+          if-no-files-found: ignore
+
+      - name: Roll back to previous release
+        if: failure() && steps.deploy.outcome == 'failure' && env.PREVIOUS_TAG != ''
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          IMAGE_TAG: ${{ env.PREVIOUS_TAG }}
+        run: |
+          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG='$IMAGE_TAG'/" .env
+          docker compose up --detach --no-build --remove-orphans
+          "$GITHUB_WORKSPACE/deploy/wait-healthy.sh"
+          echo "::warning::Deploy of ${{ github.sha }} failed, rolled back to $IMAGE_TAG"
+
+      - name: Clean up old images and build cache
+        if: success()
+        run: deploy/cleanup.sh

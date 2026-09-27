@@ -14,3 +14,7 @@ tmp
 
 frontend/node_modules
 frontend/dist
+admin/node_modules
+admin/dist
+.ci-logs
+.github

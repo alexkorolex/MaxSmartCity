@@ -155,6 +155,7 @@ activemq-data/
 .env.*
 !.env.example
 !.env.ml.example
+!.env.prod.example
 .envrc
 .venv
 env/
@@ -238,3 +239,4 @@ tmp/
 
 etc/max_api/certs
 node_modules
+.ci-logs/

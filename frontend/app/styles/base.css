@@ -114,9 +114,6 @@ a {
 }
 
 @supports not (color: color-mix(in srgb, red 50%, blue)) {
-    .house-info__source a {
-        text-decoration-color: var(--blue) !important;
-    }
 
     .report-chat__header {
         background: var(--surface-raised) !important;
@@ -180,25 +177,6 @@ a {
     .house-selection-summary {
         background: var(--surface) !important;
         border-color: var(--success) !important;
-    }
-
-    .category-picker__group--critical {
-        background: var(--surface-raised) !important;
-        border-color: var(--border-soft) !important;
-    }
-
-    .category-option--critical {
-        border-color: var(--error) !important;
-    }
-
-    [data-theme="dark"] .category-option {
-        background: var(--surface) !important;
-        border-color: var(--border-soft) !important;
-    }
-
-    [data-theme="dark"] .category-option--critical {
-        background: var(--surface-raised) !important;
-        border-color: var(--error) !important;
     }
 
     .photo-picker__add {

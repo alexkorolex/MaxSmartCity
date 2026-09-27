@@ -12,8 +12,8 @@
 }
 
 .category-picker__group--critical {
-  background: color-mix(in srgb, var(--error) 6%, var(--surface-raised));
-  border: 1px solid color-mix(in srgb, var(--error) 28%, var(--border-soft));
+  background: var(--surface-raised);
+  border: 1px solid var(--error-border);
   border-radius: var(--radius-lg);
 }
 
@@ -85,31 +85,29 @@
   color: var(--error);
 }
 
-.category-option:has(.category-option__input:checked) {
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-  border-color: var(--blue);
+.category-option:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
 }
 
-.category-option--critical {
-  background: var(--surface-raised);
-  border-color: color-mix(in srgb, var(--error) 22%, transparent);
-}
-
-.category-option--critical:has(.category-option__input:checked) {
-  color: var(--error);
-  background: color-mix(in srgb, var(--error) 12%, var(--surface-raised));
-  border-color: var(--error);
-}
-
-.category-option:has(.category-option__input:focus-visible) {
+.category-option:focus-within {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
+.category-option--critical {
+  background: var(--surface-raised);
+  border-color: var(--error-border);
+}
+
+.category-option--critical:hover {
+  background: var(--error-soft);
+  border-color: var(--error-border);
+}
+
 [data-theme="dark"] .category-option {
-  background: color-mix(in srgb, var(--surface) 78%, var(--background-secondary));
-  border-color: color-mix(in srgb, var(--border-soft) 72%, transparent);
+  background: var(--surface);
+  border-color: var(--border-soft);
 }
 
 [data-theme="dark"] .category-option:hover {
@@ -118,8 +116,25 @@
 }
 
 [data-theme="dark"] .category-option--critical {
-  background: color-mix(in srgb, var(--surface-raised) 92%, var(--error));
-  border-color: color-mix(in srgb, var(--error) 32%, var(--border-soft));
+  background: var(--surface-raised);
+  border-color: var(--error-border);
+}
+
+[data-theme="dark"] .category-option--critical:hover {
+  background: var(--error-soft);
+  border-color: var(--error-border);
+}
+
+.category-picker .category-option.category-option--selected {
+  color: var(--blue-strong);
+  background: var(--blue-soft);
+  border-color: var(--blue);
+}
+
+.category-picker .category-option--critical.category-option--selected {
+  color: var(--error);
+  background: var(--error-soft);
+  border-color: var(--error);
 }
 
 @media (max-width: 340px) {

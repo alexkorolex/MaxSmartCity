@@ -6,17 +6,11 @@ import { GlobeIcon, ListCard, MailIcon, PhoneIcon, StatusBadge } from '@/shared/
 import { formatPhone, websiteLabel } from '../lib/contacts';
 import {
   managingOrganizationLabel,
-  type HouseDataSource,
   type HouseInfo,
   type HouseManagingOrganization,
 } from '../model/types';
 
 import './HouseInfoCard.css';
-
-function sourceLabel(source: HouseDataSource): string {
-  const host = source.url ? websiteLabel(source.url) : source.code;
-  return `${host} · ${formatCalendarDate(source.retrieved_at, { year: true })}`;
-}
 
 function Requisites({ inn, ogrn }: { inn: string | null; ogrn: string | null }) {
   const parts = [inn && `ИНН ${inn}`, ogrn && `ОГРН ${ogrn}`].filter(Boolean);
@@ -105,24 +99,6 @@ function ManagingOrganizationCard({
           )}
         </CellList>
       </ListCard>
-
-      {organization.sources.length > 0 && (
-        <Typography.Text variant="description" color="tertiary" className="house-info__source">
-          По данным открытых источников:{' '}
-          {organization.sources.map((source, index) => (
-            <span key={`${source.code}-${source.retrieved_at}`}>
-              {index > 0 && ', '}
-              {source.url ? (
-                <a href={source.url} target="_blank" rel="noopener noreferrer">
-                  {sourceLabel(source)}
-                </a>
-              ) : (
-                sourceLabel(source)
-              )}
-            </span>
-          ))}
-        </Typography.Text>
-      )}
     </>
   );
 }

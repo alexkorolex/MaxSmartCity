@@ -21,7 +21,15 @@ function CategoryOption({
   onChange: (category: ProblemCategory) => void;
 }) {
   return (
-    <label className={`category-option${category.is_critical ? ' category-option--critical' : ''}`}>
+    <label
+      className={[
+        'category-option',
+        category.is_critical && 'category-option--critical',
+        checked && 'category-option--selected',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <input
         className="category-option__input"
         type="radio"

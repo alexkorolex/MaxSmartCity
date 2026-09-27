@@ -26,6 +26,8 @@
     --success: #0F7553;
     --warning: #D98C19;
     --error: #CF2947;
+    --error-soft: #FCEBEE;
+    --error-border: #F0B3BE;
     --info: #007FA8;
     --bottom-nav-height: 68px;
     --page-gutter: clamp(14px, 4vw, 26px);
@@ -75,6 +77,8 @@
     --success: #4CC995;
     --warning: #F6B84F;
     --error: #FF6278;
+    --error-soft: #3A1D25;
+    --error-border: #7A3342;
     --info: #44C9EE;
     --shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.025), 0 10px 28px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 18px 46px rgba(0, 0, 0, 0.38), 0 3px 12px rgba(0, 0, 0, 0.24);

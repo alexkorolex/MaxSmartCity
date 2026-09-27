@@ -1,0 +1,58 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--text-primary);
+    --color-card: var(--surface-raised);
+    --color-card-foreground: var(--text-primary);
+    --color-popover: var(--surface-raised);
+    --color-popover-foreground: var(--text-primary);
+    --color-primary: var(--blue-strong);
+    --color-primary-foreground: #FFFFFF;
+    --color-secondary: var(--background-secondary);
+    --color-secondary-foreground: var(--text-primary);
+    --color-muted: var(--background-secondary);
+    --color-muted-foreground: var(--text-muted);
+    --color-accent: var(--surface-hover);
+    --color-accent-foreground: var(--text-primary);
+    --color-destructive: var(--error);
+    --color-border: var(--border);
+    --color-input: var(--border);
+    --color-ring: var(--blue);
+}
+
+@layer base {
+    .admin-map button {
+        padding: 0;
+        color: inherit;
+        background: none;
+        border: 0;
+    }
+}
+
+.maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+}
+
+.maplibregl-popup-tip {
+    @apply hidden!;
+}
+
+.maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+}
+
+.maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+}
+
+.maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
+}

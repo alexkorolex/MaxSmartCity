@@ -1,3 +1,4 @@
 @import './tokens.css';
 @import './base.css';
+@import './tailwind.css';
 @import '../../shared/ui/styles/index.css';

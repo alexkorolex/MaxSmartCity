@@ -12,7 +12,7 @@ from src.domains.incidents.models import Incident, IncidentReportLink
 def test_models_have_domain_schemas_and_resolvable_foreign_keys() -> None:
     metadata = ModelRegistry.load()
 
-    assert len(metadata.tables) == 50
+    assert len(metadata.tables) == 51
     assert {table.schema for table in metadata.tables.values()} == set(ModelRegistry.schemas())
     for table in metadata.sorted_tables:
         assert isinstance(table, Table)

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import { AnalyticsPage } from '@/pages/analytics';
@@ -22,6 +23,8 @@ import { ROUTES } from '@/shared/routes';
 import { AppLayout } from './AppLayout';
 import { RequireStaffSession } from './RequireStaffSession';
 
+const MapPage = lazy(() => import('@/pages/map').then((module) => ({ default: module.MapPage })));
+
 export function AppRouter() {
   return (
     <Routes>
@@ -43,6 +46,14 @@ export function AppRouter() {
           <Route path={ROUTES.profile} element={<ProfilePage />} />
           <Route path={ROUTES.territories} element={<TerritoriesPage />} />
           <Route path={ROUTES.analytics} element={<AnalyticsPage />} />
+          <Route
+            path={ROUTES.map}
+            element={
+              <Suspense fallback={null}>
+                <MapPage />
+              </Suspense>
+            }
+          />
           <Route path={ROUTES.correspondence} element={<CorrespondencePage />} />
           <Route path="/correspondence/:conversationId" element={<ConversationPage />} />
         </Route>

@@ -655,6 +655,9 @@ Secret окружения попадает в `.env` на сервере, так
 | `STAFF_ADMIN_EMAIL` | нет | — | e-mail администратора |
 | `HOUSES_IMPORT_ENABLED` | нет | `true` | `false` — не импортировать дома при деплое |
 | `HOUSES_IMPORT_BATCH_SIZE` | нет | `2000` | размер пакета импорта |
+| `GEODATA_BASE_URL` | нет | `https://storage.yandexcloud.net/massivehousesbryansk` | откуда качать геоданные для карты |
+| `GEODATA_IMPORT_ENABLED` | нет | `true` | `false` — не импортировать геоданные при деплое |
+| `MAP_WORKERS` | нет | `2` | воркеры сервиса карты |
 
 **Secrets** (`secrets`) — пароли, токены и ключи:
 
@@ -679,3 +682,31 @@ Secret окружения попадает в `.env` на сервере, так
 Требования к серверу: Docker Engine с Compose v2, `jq`, `rsync`, `git`, runner с метками
 `self-hosted, Linux`, пользователь runner'а в группе `docker`. Миграции применяются при
 каждом деплое, поэтому откат возвращает только код — схема БД остаётся новой.
+
+## Карта
+
+Карта доступна только ролям `admin` и `district_admin` и обслуживается отдельным сервисом
+`map-service` (тот же образ backend, приложение `src.map.app:create_map_app`, свой пул из 5
+соединений и `statement_timeout` 8 с), чтобы тяжёлые гео-запросы не занимали воркеры основного
+API. Админка ходит в него через `/api/map/…` (nginx `admin.conf`), локально — `http://localhost:${MAP_PORT:-8002}/schema`.
+
+| Эндпоинт | Что отдаёт |
+|---|---|
+| `GET /map/summary` | по городам: домов всего / с координатами / с контуром, фоновых зданий, bbox; зумы слоёв; атрибуция |
+| `GET /map/districts` | GeoJSON районов со статистикой: домов, активных заявок и инцидентов |
+| `GET /map/incidents?bbox=w,s,e,n&include_closed=false` | GeoJSON домов с инцидентами (точки, на любом зуме) и список инцидентов на доме; в `metadata` — сколько таких домов без координат |
+| `GET /map/tiles/houses/{z}/{x}/{y}` | векторный тайл (MVT) слоя `houses`: с z12 точки, с z15 контуры и адрес; `house_id`, `active_reports`, `active_incidents` |
+| `GET /map/tiles/buildings/{z}/{x}/{y}` | MVT слоя `buildings` — фоновая застройка Microsoft, с z14 |
+
+Тайлы строятся PostGIS (`ST_AsMVT`) по GIST-индексам и грузятся картой лениво — только видимые;
+пустой тайл отвечает `204`. Для MapLibre (mapcn) источник подключается как
+`{type: "vector", tiles: ["/api/map/tiles/houses/{z}/{x}/{y}"]}`, токен добавляется в
+`transformRequest`. На карте обязательна атрибуция из `/map/summary`.
+
+Геоданные импортирует `python -m src.domains.ingestion.geodata` (в CI — шаг «Import map geodata»,
+сервис `geodata-import`): координаты и контуры домов из `house_geolocation_multisource.csv`
+(только `matched_polygon`/`matched_point`, связь по `key`), районы Брянска из
+`bryansk_districts.geojson` (заодно дома без района раскладываются по ним по точке) и фоновая
+застройка `microsoft_buildings_*.geojsonl`. Импорт идемпотентный; при деплое он пропускается,
+если ни геоданные, ни датасет домов не менялись. Файлы должны лежать в бакете рядом с датасетом домов.
+

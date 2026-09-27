@@ -19,6 +19,7 @@ const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: ROUTES.profile, title: 'Мой профиль', subtitle: 'Личные данные, пароль и уведомления' },
   { prefix: ROUTES.territories, title: 'Территории', subtitle: 'Город, округа, районы и их дома' },
   { prefix: ROUTES.analytics, title: 'Статистика', subtitle: 'Обращения, инциденты и дома по территории' },
+  { prefix: ROUTES.map, title: 'Карта', subtitle: 'Инциденты, районы и дома на карте' },
   { prefix: ROUTES.correspondence, title: 'Переписка', subtitle: 'Органы власти, УК и администрация платформы' },
 ];
 

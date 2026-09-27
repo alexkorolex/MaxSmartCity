@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { MapPinned as MapPinnedIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { useChatConversations } from '@/entities/chat';
@@ -38,6 +39,7 @@ function navItems(principal: Principal | undefined) {
   return [
     { to: ROUTES.home, label: 'Обзор', icon: HomeIcon, end: true },
     ...(seesTerritories ? [{ to: ROUTES.analytics, label: 'Статистика', icon: ChartIcon, end: false }] : []),
+    ...(seesTerritories ? [{ to: ROUTES.map, label: 'Карта', icon: MapPinnedIcon, end: false }] : []),
     ...(seesTerritories
       ? [{ to: ROUTES.territories, label: authority ? 'Территория' : 'Территории', icon: MapIcon, end: false }]
       : []),

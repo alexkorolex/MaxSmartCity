@@ -5,7 +5,7 @@ from sqlalchemy import JSON, CheckConstraint, Date, Enum, ForeignKey, Index, Str
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.common.models import Entity
+from src.common.models import Entity, Record
 from src.database.spatial import GeographyText, GeometryText
 from src.domains.geo.enums import AdministrativeAreaType
 
@@ -69,6 +69,17 @@ class House(Entity):
     )
     point: Mapped[str | None] = mapped_column(GeographyText("POINT", srid=4326))
     external_id: Mapped[str | None] = mapped_column(String(255))
+    footprint: Mapped[str | None] = mapped_column(GeometryText("MULTIPOLYGON", srid=4326))
+    geolocation_source: Mapped[str | None] = mapped_column(String(64))
+
+
+class BuildingFootprint(Record):
+    __tablename__ = "building_footprint"
+    __table_args__ = (Index("ix_building_footprint_city_source", "city", "source"), {"schema": "geo"})
+
+    city: Mapped[str] = mapped_column(String(255))
+    source: Mapped[str] = mapped_column(String(64))
+    geometry: Mapped[str] = mapped_column(GeometryText("MULTIPOLYGON", srid=4326))
 
 
 class HouseManagement(Entity):

@@ -11,6 +11,10 @@ on:
         description: Import the houses dataset even if it has not changed
         type: boolean
         default: false
+      force_geodata_import:
+        description: Import house coordinates, footprints, districts and buildings even if unchanged
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -200,6 +204,15 @@ jobs:
           HOUSES_DATASET_URL: ${{ vars.HOUSES_DATASET_URL || 'https://storage.yandexcloud.net/massivehousesbryansk/gis_zkh_bryansk_bakhchysarai.json' }}
           FORCE_IMPORT: ${{ inputs.force_houses_import || false }}
         run: '"$GITHUB_WORKSPACE/deploy/import-houses.sh" 2>&1 | tee "$CI_LOGS/houses-import.log"'
+
+      - name: Import map geodata
+        if: vars.GEODATA_IMPORT_ENABLED != 'false'
+        working-directory: ${{ env.DEPLOY_DIR }}
+        timeout-minutes: 60
+        env:
+          GEODATA_BASE_URL: ${{ vars.GEODATA_BASE_URL || 'https://storage.yandexcloud.net/massivehousesbryansk' }}
+          FORCE_IMPORT: ${{ inputs.force_geodata_import || false }}
+        run: '"$GITHUB_WORKSPACE/deploy/import-geodata.sh" 2>&1 | tee "$CI_LOGS/geodata-import.log"'
 
       - name: Collect failure logs
         if: failure()

@@ -233,6 +233,43 @@ services:
       mem_reservation: 64m
       cpus: "0.5"
 
+    map-service:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      command: ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--factory", "src.map.app:create_map_app"]
+      environment:
+        DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+        KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
+        KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI}
+        KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL}
+        KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+        KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE}
+        KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+        KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+        KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+        KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+        RESIDENT_JWT_SECRET: ${RESIDENT_JWT_SECRET}
+        BOT_SHARED_SECRET: ${BOT_SHARED_SECRET}
+        PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      ports:
+        - ${MAP_PORT:-8002}:8000
+      depends_on:
+        migrate:
+          condition: service_completed_successfully
+        keycloak:
+          condition: service_healthy
+      security_opt:
+        - no-new-privileges:true
+      cap_drop:
+        - ALL
+      read_only: true
+      tmpfs:
+        - /tmp
+      pids_limit: 100
+      mem_limit: 384m
+      cpus: "1.0"
+
     admin:
       build:
         context: .

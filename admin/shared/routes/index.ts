@@ -17,6 +17,7 @@ export const ROUTES = {
   profile: '/profile',
   territories: '/territories',
   analytics: '/analytics',
+  map: '/map',
   correspondence: '/correspondence',
   conversation: (conversationId: string) => `/correspondence/${conversationId}`,
 } as const;

@@ -7,3 +7,8 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["backend:8000"]
+
+  - job_name: maxsmartcity-map
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["map-service:8000"]

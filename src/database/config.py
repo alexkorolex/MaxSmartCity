@@ -2,7 +2,7 @@ import logging
 import os
 from dataclasses import dataclass
 
-from advanced_alchemy.extensions.litestar import AsyncSessionConfig, SQLAlchemyAsyncConfig
+from advanced_alchemy.extensions.litestar import AsyncSessionConfig, EngineConfig, SQLAlchemyAsyncConfig
 from sqlalchemy.engine import make_url
 
 from src.database.registry import ModelRegistry
@@ -23,7 +23,7 @@ class DatabaseSettings:
             raise ValueError("DATABASE_URL is required; see .env.example")
         return cls(url=url)
 
-    def plugin_config(self) -> SQLAlchemyAsyncConfig:
+    def plugin_config(self, *, pool_size: int | None = None) -> SQLAlchemyAsyncConfig:
         metadata = ModelRegistry.load()
         logging.getLogger(__name__).info(
             "Configuring domain database", extra={"schemas": ModelRegistry.schemas()}
@@ -33,4 +33,7 @@ class DatabaseSettings:
             metadata=metadata,
             create_all=False,
             session_config=AsyncSessionConfig(expire_on_commit=False),
+            engine_config=EngineConfig(pool_size=pool_size, max_overflow=pool_size)
+            if pool_size
+            else EngineConfig(),
         )

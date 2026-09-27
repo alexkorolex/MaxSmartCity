@@ -5,6 +5,7 @@ export {
   getRefreshToken,
   http,
   isApiError,
+  refreshAuthToken,
   registerTokenRefresher,
   setAuthToken,
   setRefreshToken,

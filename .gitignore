@@ -240,3 +240,6 @@ tmp/
 etc/max_api/certs
 node_modules
 .ci-logs/
+
+
+.DS_Store

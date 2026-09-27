@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useCities } from '@/entities/geo';
 import { useResidents } from '@/entities/resident';
+import { isAdmin, useMe } from '@/entities/session';
 import { formatCalendarDate } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
 import { AsyncState, CitySelect, EmptyState, PersonIcon } from '@/shared/ui';
@@ -11,6 +12,8 @@ export function ResidentsPage() {
   const [city, setCity] = useState('');
   const navigate = useNavigate();
 
+  const { data: principal } = useMe();
+  const showCityFilter = isAdmin(principal);
   const { data: cities } = useCities();
   const { data, isLoading, error, refetch } = useResidents(city || undefined);
 
@@ -22,9 +25,11 @@ export function ResidentsPage() {
           <div className="card__meta">Жители и количество оставленных ими заявок</div>
         </div>
       </div>
-      <div className="filter-bar">
-        <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
-      </div>
+      {showCityFilter && (
+        <div className="filter-bar">
+          <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
+        </div>
+      )}
       <div className="card__body card__body--flush">
         <AsyncState isLoading={isLoading} error={error} onRetry={() => void refetch()}>
           {!data || data.length === 0 ? (

@@ -130,7 +130,7 @@ function OrganizationsDirectory() {
             </div>
           )}
         </div>
-        {!authority && (
+        {isAdmin(principal) && (
           <div className="filter-bar">
             <CitySelect cities={cities ?? []} value={city} onChange={setCity} />
           </div>

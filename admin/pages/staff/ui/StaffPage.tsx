@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { useCities } from '@/entities/geo';
 import { HOUSING_ORGANIZATION_TYPES, useOrganizations } from '@/entities/organization';
-import { isAuthority, roleLabel, useMe } from '@/entities/session';
+import { isAdmin, isAuthority, roleLabel, useMe } from '@/entities/session';
 import { useStaffList } from '@/entities/staff';
 import { AsyncState, CitySelect, EmptyState, Pill, StaffIcon } from '@/shared/ui';
 import { StaffDirectoryTable } from '@/widgets/staff-directory';
@@ -75,14 +75,16 @@ export function StaffPage() {
         </div>
         {!authority && (
           <div className="filter-bar">
-            <CitySelect
-              cities={cities ?? []}
-              value={city}
-              onChange={(next) => {
-                setCity(next);
-                setOrganizationId('');
-              }}
-            />
+            {isAdmin(principal) && (
+              <CitySelect
+                cities={cities ?? []}
+                value={city}
+                onChange={(next) => {
+                  setCity(next);
+                  setOrganizationId('');
+                }}
+              />
+            )}
             <div className="filter-bar__field">
               <label className="filter-bar__label" htmlFor="staff-organization">
                 Организация

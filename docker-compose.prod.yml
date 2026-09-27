@@ -409,6 +409,7 @@ services:
         KC_PROXY_HEADERS: xforwarded
         KC_HEALTH_ENABLED: "true"
         KC_CACHE: local
+        JAVA_OPTS_KC_HEAP: -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=65
         KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       volumes:
         - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro

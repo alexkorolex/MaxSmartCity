@@ -6,7 +6,7 @@ keep=" ${IMAGE_TAG:?IMAGE_TAG is required} ${PREVIOUS_TAG:-} "
 
 while read -r ref; do
   tag="${ref##*:}"
-  [[ "$keep" == *" $tag "* ]] || docker image rm "$ref" || true
+  [[ "$tag" == RELEASE.* || "$keep" == *" $tag "* ]] || docker image rm "$ref" || true
 done < <(docker image ls --format '{{.Repository}}:{{.Tag}}' --filter "reference=${prefix}/*")
 
 docker image prune --force

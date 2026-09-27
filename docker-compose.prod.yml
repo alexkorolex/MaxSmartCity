@@ -120,7 +120,10 @@ services:
         retries: 5
 
     minio:
-      image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+      image: ${IMAGE_PREFIX:-maxsmartcity}/minio:RELEASE.2025-04-08T15-41-24Z
+      build:
+        context: ./minio
+        target: minio
       container_name: minio
       command: server /data --console-address ":9001"
       environment:
@@ -150,7 +153,10 @@ services:
 
     minio-init:
       <<: *oneshot
-      image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
+      image: ${IMAGE_PREFIX:-maxsmartcity}/mc:RELEASE.2025-04-08T15-39-49Z
+      build:
+        context: ./minio
+        target: mc
       container_name: minio-init
       depends_on:
         minio:

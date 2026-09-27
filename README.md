@@ -564,6 +564,11 @@ Traefik (80/443, сертификаты Let's Encrypt, редирект HTTP →
 `db`, `redis`, `minio`, `ml-service`, `prometheus`, `loki`, `tempo` доступны только внутри
 docker-сети. Для каждого поддомена нужна A-запись (или `*.<DOMAIN>`) на IP сервера.
 
+MinIO и `mc` собираются из исходников той же версии ([minio/Dockerfile](minio/Dockerfile)):
+MinIO больше не публикует образы в `quay.io`/Docker Hub. Сборка идёт под архитектуру машины
+(arm64 на Mac, amd64 на сервере) и кешируется BuildKit; версия меняется в `MINIO_RELEASE`/
+`MC_RELEASE` там же и в тегах образов в compose-файлах.
+
 Пайплайн [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) выполняется на
 self-hosted runner, установленном на прод-сервере:
 

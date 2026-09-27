@@ -416,6 +416,61 @@ async def test_auto_subscribe_never_raises_on_api_failure(
     await startup.auto_subscribe_max_webhook()  # must not raise
 
 
+def test_every_listed_bot_command_is_handled() -> None:
+    handled = (
+        handlers.START_COMMANDS
+        | handlers.LOGIN_COMMANDS
+        | handlers.CHAT_ID_COMMANDS
+        | handlers.MY_ID_COMMANDS
+    )
+
+    for name, description in handlers.BOT_COMMANDS:
+        assert f"/{name}" in handled
+        assert description
+
+
+async def test_auto_register_commands_sends_the_command_list(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[list[dict[str, str]]] = []
+
+    async def fake_set_commands(self: MaxClient, commands: list[dict[str, str]]) -> None:
+        calls.append(commands)
+
+    monkeypatch.setattr(MaxClient, "set_commands", fake_set_commands)
+
+    await startup.auto_register_max_commands()
+
+    assert calls == [[{"name": name, "description": text} for name, text in handlers.BOT_COMMANDS]]
+
+
+async def test_auto_register_commands_never_raises_on_api_failure(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def failing_set_commands(self: MaxClient, commands: list[dict[str, str]]) -> None:
+        raise MaxApiError(401, "invalid token")
+
+    monkeypatch.setattr(MaxClient, "set_commands", failing_set_commands)
+
+    await startup.auto_register_max_commands()
+
+
+async def test_auto_register_commands_skips_when_bot_is_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MAX_BOT_TOKEN", raising=False)
+    calls: list[object] = []
+
+    async def fake_set_commands(self: MaxClient, commands: list[dict[str, str]]) -> None:
+        calls.append(commands)
+
+    monkeypatch.setattr(MaxClient, "set_commands", fake_set_commands)
+
+    await startup.auto_register_max_commands()
+
+    assert calls == []
+
+
 async def test_chatid_command_in_a_group_replies_with_the_chat_id(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:

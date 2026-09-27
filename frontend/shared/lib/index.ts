@@ -1,4 +1,9 @@
-export { getMaxBridgeStartParam, getMaxBridgeUserAvatarUrl, isRunningInsideMax } from './max-bridge';
+export {
+  getMaxBridgeInitData,
+  getMaxBridgeStartParam,
+  getMaxBridgeUserAvatarUrl,
+  isRunningInsideMax,
+} from './max-bridge';
 export type { MaxBridgeInitDataUnsafe, MaxBridgeWebApp } from './max-bridge';
 export { formatCalendarDate, formatDateTime } from './format/date';
 export { filterSearchOptions } from './search/filterSearchOptions';

@@ -5,5 +5,6 @@ export {
   http,
   isApiError,
   setAuthToken,
+  setReauthenticateHandler,
   subscribeUnauthorized,
 } from './client';

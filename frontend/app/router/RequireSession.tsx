@@ -1,7 +1,7 @@
-import { Button, Flex, Typography } from '@maxhub/max-ui';
+import { Button, Flex, Spinner, Typography } from '@maxhub/max-ui';
 import { Outlet } from 'react-router-dom';
 
-import { useSession } from '@/entities/session';
+import { useMaxWebAppSignIn, useSession } from '@/entities/session';
 import { CityIcon, PageLayout } from '@/shared/ui';
 
 import './RequireSession.css';
@@ -38,10 +38,22 @@ function OpenBotPrompt() {
   );
 }
 
+function SigningInPlaceholder() {
+  return (
+    <PageLayout withNavSpacing={false}>
+      <Flex className="session-prompt" direction="column" align="center" justify="center" gap="var(--space-3)">
+        <Spinner size={24} appearance="primary" />
+        <Typography.Text variant="body" color="secondary">Выполняем вход…</Typography.Text>
+      </Flex>
+    </PageLayout>
+  );
+}
+
 export function RequireSession() {
   const { isAuthenticated } = useSession();
+  const signingIn = useMaxWebAppSignIn(!isAuthenticated);
 
-  if (!isAuthenticated) return <OpenBotPrompt />;
+  if (!isAuthenticated) return signingIn ? <SigningInPlaceholder /> : <OpenBotPrompt />;
 
   return <Outlet />;
 }

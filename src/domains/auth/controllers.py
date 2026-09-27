@@ -9,6 +9,7 @@ from litestar.exceptions import (
     HTTPException,
     NotAuthorizedException,
     NotFoundException,
+    ServiceUnavailableException,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,7 @@ from src.domains.auth.schemas import (
     ResidentLoginRequest,
     ResidentTokenRequest,
     ResidentTokenResponse,
+    ResidentWebAppLoginRequest,
     StaffLinkMaxIdRequest,
     StaffLinkMaxIdResponse,
     StaffLoginRequest,
@@ -35,6 +37,8 @@ from src.domains.auth.schemas import (
 from src.domains.identity.models import Department, OperatorUser, Organization, OrganizationMember
 from src.domains.identity.services import MIN_PASSWORD_LENGTH, OperatorUserService, ResidentService
 from src.max_bot.dedup import consume_login_code
+from src.max_bot.settings import MaxBotSettings
+from src.max_bot.web_app import InvalidInitDataError, authenticate_web_app_resident
 from src.security.dependency import provide_principal
 from src.security.guards import (
     RESIDENT_TOKEN_ISSUER,
@@ -148,6 +152,25 @@ class ResidentAuthController(Controller):
             resident = await service.get_one_or_none(id=resident_id)
         if resident is None:
             raise NotFoundException("Resident no longer exists")
+
+        settings = SecuritySettings.from_environment()
+        token = resident_jwt_auth(settings).create_token(
+            identifier=str(resident.id), token_issuer=RESIDENT_TOKEN_ISSUER
+        )
+        return ResidentTokenResponse(token=token, resident_id=str(resident.id))
+
+    @post("/max-web-app", name="auth:Resident:max-web-app")
+    async def login_via_max_web_app(
+        self, data: ResidentWebAppLoginRequest, service: NamedDependency[ResidentService]
+    ) -> ResidentTokenResponse:
+        try:
+            bot_token = MaxBotSettings.from_environment().bot_token
+        except ValueError as exc:
+            raise ServiceUnavailableException("MAX bot is not configured") from exc
+        try:
+            resident = await authenticate_web_app_resident(data.init_data, bot_token, service)
+        except InvalidInitDataError as exc:
+            raise NotAuthorizedException(str(exc)) from exc
 
         settings = SecuritySettings.from_environment()
         token = resident_jwt_auth(settings).create_token(

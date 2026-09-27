@@ -14,6 +14,13 @@ LOGIN_COMMANDS = frozenset({"/login", "войти", "вход"})
 CHAT_ID_COMMANDS = frozenset({"/chatid", "/chat_id"})
 MY_ID_COMMANDS = frozenset({"/id", "/myid", "/my_id"})
 
+BOT_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("start", "Начать и получить ссылку для входа"),
+    ("login", "Войти в приложение Smart City"),
+    ("myid", "Узнать свой MAX ID"),
+    ("chatid", "Узнать ID группового чата"),
+)
+
 WELCOME_TEXT = (
     "Добро пожаловать в бот, связанный с развитием умного города Smart City!\n\n"
     "Здесь вы можете:\n"

@@ -1,4 +1,9 @@
+import hashlib
+import hmac
+import json
+import time
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
 import jwt
@@ -206,6 +211,35 @@ async def test_resident_web_login_redeems_bot_issued_code(api_client: TestClient
     me = api_client.get("/identity/me", headers={"Authorization": f"Bearer {logged_in.json()['token']}"})
     assert me.status_code == 200
     assert me.json()["actor_id"] == resident_id
+
+
+def test_resident_signs_in_silently_with_max_web_app_init_data(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MAX_BOT_TOKEN", "web-app-bot-token")
+    monkeypatch.setenv("MAX_WEBHOOK_SECRET", "web-app-webhook-secret")
+    monkeypatch.setenv("WEB_APP_LOGIN_URL", "https://example.test/auth/max")
+    user = json.dumps({"id": 707070, "first_name": "Мария", "username": "maria"}, ensure_ascii=False)
+    fields = {"auth_date": str(int(time.time())), "query_id": "q", "user": user}
+    launch_params = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
+    secret_key = hmac.new(b"WebAppData", b"web-app-bot-token", hashlib.sha256).digest()
+    signature = hmac.new(secret_key, launch_params.encode(), hashlib.sha256).hexdigest()
+    init_data = urlencode({**fields, "hash": signature})
+
+    first = api_client.post("/auth/residents/max-web-app", json={"init_data": init_data})
+    assert first.status_code == 201, first.text
+    again = api_client.post("/auth/residents/max-web-app", json={"init_data": init_data})
+    assert again.status_code == 201, again.text
+    assert again.json()["resident_id"] == first.json()["resident_id"]
+
+    me = api_client.get("/identity/me", headers={"Authorization": f"Bearer {again.json()['token']}"})
+    assert me.status_code == 200
+    assert me.json()["actor_id"] == first.json()["resident_id"]
+
+    forged = api_client.post(
+        "/auth/residents/max-web-app", json={"init_data": init_data.replace("707070", "707071")}
+    )
+    assert forged.status_code == 401
 
 
 def test_staff_member_edits_own_profile_password_and_max_link(

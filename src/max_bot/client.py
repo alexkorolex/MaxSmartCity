@@ -78,6 +78,9 @@ class MaxClient:
     async def get_me(self) -> dict[str, Any] | None:
         return await self._request("GET", "/me")
 
+    async def set_commands(self, commands: list[dict[str, str]]) -> dict[str, Any] | None:
+        return await self._request("PATCH", "/me/commands", json={"commands": commands})
+
     async def send_message(
         self,
         *,

@@ -6,5 +6,5 @@ interface ResidentTokenResponse {
 }
 
 export async function loginByCode(code: string): Promise<ResidentTokenResponse> {
-  return http.post<ResidentTokenResponse>('/auth/residents/login', { code });
+  return http.post<ResidentTokenResponse>('/auth/residents/login', { code }, { skipReauth: true });
 }

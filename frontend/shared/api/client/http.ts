@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/shared/config';
 
 import { emitUnauthorized } from './authEvents';
 import { ApiError } from './errors';
+import { tryReauthenticate } from './reauth';
 import { getAuthToken } from './token';
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -9,6 +10,7 @@ type QueryValue = string | number | boolean | undefined | null;
 interface RequestOptions {
   query?: Record<string, QueryValue>;
   signal?: AbortSignal;
+  skipReauth?: boolean;
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -34,7 +36,13 @@ async function extractErrorMessage(response: Response): Promise<{ message: strin
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  options?: RequestOptions,
+  isRetry = false,
+): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   const token = getAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -51,7 +59,14 @@ async function request<T>(method: string, path: string, body?: unknown, options?
     signal: options?.signal,
   });
 
-  if (response.status === 401) emitUnauthorized();
+  if (response.status === 401) {
+    if (!isRetry && !options?.skipReauth) {
+      const current = getAuthToken();
+      const renewed = (current !== null && current !== token) || (await tryReauthenticate());
+      if (renewed) return request<T>(method, path, body, options, true);
+    }
+    emitUnauthorized();
+  }
 
   if (!response.ok) {
     const { message, detail } = await extractErrorMessage(response);

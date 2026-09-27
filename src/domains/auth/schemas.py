@@ -38,6 +38,11 @@ class ResidentLoginRequest:
 
 
 @dataclass
+class ResidentWebAppLoginRequest:
+    init_data: str
+
+
+@dataclass
 class StaffLoginRequest:
     """Staff still authenticate with a login/password - just proxied through our API so
     clients never talk to Keycloak directly. The password is forwarded, never stored."""

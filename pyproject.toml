@@ -40,6 +40,7 @@ ml-data = [
 ]
 dev = [
     "fakeredis>=2.26.1",
+    "maxapi>=1.2.2",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "ruff>=0.16.8",

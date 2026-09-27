@@ -4,34 +4,40 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
+dependencies = []
+
+[dependency-groups]
+backend = [
     "advanced-alchemy>=1.11.0",
+    "aioboto3>=15.5.0",
+    "aiohttp>=3.14.3",
     "alembic>=1.16",
     "asyncpg>=0.30",
-    "faker>=40.0",
     "geoalchemy2>=0.18",
     "httpx>=0.28.1",
+    "litestar[jwt,opentelemetry,prometheus,redis,sqlalchemy,structlog]>=2.24.0",
+    "litestar-autowire>=0.2.0",
+    "litestar-granian>=0.16.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.44.0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.65b0",
+    "python-dotenv>=1.2.3",
+    "sqlalchemy>=2.0.54",
+]
+ml = [
+    "fastembed>=0.7,<1",
+    "granian>=2.8",
+    "httpx>=0.28.1",
     "joblib>=1.4",
-    "litestar-autowire[dishka,queues]>=0.2.0",
+    "litestar>=2.24.0",
+    "numpy>=2.0",
+    "scikit-learn>=1.5,<2",
+]
+ml-data = [
+    "faker>=40.0",
     "openai>=1.0",
     "pymorphy3>=2.0",
     "python-dotenv>=1.2.3",
-    "scikit-learn>=1.5,<2",
-    "litestar-granian>=0.16.0",
-    "litestar[cryptography,jwt,opentelemetry,prometheus,redis,sqlalchemy,structlog]>=2.24.0",
-    "sqlalchemy>=2.0.54",
-    "aiohttp>=3.14.3",
-    "aioboto3>=15.5.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.44.0",
-    "opentelemetry-instrumentation-sqlalchemy>=0.65b0",
 ]
-
-[project.optional-dependencies]
-semantic = [
-    "fastembed>=0.7,<1",
-]
-
-[dependency-groups]
 dev = [
     "fakeredis>=2.26.1",
     "pre-commit>=4.6.2",
@@ -39,6 +45,9 @@ dev = [
     "ruff>=0.16.8",
     "ty>=0.0.82",
 ]
+
+[tool.uv]
+default-groups = ["backend", "ml", "ml-data", "dev"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

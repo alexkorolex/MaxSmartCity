@@ -46,8 +46,10 @@ readiness возвращает 503, а rule fallback сохраняет recommen
 через ONNX/FastEmbed. Установка для локальной разработки:
 
 ```bash
-uv sync --extra semantic --group dev
+uv sync
 ```
+
+FastEmbed входит в группу зависимостей `ml`, которую `uv sync` ставит локально по умолчанию.
 
 Веса скачиваются в `ML_SEMANTIC_CACHE_DIR` и не коммитятся. Docker-образ ML загружает их на этапе
 сборки, поэтому рабочий контейнер не обращается во внешнюю сеть. AITUNNEL остаётся только частью

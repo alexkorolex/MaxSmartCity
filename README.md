@@ -36,9 +36,21 @@ Prometheus + Tempo + Loki ─> Grafana
 Нужны Docker и [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync --locked --group dev
+uv sync --locked
 uv run litestar up
 ```
+
+Зависимости разделены на группы в `pyproject.toml`, чтобы каждый образ получал только своё:
+
+| Группа | Кому нужна | Где ставится |
+|---|---|---|
+| `backend` | API, миграции, импорт данных, фоновые задачи | образ `Dockerfile` (`backend`, `migrate`, `ingest`) |
+| `ml` | ML-сервис: инференс, обучение baseline, FastEmbed | образ `Dockerfile.ml` |
+| `ml-data` | генераторы синтетических данных (`src/ml/data`) | только локально |
+| `dev` | тесты и линтеры | только локально |
+
+Локально `uv sync` ставит все группы. Новую зависимость добавляйте в группу того контейнера, который её
+импортирует, например `uv add --group backend <пакет>`.
 
 Команда `litestar up`:
 

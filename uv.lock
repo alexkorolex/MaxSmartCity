@@ -642,15 +642,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dishka"
-version = "1.10.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/97/da/b75b5fe665d16725e1d46e291c8dd4b0ed1731c7964f41087fda92f03d40/dishka-1.10.1.tar.gz", hash = "sha256:51fb624b9acc948b90f57128460061d1f3a1780121fe1c7d14c565e8bbff2083", size = 282008, upload-time = "2026-04-25T12:07:57.587Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2c/08/dd3259a319ba45c48d975caf237c830c7873a203288cb4ab186cc5bef585/dishka-1.10.1-py3-none-any.whl", hash = "sha256:84f40c1115eb391ce3fb558fd7946c5bcaf6361c35b77b7a185b7697a5720ec7", size = 120062, upload-time = "2026-04-25T12:07:59.153Z" },
-]
-
-[[package]]
 name = "distlib"
 version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1393,9 +1384,6 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-cryptography = [
-    { name = "cryptography" },
-]
 jwt = [
     { name = "cryptography" },
     { name = "pyjwt" },
@@ -1429,14 +1417,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/98/c1/abc6042f0b06cb9665a58df9a01d7a51cde73e2f32255e5b5017a93477b3/litestar_autowire-0.2.0-py3-none-any.whl", hash = "sha256:ba4811777fbb01a53ac2f02841f2ecd595740b80c7135fdc74443193623b1e79", size = 13027, upload-time = "2026-07-07T17:21:20.217Z" },
 ]
 
-[package.optional-dependencies]
-dishka = [
-    { name = "dishka" },
-]
-queues = [
-    { name = "litestar-queues" },
-]
-
 [[package]]
 name = "litestar-granian"
 version = "0.16.0"
@@ -1457,19 +1437,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/3f/b9/7e296aa1adada25cce8e5f89a996b0e38d852d93b1b656a2058226c542a2/litestar_htmx-0.5.0.tar.gz", hash = "sha256:e02d1a3a92172c874835fa3e6749d65ae9fc626d0df46719490a16293e2146fb", size = 119755, upload-time = "2025-06-11T21:19:45.573Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f2/24/8d99982f0aa9c1cd82073c6232b54a0dbe6797c7d63c0583a6c68ee3ddf2/litestar_htmx-0.5.0-py3-none-any.whl", hash = "sha256:92833aa47e0d0e868d2a7dbfab75261f124f4b83d4f9ad12b57b9a68f86c50e6", size = 9970, upload-time = "2025-06-11T21:19:44.465Z" },
-]
-
-[[package]]
-name = "litestar-queues"
-version = "0.12.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "litestar" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/72/4b8b3be610ca19754c881bea2098e0441cd0898865c19ea76a6c0e729876/litestar_queues-0.12.0.tar.gz", hash = "sha256:ef17f2e529a2dd8f97c3dfd8672deb1808f38023102a1b1431a82d116f11025a", size = 1234527, upload-time = "2026-09-17T17:48:07.1Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/a6/878a6af23d2a577e73eebceed6c7681acb78a08e4356e1f80e53764ed484/litestar_queues-0.12.0-py3-none-any.whl", hash = "sha256:b36c5b0afe1a6a3bf37c346b9ab468834e6c6e4b9d9c70421f1039163ef5c848", size = 401366, upload-time = "2026-09-17T17:48:05.107Z" },
 ]
 
 [[package]]
@@ -1576,34 +1543,24 @@ wheels = [
 name = "maxsmartcity"
 version = "0.1.0"
 source = { virtual = "." }
-dependencies = [
+
+[package.dev-dependencies]
+backend = [
     { name = "advanced-alchemy" },
     { name = "aioboto3" },
     { name = "aiohttp" },
     { name = "alembic" },
     { name = "asyncpg" },
-    { name = "faker" },
     { name = "geoalchemy2" },
     { name = "httpx" },
-    { name = "joblib" },
-    { name = "litestar", extra = ["cryptography", "jwt", "opentelemetry", "prometheus", "redis", "sqlalchemy", "structlog"] },
-    { name = "litestar-autowire", extra = ["dishka", "queues"] },
+    { name = "litestar", extra = ["jwt", "opentelemetry", "prometheus", "redis", "sqlalchemy", "structlog"] },
+    { name = "litestar-autowire" },
     { name = "litestar-granian" },
-    { name = "openai" },
     { name = "opentelemetry-exporter-otlp-proto-grpc" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
-    { name = "pymorphy3" },
     { name = "python-dotenv" },
-    { name = "scikit-learn" },
     { name = "sqlalchemy" },
 ]
-
-[package.optional-dependencies]
-semantic = [
-    { name = "fastembed" },
-]
-
-[package.dev-dependencies]
 dev = [
     { name = "fakeredis" },
     { name = "pre-commit" },
@@ -1611,39 +1568,62 @@ dev = [
     { name = "ruff" },
     { name = "ty" },
 ]
+ml = [
+    { name = "fastembed" },
+    { name = "granian" },
+    { name = "httpx" },
+    { name = "joblib" },
+    { name = "litestar" },
+    { name = "numpy" },
+    { name = "scikit-learn" },
+]
+ml-data = [
+    { name = "faker" },
+    { name = "openai" },
+    { name = "pymorphy3" },
+    { name = "python-dotenv" },
+]
 
 [package.metadata]
-requires-dist = [
+
+[package.metadata.requires-dev]
+backend = [
     { name = "advanced-alchemy", specifier = ">=1.11.0" },
     { name = "aioboto3", specifier = ">=15.5.0" },
     { name = "aiohttp", specifier = ">=3.14.3" },
     { name = "alembic", specifier = ">=1.16" },
     { name = "asyncpg", specifier = ">=0.30" },
-    { name = "faker", specifier = ">=40.0" },
-    { name = "fastembed", marker = "extra == 'semantic'", specifier = ">=0.7,<1" },
     { name = "geoalchemy2", specifier = ">=0.18" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "joblib", specifier = ">=1.4" },
-    { name = "litestar", extras = ["cryptography", "jwt", "opentelemetry", "prometheus", "redis", "sqlalchemy", "structlog"], specifier = ">=2.24.0" },
-    { name = "litestar-autowire", extras = ["dishka", "queues"], specifier = ">=0.2.0" },
+    { name = "litestar", extras = ["jwt", "opentelemetry", "prometheus", "redis", "sqlalchemy", "structlog"], specifier = ">=2.24.0" },
+    { name = "litestar-autowire", specifier = ">=0.2.0" },
     { name = "litestar-granian", specifier = ">=0.16.0" },
-    { name = "openai", specifier = ">=1.0" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.44.0" },
     { name = "opentelemetry-instrumentation-sqlalchemy", specifier = ">=0.65b0" },
-    { name = "pymorphy3", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
-    { name = "scikit-learn", specifier = ">=1.5,<2" },
     { name = "sqlalchemy", specifier = ">=2.0.54" },
 ]
-provides-extras = ["semantic"]
-
-[package.metadata.requires-dev]
 dev = [
     { name = "fakeredis", specifier = ">=2.26.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.8" },
     { name = "ty", specifier = ">=0.0.82" },
+]
+ml = [
+    { name = "fastembed", specifier = ">=0.7,<1" },
+    { name = "granian", specifier = ">=2.8" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "joblib", specifier = ">=1.4" },
+    { name = "litestar", specifier = ">=2.24.0" },
+    { name = "numpy", specifier = ">=2.0" },
+    { name = "scikit-learn", specifier = ">=1.5,<2" },
+]
+ml-data = [
+    { name = "faker", specifier = ">=40.0" },
+    { name = "openai", specifier = ">=1.0" },
+    { name = "pymorphy3", specifier = ">=2.0" },
+    { name = "python-dotenv", specifier = ">=1.2.3" },
 ]
 
 [[package]]

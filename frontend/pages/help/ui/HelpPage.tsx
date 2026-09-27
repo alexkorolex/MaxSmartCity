@@ -37,7 +37,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 
 export function HelpPage() {
   return (
-    <PageLayout title="Помощь" subtitle="Ответы на частые вопросы" backTo={ROUTES.profile} withNavSpacing={false}>
+    <PageLayout title="Помощь" subtitle="Ответы на частые вопросы" backTo={ROUTES.profile} backLabel="Профиль" withNavSpacing={false}>
       <section className="surface-card faq-list">
         {FAQ.map((item) => <FaqItem key={item.question} {...item} />)}
       </section>

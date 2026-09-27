@@ -7,7 +7,7 @@ import { REPORT_STATUS_LABELS, REPORT_STATUS_TONES, type ReportStatus } from '@/
 import { CompleteIncidentCard } from '@/features/complete-incident';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon, AsyncState, CommentIcon, EmptyState, Pill } from '@/shared/ui';
+import { AsyncState, Breadcrumbs, CommentIcon, EmptyState, Pill } from '@/shared/ui';
 
 import './IncidentDetailPage.css';
 
@@ -30,12 +30,7 @@ export function IncidentDetailPage() {
 
   return (
     <>
-      <div className="page-back">
-        <Link to={ROUTES.incidents} className="btn btn--ghost btn--small">
-          <ArrowLeftIcon width={16} height={16} />
-          К списку инцидентов
-        </Link>
-      </div>
+      <Breadcrumbs items={[{ label: 'Инциденты', to: ROUTES.incidents }, { label: incident.data?.title ?? 'Карточка инцидента' }]} />
 
       <AsyncState isLoading={incident.isLoading} error={incident.error} onRetry={() => void incident.refetch()}>
         {incident.data && (

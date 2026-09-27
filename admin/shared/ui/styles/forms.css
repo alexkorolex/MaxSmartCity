@@ -30,6 +30,16 @@
 .field::placeholder { color: var(--text-muted); }
 textarea.field { height: auto; min-height: 112px; padding: 11px 13px; resize: vertical; line-height: 1.5; }
 
+[data-theme="dark"] .field {
+    background: color-mix(in srgb, var(--background-secondary) 88%, var(--surface));
+    border-color: color-mix(in srgb, var(--border-soft) 72%, transparent);
+}
+
+[data-theme="dark"] .field:hover {
+    background: var(--surface-hover);
+    border-color: var(--border);
+}
+
 .field-label { display: block; margin-bottom: 7px; color: var(--text-secondary); font-size: 12px; font-weight: 680; }
 .checkbox-field { display: inline-flex; align-items: flex-start; gap: 9px; width: fit-content; color: var(--text-secondary); font-size: 13px; line-height: 1.45; cursor: pointer; }
 .checkbox-field input { width: 17px; height: 17px; margin: 1px 0 0; flex: none; accent-color: var(--blue-strong); }

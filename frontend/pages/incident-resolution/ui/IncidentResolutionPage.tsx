@@ -36,7 +36,7 @@ export function IncidentResolutionPage() {
   };
 
   return (
-    <PageLayout title="Проверка решения" subtitle="Подтвердите результат работ" backTo={ROUTES.incident(incidentId)} withNavSpacing={false}>
+    <PageLayout title="Проверка решения" subtitle="Подтвердите результат работ" backTo={ROUTES.incident(incidentId)} backLabel="Инцидент" withNavSpacing={false}>
       <AsyncState
         isLoading={incident.isLoading || myReport.isLoading}
         error={incident.error ?? myReport.error}

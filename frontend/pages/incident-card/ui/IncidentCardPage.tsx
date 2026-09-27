@@ -21,7 +21,7 @@ export function IncidentCardPage() {
   const myReport = useMyIncidentReport(incidentId);
 
   return (
-    <PageLayout title="Инцидент" subtitle="Подробности и текущий статус" backTo={ROUTES.myHouse} withNavSpacing={false}>
+    <PageLayout title="Инцидент" subtitle="Подробности и текущий статус" backTo={ROUTES.myHouse} backLabel="Мой дом" withNavSpacing={false}>
       <AsyncState isLoading={incident.isLoading} error={incident.error} onRetry={() => incident.refetch()}>
         {incident.data && (
           <>

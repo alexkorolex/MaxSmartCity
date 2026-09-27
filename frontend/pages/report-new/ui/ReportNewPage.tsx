@@ -4,7 +4,7 @@ import { ROUTES } from '@/shared/routes';
 
 export function ReportNewPage() {
   return (
-    <PageLayout title="Новое обращение" subtitle="Опишите ситуацию — это займёт пару минут" backTo={ROUTES.home} withNavSpacing={false}>
+    <PageLayout title="Новое обращение" subtitle="Опишите ситуацию — это займёт пару минут" backTo={ROUTES.home} backLabel="Главная" withNavSpacing={false}>
       <ReportForm />
     </PageLayout>
   );

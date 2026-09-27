@@ -33,6 +33,7 @@ export function ReportCardPage() {
       title="Обращение"
       subtitle="Подробности вашего обращения"
       backTo={ROUTES.myReports}
+      backLabel="Обращения"
       withNavSpacing={false}
     >
       <AsyncState isLoading={report.isLoading} error={report.error} onRetry={() => report.refetch()}>

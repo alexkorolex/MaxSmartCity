@@ -22,6 +22,11 @@
 .admin-sidebar .admin-sidebar__close { display: none; flex: 0 0 auto; }
 .admin-nav { display: flex; flex-direction: column; gap: 4px; }
 
+[data-theme="dark"] .admin-sidebar {
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border-right-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
 .admin-nav__link { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding: 10px 12px; color: var(--text-secondary); border: 1px solid transparent; border-radius: 12px; font-size: 13px; font-weight: 650; transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast); }
 .admin-nav__link svg { flex: 0 0 auto; color: var(--text-muted); }
 .admin-nav__link:hover { color: var(--text-primary); background: var(--surface-hover); transform: translateX(2px); }

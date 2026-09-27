@@ -54,3 +54,13 @@ test('report chat owns the viewport instead of rendering as a content card', () 
   assert.match(pageStyles, /height:\s*100dvh/);
   assert.doesNotMatch(chat, /surface-card report-chat/);
 });
+
+test('dark theme remaps MAX UI surfaces and contextual back navigation', () => {
+  const maxUi = read('app/styles/max-ui.css');
+  const pageLayout = read('shared/ui/page-layout/PageLayout.tsx');
+
+  assert.match(maxUi, /--background-card:\s*var\(--surface-raised\)/);
+  assert.match(maxUi, /\[data-theme="dark"\] \.app-page/);
+  assert.match(pageLayout, /backLabel/);
+  assert.match(pageLayout, /page-heading__back-label/);
+});

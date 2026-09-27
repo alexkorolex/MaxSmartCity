@@ -20,7 +20,7 @@ export function SettingsPage() {
   const updateProfile = useUpdateMyProfile();
 
   return (
-    <PageLayout title="Настройки" subtitle="Внешний вид и уведомления" backTo={ROUTES.profile} withNavSpacing={false}>
+    <PageLayout title="Настройки" subtitle="Внешний вид и уведомления" backTo={ROUTES.profile} backLabel="Профиль" withNavSpacing={false}>
       <ThemeSwitch />
 
       <AsyncState isLoading={profile.isLoading} error={profile.error}>

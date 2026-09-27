@@ -13,7 +13,7 @@ export function NewsItemPage() {
   const news = useNewsItem(newsId);
 
   return (
-    <PageLayout title="Новость" backTo={ROUTES.news} withNavSpacing={false}>
+    <PageLayout title="Новость" backTo={ROUTES.news} backLabel="Новости" withNavSpacing={false}>
       <AsyncState isLoading={news.isLoading} error={news.error} onRetry={() => news.refetch()}>
         {news.data && (
           <Flex className="surface-card reading-card" direction="column" gap="var(--space-2)">

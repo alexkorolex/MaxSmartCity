@@ -26,6 +26,21 @@ export function useReportForm(onSubmitted: (reportId: string) => void) {
   const createReport = useCreateReport();
   const [createdReportId, setCreatedReportId] = useState<string | null>(null);
 
+  function updateCategoryCode(value: string | null) {
+    setCategoryCode(value);
+    setValidationError(null);
+  }
+
+  function updateText(value: string) {
+    setText(value);
+    setValidationError(null);
+  }
+
+  function updateHouseId(value: string | null) {
+    setHouseId(value);
+    setValidationError(null);
+  }
+
   const submit = () => {
     if (text.trim().length < 10) {
       setValidationError('Опишите проблему подробнее — минимум 10 символов');
@@ -89,15 +104,15 @@ export function useReportForm(onSubmitted: (reportId: string) => void) {
 
   return {
     categoryCode,
-    setCategoryCode,
+    setCategoryCode: updateCategoryCode,
     text,
-    setText,
+    setText: updateText,
     urgency,
     setUrgency,
     problemContinues,
     setProblemContinues,
     houseId,
-    setHouseId,
+    setHouseId: updateHouseId,
     isEditingHouse,
     setIsEditingHouse,
     photoPicker,

@@ -1,4 +1,4 @@
-import { Container, Flex, IconButton, Typography } from '@maxhub/max-ui';
+import { Container, Flex, Typography } from '@maxhub/max-ui';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ interface PageLayoutProps {
   subtitle?: string;
   action?: ReactNode;
   backTo?: string;
+  backLabel?: string;
   eyebrow?: string;
   children: ReactNode;
   withNavSpacing?: boolean;
@@ -20,15 +21,16 @@ interface PageLayoutProps {
 
 type PageHeadingProps = Omit<PageLayoutProps, 'children' | 'withNavSpacing' | 'fill'>;
 
-function PageHeading({ title, subtitle, action, backTo, eyebrow }: PageHeadingProps) {
+function PageHeading({ title, subtitle, action, backTo, backLabel = 'Назад', eyebrow }: PageHeadingProps) {
   if (!title && !action) return null;
 
   return (
     <header className="page-heading">
       {backTo && (
-        <IconButton asChild variant="ghost" size="small" aria-label="Назад">
-          <Link to={backTo}><ArrowLeftIcon /></Link>
-        </IconButton>
+        <Link className="page-heading__back" to={backTo} aria-label={backLabel}>
+          <ArrowLeftIcon />
+          <span className="page-heading__back-label">{backLabel}</span>
+        </Link>
       )}
       <div className="page-heading__copy">
         {eyebrow && <span className="page-heading__eyebrow">{eyebrow}</span>}

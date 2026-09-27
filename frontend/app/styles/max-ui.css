@@ -1,8 +1,37 @@
 /* Stable semantic MAX UI tokens, customized once at the application boundary. */
 .app-page {
+    --text-primary: #11181C;
+    --text-secondary: #526067;
+    --text-muted: #5C6D75;
+    --background-secondary: #EAF0F3;
+    --background-card: var(--surface-raised);
+    --background-primary: var(--background);
+    --background-surface: var(--background);
+    --background-tertiary: var(--background-secondary);
     --button-primary: var(--action-primary);
+    --button-secondary: var(--background-secondary);
+    --button-secondary-contrast: var(--background-secondary);
+    --button-ghost: transparent;
     --states-button-primary-hover: var(--action-primary-hover);
     --states-button-primary-pressed: var(--action-primary-pressed);
+    --states-button-secondary-contrast-hover: var(--surface-hover);
+    --states-button-secondary-contrast-pressed: var(--background-secondary);
+    --states-button-ghost-hover: color-mix(in srgb, var(--text-primary) 5%, transparent);
+    --states-button-ghost-pressed: color-mix(in srgb, var(--text-primary) 9%, transparent);
     --controls-active: var(--action-primary);
+    --controls-inactive: color-mix(in srgb, var(--text-muted) 18%, transparent);
+    --divider-primary: var(--border);
+    --divider-secondary: var(--border-soft);
+    --icon-primary: var(--text-primary);
+    --icon-tertiary: var(--text-muted);
+    --icon-themed: var(--blue-strong);
+    --text-tertiary: var(--text-muted);
     --text-themed: var(--blue-strong);
+}
+
+[data-theme="dark"] .app-page {
+    --text-primary: #F2F8FA;
+    --text-secondary: #C0CDD2;
+    --text-muted: #8FA2A9;
+    --background-secondary: #101F26;
 }

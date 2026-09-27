@@ -96,3 +96,16 @@ test('report chat uses an edge-to-edge workspace instead of a nested card', () =
   assert.doesNotMatch(chat, /className="card report-chat-card"/);
   assert.match(chat, /report-chat-card__back/);
 });
+
+test('detail pages use the shared breadcrumb navigation', () => {
+  const sharedExports = read('shared/ui/index.ts');
+  const detailPages = [
+    'pages/incident-detail/ui/IncidentDetailPage.tsx',
+    'pages/organization-detail/ui/OrganizationDetailPage.tsx',
+    'pages/report-detail/ui/ReportDetailPage.tsx',
+    'pages/resident-detail/ui/ResidentDetailPage.tsx',
+  ];
+
+  assert.match(sharedExports, /Breadcrumbs/);
+  for (const page of detailPages) assert.match(read(page), /<Breadcrumbs/);
+});

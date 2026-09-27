@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import {
   AUTHORITY_KIND_LABELS,
@@ -15,7 +15,7 @@ import { AddOrganizationEmployeeForm } from '@/features/add-organization-employe
 import { OrganizationChannelsCard } from '@/features/organization-channels';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
+import { AsyncState, Breadcrumbs, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 import { StaffDirectoryTable } from '@/widgets/staff-directory';
 
 export function OrganizationDetailPage() {
@@ -38,12 +38,12 @@ export function OrganizationDetailPage() {
   return (
     <>
       {canBrowseOrganizations(principal) && !(isAuthority(principal) && isOwn) && (
-        <div className="page-back">
-          <Link to={ROUTES.organizations} className="btn btn--ghost btn--small">
-            <ArrowLeftIcon width={16} height={16} />
-            {isAuthority(principal) ? 'К управляющим компаниям' : 'К списку организаций'}
-          </Link>
-        </div>
+        <Breadcrumbs
+          items={[
+            { label: isAuthority(principal) ? 'Управляющие компании' : 'Организации', to: ROUTES.organizations },
+            { label: org?.name ?? 'Карточка организации' },
+          ]}
+        />
       )}
 
       {registration?.organization_id === organizationId && (

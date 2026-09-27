@@ -23,6 +23,13 @@ function applyToDocument(resolved: ResolvedTheme): void {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
+function resolveImmediately(value: ThemePreference): ResolvedTheme {
+  if (value !== 'system') return value;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+applyToDocument(resolveImmediately(preference));
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

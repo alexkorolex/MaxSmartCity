@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   PRIORITY_LABELS,
@@ -10,7 +10,7 @@ import {
 import { useResident } from '@/entities/resident';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon, AsyncState, EmptyState, InboxIcon, Pill } from '@/shared/ui';
+import { AsyncState, Breadcrumbs, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 
 export function ResidentDetailPage() {
   const { residentId = '' } = useParams();
@@ -20,12 +20,7 @@ export function ResidentDetailPage() {
 
   return (
     <>
-      <div className="page-back">
-        <Link to={ROUTES.residents} className="btn btn--ghost btn--small">
-          <ArrowLeftIcon width={16} height={16} />
-          К списку жителей
-        </Link>
-      </div>
+      <Breadcrumbs items={[{ label: 'Жители', to: ROUTES.residents }, { label: resident.data?.display_name ?? 'Карточка жителя' }]} />
 
       <AsyncState isLoading={resident.isLoading} error={resident.error} onRetry={() => void resident.refetch()}>
         {resident.data && (

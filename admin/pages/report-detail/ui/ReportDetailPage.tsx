@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import {
   PRIORITY_LABELS,
@@ -12,13 +12,12 @@ import {
 import { useResident } from '@/entities/resident';
 import { formatDateTime } from '@/shared/lib';
 import { ROUTES } from '@/shared/routes';
-import { ArrowLeftIcon, AsyncState, ChevronRightIcon, CommentIcon, EmptyState, InboxIcon, Pill } from '@/shared/ui';
+import { AsyncState, Breadcrumbs, ChevronRightIcon, CommentIcon, EmptyState, InboxIcon, Pill } from '@/shared/ui';
 
 import './ReportDetailPage.css';
 
 export function ReportDetailPage() {
   const { reportId = '' } = useParams();
-  const navigate = useNavigate();
   const report = useReport(reportId);
   const attachments = useReportAttachments(reportId);
   const categories = useProblemCategories();
@@ -30,12 +29,7 @@ export function ReportDetailPage() {
 
   return (
     <>
-      <div className="page-back">
-        <button type="button" className="btn btn--ghost btn--small" onClick={() => navigate(-1)}>
-          <ArrowLeftIcon width={16} height={16} />
-          Назад
-        </button>
-      </div>
+      <Breadcrumbs items={[{ label: 'Сообщения', to: ROUTES.messages }, { label: 'Обращение' }]} />
 
       <AsyncState isLoading={report.isLoading} error={report.error} onRetry={() => void report.refetch()}>
         {report.data && (

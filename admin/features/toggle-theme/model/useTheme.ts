@@ -26,6 +26,8 @@ function applyToDocument(resolved: ResolvedTheme): void {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
+applyToDocument(preference === 'system' ? systemScheme() : preference);
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   const media = window.matchMedia('(prefers-color-scheme: dark)');

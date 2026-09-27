@@ -55,6 +55,7 @@ export function SelectHousePage() {
           : 'Найдите новый адрес — текущий изменится только после сохранения'
       }
       backTo={isOnboarding ? undefined : ROUTES.profile}
+      backLabel="Профиль"
       withNavSpacing={false}
     >
       <AsyncState isLoading={profile.isLoading} error={profile.error}>

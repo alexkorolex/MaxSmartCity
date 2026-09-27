@@ -34,6 +34,11 @@ a.surface-card:active {
     border-radius: var(--radius-md);
 }
 
+[data-theme="dark"] :is(.surface-card, .content-card) {
+    border-color: color-mix(in srgb, var(--border) 72%, transparent);
+    box-shadow: var(--shadow-sm);
+}
+
 @media (hover: hover) {
     a.surface-card:hover {
         transform: translateY(-2px);

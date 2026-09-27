@@ -39,6 +39,11 @@
 .detail-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .page-back { display: flex; }
 
+[data-theme="dark"] :is(.card, .stat-card) {
+    border-color: color-mix(in srgb, var(--border) 74%, transparent);
+    box-shadow: var(--shadow-sm);
+}
+
 @media (max-width: 640px) {
     .card { border-radius: 17px; }
     .card__header { flex-direction: column; min-height: auto; padding: 17px 18px; }

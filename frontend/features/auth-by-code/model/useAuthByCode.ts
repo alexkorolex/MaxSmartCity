@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { canSignInWithMaxWebApp, loginByCode, setSession, signInWithMaxWebApp } from '@/entities/session';
 import { fetchMyProfile } from '@/entities/user';
 import { getMaxBridgeStartParam } from '@/shared/lib';
-import { ROUTES } from '@/shared/routes';
+import { consumeMaxStartRoute, peekMaxStartRoute, ROUTES, safeNextPath } from '@/shared/routes';
 
 export function useAuthByCode() {
   const [searchParams] = useSearchParams();
@@ -13,7 +13,9 @@ export function useAuthByCode() {
   // Opened inside MAX (via the bot's `open_app` button): the code travels as the MAX
   // Bridge start_param, not a URL query param. Falls back to `?code=` for the plain
   // browser path (the bot's `link` button, or a manually shared URL).
-  const code = getMaxBridgeStartParam() ?? searchParams.get('code');
+  const startParam = getMaxBridgeStartParam();
+  const code = searchParams.get('code') ?? (peekMaxStartRoute() ? null : startParam);
+  const nextPath = safeNextPath(searchParams.get('next'));
   const viaMax = canSignInWithMaxWebApp();
   const attempted = useRef(false);
 
@@ -36,7 +38,7 @@ export function useAuthByCode() {
       } catch {
         /* fall through to home */
       }
-      navigate(ROUTES.home, { replace: true });
+      navigate(consumeMaxStartRoute() ?? nextPath ?? ROUTES.home, { replace: true });
     },
   });
 

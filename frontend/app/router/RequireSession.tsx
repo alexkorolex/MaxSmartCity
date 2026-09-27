@@ -1,7 +1,9 @@
 import { Button, Flex, Spinner, Typography } from '@maxhub/max-ui';
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 
 import { useMaxWebAppSignIn, useSession } from '@/entities/session';
+import { consumeMaxStartRoute } from '@/shared/routes';
 import { CityIcon, PageLayout } from '@/shared/ui';
 
 import './RequireSession.css';
@@ -52,6 +54,13 @@ function SigningInPlaceholder() {
 export function RequireSession() {
   const { isAuthenticated } = useSession();
   const signingIn = useMaxWebAppSignIn(!isAuthenticated);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const route = consumeMaxStartRoute();
+    if (route) navigate(route);
+  }, [isAuthenticated, navigate]);
 
   if (!isAuthenticated) return signingIn ? <SigningInPlaceholder /> : <OpenBotPrompt />;
 

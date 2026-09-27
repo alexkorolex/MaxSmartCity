@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.models import utc_now
 from src.domains.identity.models import Resident
 from src.domains.notifications.models import Notification
-from src.max_bot.notify import max_bot_from_environment, reachable_in_max, send_to_resident
+from src.max_bot.notify import (
+    max_bot_from_environment,
+    notification_target,
+    reachable_in_max,
+    send_to_resident,
+)
 
 MAX_PUSH_AGE = timedelta(hours=6)
 """Older unsent notifications (the job was off, MAX was down) are no longer news - they
@@ -35,6 +40,11 @@ async def push_resident_notifications(session: AsyncSession, *, limit: int = 100
     for notification, resident in rows:
         notification.pushed_at = now
         if bot and reachable_in_max(resident) and notification.created_at >= now - MAX_PUSH_AGE:
-            await send_to_resident(resident, f"{notification.title}\n\n{notification.body}", bot)
+            await send_to_resident(
+                resident,
+                f"{notification.title}\n\n{notification.body}",
+                bot,
+                notification_target(notification),
+            )
     await session.flush()
     return len(rows)

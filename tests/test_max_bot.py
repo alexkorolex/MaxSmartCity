@@ -13,8 +13,11 @@ from litestar.exceptions import NotAuthorizedException
 from litestar.handlers.base import BaseRouteHandler
 from litestar.stores.redis import RedisStore
 
+from src.domains.identity.models import Resident
 from src.domains.identity.services import ResidentService
-from src.max_bot import certs, dedup, handlers, startup
+from src.domains.notifications.enums import NotificationType
+from src.domains.notifications.models import Notification
+from src.max_bot import certs, dedup, handlers, notify, startup
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.guards import require_max_webhook_secret
 from src.max_bot.settings import MaxBotSettings
@@ -161,12 +164,10 @@ async def test_handle_bot_started_registers_resident_and_sends_welcome(
     assert len(sent) == 1
     assert sent[0]["chat_id"] == 5551234
     assert "Добро пожаловать" in sent[0]["text"]
-    open_app_button, link_button = sent[0]["attachments"][0]["payload"]["buttons"][0]
+    (open_app_button,) = sent[0]["attachments"][0]["payload"]["buttons"][0]
     assert open_app_button["type"] == "open_app"
     assert open_app_button["web_app"] == FAKE_BOT_USERNAME
     assert open_app_button["payload"]
-    assert link_button["type"] == "link"
-    assert link_button["url"].startswith("https://app.example.com/auth/max?code=")
 
 
 async def test_handle_message_created_start_command_sends_welcome(
@@ -194,7 +195,7 @@ async def test_handle_message_created_start_command_sends_welcome(
     assert service.upserts == [{"max_user_id": 7, "username": "res", "display_name": "Res", "chat_id": 7007}]
     assert len(sent) == 1
     assert "Добро пожаловать" in sent[0]["text"]
-    assert sent[0]["attachments"][0]["type"] == "inline_keyboard"
+    assert [button["type"] for button in sent[0]["attachments"][0]["payload"]["buttons"][0]] == ["open_app"]
 
 
 async def test_handle_message_created_ignores_bot_senders(
@@ -560,3 +561,118 @@ async def test_login_button_leaves_out_open_in_max_when_the_username_is_unknown(
     row = buttons[0]["payload"]["buttons"][0]
     assert [button["type"] for button in row] == ["link"]
     assert any(record.exc_info for record in caplog.records if "username" in record.getMessage())
+
+
+REPORT_ID = UUID("22222222-2222-2222-2222-222222222222")
+INCIDENT_ID = UUID("33333333-3333-3333-3333-333333333333")
+
+
+@pytest.mark.parametrize(
+    ("kind", "report_id", "incident_id", "start_param", "path", "button_text"),
+    [
+        (
+            NotificationType.CHAT_MESSAGE,
+            REPORT_ID,
+            None,
+            f"report_{REPORT_ID}_chat",
+            f"/reports/{REPORT_ID}/chat",
+            "Открыть чат",
+        ),
+        (
+            NotificationType.RESOLUTION_REQUESTED,
+            REPORT_ID,
+            INCIDENT_ID,
+            f"incident_{INCIDENT_ID}_resolution",
+            f"/incidents/{INCIDENT_ID}/resolution",
+            "Подтвердить решение",
+        ),
+        (
+            NotificationType.REPORT_STATUS_CHANGED,
+            REPORT_ID,
+            INCIDENT_ID,
+            f"report_{REPORT_ID}",
+            f"/reports/{REPORT_ID}",
+            "Открыть обращение",
+        ),
+        (
+            NotificationType.INCIDENT_STATUS_CHANGED,
+            None,
+            INCIDENT_ID,
+            f"incident_{INCIDENT_ID}",
+            f"/incidents/{INCIDENT_ID}",
+            "Открыть заявку",
+        ),
+        (NotificationType.NEWS, None, None, "", "/", "Открыть в MAX"),
+    ],
+)
+def test_notification_target_points_to_the_related_screen(
+    kind: NotificationType,
+    report_id: UUID | None,
+    incident_id: UUID | None,
+    start_param: str,
+    path: str,
+    button_text: str,
+) -> None:
+    notification = Notification(type=kind, report_id=report_id, incident_id=incident_id, title="t", body="b")
+
+    target = notify.notification_target(notification)
+
+    assert (target.start_param, target.path, target.button_text) == (start_param, path, button_text)
+
+
+def _resident() -> Resident:
+    return Resident(id=UUID("11111111-1111-1111-1111-111111111111"), max_user_id=42, max_chat_id=4242)
+
+
+async def test_notification_opens_the_chat_inside_max(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    target = notify.AppTarget(f"report_{REPORT_ID}_chat", f"/reports/{REPORT_ID}/chat", "Открыть чат")
+
+    delivered = await notify.send_to_resident(
+        _resident(), "Новое сообщение", notify.MaxBot(settings, MaxClient(settings)), target
+    )
+
+    assert delivered
+    assert sent[0]["text"] == "Новое сообщение"
+    assert sent[0]["attachments"][0]["payload"]["buttons"][0] == [
+        {
+            "type": "open_app",
+            "text": "Открыть чат",
+            "web_app": FAKE_BOT_USERNAME,
+            "payload": target.start_param,
+        }
+    ]
+
+
+async def test_notification_falls_back_to_a_browser_link_to_the_same_screen(
+    settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    async def fake_send_message(self: MaxClient, **kwargs: object) -> None:
+        sent.append(kwargs)
+
+    async def unknown_username(_self: MaxClient) -> None:
+        return None
+
+    monkeypatch.setattr(MaxClient, "send_message", fake_send_message)
+    monkeypatch.setattr(MaxClient, "bot_username", unknown_username)
+    target = notify.AppTarget(f"report_{REPORT_ID}_chat", f"/reports/{REPORT_ID}/chat", "Открыть чат")
+
+    await notify.send_to_resident(
+        _resident(), "Новое сообщение", notify.MaxBot(settings, MaxClient(settings)), target
+    )
+
+    ((button,),) = [sent[0]["attachments"][0]["payload"]["buttons"][0]]
+    assert button["type"] == "link"
+    assert button["text"] == "Открыть чат"
+    assert button["url"].startswith("https://app.example.com/auth/max?code=")
+    assert "next=%2Freports%2F22222222-2222-2222-2222-222222222222%2Fchat" in button["url"]
+    assert sent[0]["text"].endswith(notify.RELOGIN_HINT)

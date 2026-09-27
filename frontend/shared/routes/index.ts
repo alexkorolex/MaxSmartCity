@@ -16,3 +16,6 @@ export const ROUTES = {
   settings: '/settings',
   help: '/help',
 } as const;
+
+export { consumeMaxStartRoute, peekMaxStartRoute } from './maxStartRoute';
+export { routeFromStartParam, safeNextPath } from './startParam';

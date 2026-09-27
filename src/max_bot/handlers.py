@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from urllib.parse import urlencode
 
 from src.database.logging import database_action
 from src.domains.identity.services import ResidentService
@@ -55,17 +56,28 @@ def _display_name(first_name: str | None, last_name: str | None) -> str | None:
     return " ".join(part for part in (first_name, last_name) if part) or None
 
 
-async def login_button(code: str, settings: MaxBotSettings, client: MaxClient) -> list[dict[str, Any]]:
-    login_url = f"{settings.web_app_login_url}?code={code}"
+def keyboard(row: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{"type": "inline_keyboard", "payload": {"buttons": [row]}}]
+
+
+def browser_login_url(settings: MaxBotSettings, code: str, next_path: str | None = None) -> str:
+    query = urlencode({"code": code, "next": next_path} if next_path else {"code": code})
+    return f"{settings.web_app_login_url}?{query}"
+
+
+async def login_button(
+    code: str, settings: MaxBotSettings, client: MaxClient, *, browser_link: bool = True
+) -> list[dict[str, Any]]:
     row: list[dict[str, Any]] = []
 
     bot_username = await client.bot_username()
     if bot_username:
         row.append({"type": "open_app", "text": "Открыть в MAX", "web_app": bot_username, "payload": code})
 
-    row.append({"type": "link", "text": "Открыть в браузере", "url": login_url})
+    if browser_link or not row:
+        row.append({"type": "link", "text": "Открыть в браузере", "url": browser_login_url(settings, code)})
 
-    return [{"type": "inline_keyboard", "payload": {"buttons": [row]}}]
+    return keyboard(row)
 
 
 async def _issue_login_button(
@@ -78,6 +90,7 @@ async def _issue_login_button(
     settings: MaxBotSettings,
     text: str,
     chat_id: int | None,
+    browser_link: bool,
 ) -> None:
     with database_action("upsert", "identity.Resident"):
         resident = await resident_service.upsert_by_max_user_id(
@@ -89,7 +102,7 @@ async def _issue_login_button(
         user_id=max_user_id,
         chat_id=chat_id,
         text=text,
-        attachments=await login_button(code, settings, client),
+        attachments=await login_button(code, settings, client, browser_link=browser_link),
     )
 
 
@@ -107,6 +120,7 @@ async def handle_bot_started(
         settings=settings,
         text=WELCOME_TEXT,
         chat_id=update.get("chat_id"),
+        browser_link=False,
     )
 
 
@@ -151,6 +165,7 @@ async def handle_message_created(
             settings=settings,
             text=WELCOME_TEXT if text in START_COMMANDS else LOGIN_TEXT,
             chat_id=chat_id,
+            browser_link=text in LOGIN_COMMANDS,
         )
         return
 

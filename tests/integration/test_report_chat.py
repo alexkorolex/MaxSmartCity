@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 from src.domains.identity.models import Resident
 from src.domains.notifications.resident_push import push_resident_notifications
 from src.domains.reports.chat import ChatEventBus, notify_unread_chat_messages
+from src.max_bot.notify import AppTarget
 from tests.integration.test_housing_api import _headers, _register_housing_organization
 from tests.integration.test_ingestion import rows
 from tests.integration.test_resident_api import (  # noqa: F401
@@ -98,10 +99,10 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert reply.json()["organization_name"] == "УК Чат"
 
     # The resident is away: after a minute unread, they're told in MAX and in the app.
-    delivered: list[tuple[int | None, str]] = []
+    delivered: list[tuple[int | None, str, str]] = []
 
-    async def fake_send(resident: Resident, text: str, _bot: object) -> bool:
-        delivered.append((resident.max_chat_id, text))
+    async def fake_send(resident: Resident, text: str, _bot: object, target: AppTarget) -> bool:
+        delivered.append((resident.max_chat_id, text, target.start_param))
         return True
 
     monkeypatch.setattr("src.domains.notifications.resident_push.send_to_resident", fake_send)
@@ -125,8 +126,9 @@ def test_resident_and_organization_chat_and_are_told_when_away(
 
     assert _run_notifier(database_url) == 2
     assert _run_notifier(database_url, push_resident_notifications) == 1
-    ((chat_id, text),) = delivered
+    ((chat_id, text, start_param),) = delivered
     assert chat_id == 90210
+    assert start_param == f"report_{report}_chat"
     assert "Электрик приедет сегодня до 18:00" in text
     in_app = api_client.get("/notifications/", headers=resident).json()
     assert [item["type"] for item in in_app] == ["CHAT_MESSAGE"]

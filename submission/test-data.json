@@ -4,7 +4,8 @@
   "house_lookup": {
     "city": "Брянск",
     "query": "Евдокимова 8",
-    "source_file": "ingestion/data/bryansk.json"
+    "source_file": "ingestion/data/bryansk.json",
+    "also_in": "GIS ЖКХ dataset imported by CI/CD (HOUSES_DATASET_URL), district «Советский район»"
   },
   "reports": [
     {
@@ -22,7 +23,7 @@
     }
   ],
   "notes": [
-    "Resolve house_id through GET /geo/houses after ingestion because database UUIDs are generated locally.",
+    "Resolve house_id through GET /geo/houses (field house_id) after ingestion because database UUIDs are generated locally.",
     "Generate source_external_id and request_id once per run; reuse them only for the idempotency check.",
     "ML recommendations are optional. FORCE_NEW must remain available when the ML service is unavailable."
   ]

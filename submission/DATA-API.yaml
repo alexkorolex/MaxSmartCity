@@ -26,6 +26,8 @@ checks:
       status_codes: [201]
       content_type: application/json
       required_fields: [token, refresh_token, expires_in, refresh_expires_in]
+      save:
+        STAFF_BEARER_TOKEN: "$.token"
 
   - id: problem-categories
     description: Получить фиксированный каталог категорий обращения.
@@ -50,9 +52,9 @@ checks:
       status_codes: [200]
       content_type: application/json
       json_type: array
-      required_item_fields: [id, formatted, city, street, house_number]
+      required_item_fields: [house_id, formatted, city, street, house_number]
       save:
-        TEST_HOUSE_ID: "$[0].id"
+        TEST_HOUSE_ID: "$[0].house_id"
 
   - id: create-other-report
     description: Создать обращение категории «Другое» без автоматического объединения.
@@ -72,6 +74,8 @@ checks:
       status_codes: [201]
       content_type: application/json
       required_fields: [report_id, grouping]
+      save:
+        REPORT_ID: "$.report_id"
       assertions:
         - path: grouping.outcome
           one_of: [NEEDS_CLARIFICATION, CREATED]
@@ -109,6 +113,8 @@ checks:
       status_codes: [200]
       content_type: application/json
       required_fields: [report_id, outcome, incident_id, reason_codes]
+      save:
+        INCIDENT_ID: "$.incident_id"
       assertions:
         - path: outcome
           equals: CREATED

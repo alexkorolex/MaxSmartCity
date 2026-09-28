@@ -543,6 +543,77 @@
                 "deprecated": false
             }
         },
+        "/auth/staff/initial-password": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "InitialPassword",
+                "operationId": "AuthStaffInitialPasswordInitialPassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffInitialPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Document created, URL follows",
+                        "headers": {},
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaffLoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request syntax or unsupported method",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status_code": {
+                                            "type": "integer"
+                                        },
+                                        "detail": {
+                                            "type": "string"
+                                        },
+                                        "extra": {
+                                            "additionalProperties": {},
+                                            "type": [
+                                                "null",
+                                                "object",
+                                                "array"
+                                            ]
+                                        }
+                                    },
+                                    "type": "object",
+                                    "required": [
+                                        "detail",
+                                        "status_code"
+                                    ],
+                                    "description": "Validation Exception",
+                                    "examples": [
+                                        {
+                                            "status_code": 400,
+                                            "detail": "Bad Request",
+                                            "extra": {}
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "deprecated": false
+            }
+        },
         "/auth/staff/max-id": {
             "post": {
                 "tags": [
@@ -710,7 +781,14 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/StaffLogoutRequest"
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/StaffLogoutRequest"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
                             }
                         }
                     },
@@ -719,7 +797,14 @@
                 "responses": {
                     "204": {
                         "description": "Request fulfilled, nothing follows",
-                        "headers": {}
+                        "headers": {},
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "null"
+                                }
+                            }
+                        }
                     },
                     "400": {
                         "description": "Bad request syntax or unsupported method",
@@ -774,7 +859,14 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/StaffRefreshRequest"
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/StaffRefreshRequest"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
                             }
                         }
                     },
@@ -15408,6 +15500,26 @@
                 ],
                 "title": "StaffDirectoryEntry"
             },
+            "StaffInitialPasswordRequest": {
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "new_password": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "new_password",
+                    "password",
+                    "username"
+                ],
+                "title": "StaffInitialPasswordRequest"
+            },
             "StaffLinkMaxIdRequest": {
                 "properties": {
                     "max_user_id": {
@@ -15499,13 +15611,18 @@
             "StaffLogoutRequest": {
                 "properties": {
                     "refresh_token": {
-                        "type": "string"
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
-                "required": [
-                    "refresh_token"
-                ],
+                "required": [],
                 "title": "StaffLogoutRequest"
             },
             "StaffPasswordChangeRequest": {
@@ -15624,13 +15741,18 @@
             "StaffRefreshRequest": {
                 "properties": {
                     "refresh_token": {
-                        "type": "string"
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
-                "required": [
-                    "refresh_token"
-                ],
+                "required": [],
                 "title": "StaffRefreshRequest"
             },
             "StaffRegisterRequest": {

@@ -10,20 +10,29 @@
 организаторам согласованным защищённым способом. Рабочие токены и пароли в Git не
 добавляются.
 
-OpenAPI пересобирается из корня репозитория:
+## Откуда берутся значения на проде
 
-```powershell
-$env:DATABASE_URL = "postgresql+asyncpg://schema:schema@localhost/schema"
-$env:REDIS_URL = "redis://localhost:6379/0"
-$env:KEYCLOAK_URL = "http://localhost:8080"
-$env:KEYCLOAK_REALM = "maxsmartcity"
-$env:KEYCLOAK_CLIENT_ID = "maxsmartcity-backend"
-$env:KEYCLOAK_CLIENT_SECRET = "schema-only-placeholder"
-$env:RESIDENT_JWT_SECRET = "schema-only-placeholder-at-least-32-bytes"
-$env:RESIDENT_BOT_SHARED_SECRET = "schema-only-placeholder-at-least-32-bytes"
-uv run --no-sync litestar --app src.main:create_app schema openapi --output submission/openapi.json
+| Переменная | Значение |
+|---|---|
+| `PUBLIC_API_BASE_URL` | `https://backend.<DOMAIN>`, `DOMAIN` — Variable окружения `main` в GitHub |
+| `TEST_ADMIN_USERNAME` | Variable `STAFF_ADMIN_LOGIN`: CI/CD создаёт этого администратора (роль `admin`) при деплое |
+| `TEST_ADMIN_PASSWORD` | Secret `STAFF_ADMIN_PASSWORD` |
+| `TEST_RESIDENT_BEARER_TOKEN` | JWT жителя из `POST /auth/residents/token` (заголовок `X-Bot-Secret`) |
+| `STAFF_BEARER_TOKEN`, `TEST_HOUSE_ID`, `REPORT_ID`, `INCIDENT_ID` | сохраняются из ответов предыдущих проверок (`save` в `DATA-API.yaml`) |
+| `RUN_ID`, `REQUEST_UUID`, `DECISION_REQUEST_UUID` | генерируются один раз на прогон |
+
+Тестовый дом «Евдокимова 8» есть и в пилотных данных (`ingestion/data/bryansk.json`), и в
+датасете ГИС ЖКХ, который CI/CD загружает в БД после деплоя.
+
+## Пересборка OpenAPI
+
+Из корня репозитория (нужен локальный `.env`, создаётся из `.env.example`):
+
+```bash
+uv run --locked litestar --app src.main:create_app schema openapi --output submission/openapi.json
 ```
 
-Команда не подключается к БД и использует значения только для построения приложения. Перед
-release нужно проверить, что OpenAPI, `DATA-API.yaml`, публичный API и commit относятся к одной
-версии, затем пройти проверки по порядку и записать фактические ответы в runbook сдачи.
+Команда не подключается к БД и использует значения окружения только для построения
+приложения; секреты в схему не попадают. Перед release нужно проверить, что OpenAPI,
+`DATA-API.yaml`, публичный API и commit относятся к одной версии, затем пройти проверки по
+порядку и записать фактические ответы в runbook сдачи.

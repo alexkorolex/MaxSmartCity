@@ -23,7 +23,6 @@ MAX_WAIT_SECONDS = 25.0
 
 CHAT_EVENTS_STATE_KEY = "chat_events"
 
-# Redis is optional here: without it clients simply catch up on their fallback poll.
 _REDIS_FAILURES = (RedisError, OSError)
 
 

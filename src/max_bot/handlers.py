@@ -48,7 +48,7 @@ def keyboard(row: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def browser_login_url(settings: MaxBotSettings, code: str, next_path: str | None = None) -> str:
     query = urlencode({"code": code, "next": next_path} if next_path else {"code": code})
-    return f"{settings.web_app_login_url}?{query}"
+    return f"{settings.web_app_login_url}#{query}"
 
 
 def _command(text: str) -> str:

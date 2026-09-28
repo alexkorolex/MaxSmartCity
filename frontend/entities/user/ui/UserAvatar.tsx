@@ -17,7 +17,6 @@ function initialsOf(name: string | null | undefined): string {
     .join('');
 }
 
-/** The signed-in resident's MAX photo with a stable initials fallback. */
 export function UserAvatar({ name, size }: UserAvatarProps) {
   const avatarUrl = getMaxBridgeUserAvatarUrl();
 

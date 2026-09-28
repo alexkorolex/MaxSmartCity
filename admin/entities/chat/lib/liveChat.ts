@@ -1,12 +1,9 @@
-// No `@/` imports - unit-tested with plain node.
 
 interface ChatChange {
   created_at: string;
   read_at: string | null;
 }
 
-/** The newest thing the client has seen in the chat - a message or a read receipt - which
- * the server's long poll compares against to tell whether anything happened since. */
 export function latestChatChange(messages: ChatChange[]): string | null {
   let latest: string | null = null;
   let latestTime = Number.NEGATIVE_INFINITY;

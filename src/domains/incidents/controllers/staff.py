@@ -105,7 +105,6 @@ class IncidentController(Controller):
                 )
                 criteria.append(Incident.id.in_(incident_ids))
             if not scope.is_admin:
-                # Residents' requests reach their УК/ТСЖ through its houses, before triage.
                 assert scope.organization_id is not None
                 criteria.append(Incident.id.in_(organization_incident_ids(scope.organization_id)))
             return await service.get_many(

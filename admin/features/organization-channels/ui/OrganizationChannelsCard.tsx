@@ -22,7 +22,6 @@ import './OrganizationChannelsCard.css';
 interface OrganizationChannelsCardProps {
   organizationId: string;
   isAdmin: boolean;
-  /** The signed-in staff member's own membership here, if any - to link their MAX. */
   ownMember: OrganizationMember | undefined;
 }
 
@@ -65,11 +64,6 @@ function LinkMaxAccount({ member }: { member: OrganizationMember }) {
   );
 }
 
-/**
- * Where the organization hears about residents' requests and incidents: a dispatchers' MAX
- * chat, a mailbox, personal MAX messages or its own CRM. Without any channel, notifications
- * go to members' personal MAX (those who linked it).
- */
 export function OrganizationChannelsCard({ organizationId, isAdmin, ownMember }: OrganizationChannelsCardProps) {
   const channels = useOrganizationChannels(organizationId);
   const create = useCreateOrganizationChannel(organizationId);

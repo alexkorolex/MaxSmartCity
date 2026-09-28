@@ -28,7 +28,6 @@ export interface IncidentTransitionResult {
   version: number;
 }
 
-/** "Работы выполнены" - the caller's organization finished its part. */
 export function completeIncident(incidentId: string, comment: string | null): Promise<IncidentTransitionResult> {
   return http.post<IncidentTransitionResult>(`/incidents/${incidentId}/complete`, { comment });
 }
@@ -41,7 +40,6 @@ export interface IncidentReportSummary {
   problem_continues: boolean | null;
 }
 
-/** The staff card of an incident - here only the residents' reports behind it are used. */
 export function fetchIncidentReports(incidentId: string): Promise<IncidentReportSummary[]> {
   return http
     .get<{ reports: IncidentReportSummary[] }>(`/incidents/${incidentId}/card`)

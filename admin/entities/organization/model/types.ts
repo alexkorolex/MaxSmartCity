@@ -74,7 +74,6 @@ export interface OrganizationMember {
   created_at: string;
 }
 
-/** Whether the new employee was e-mailed their login and temporary password. */
 export interface CredentialsEmailResult {
   recipient: string | null;
   sent: boolean;

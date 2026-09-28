@@ -22,20 +22,12 @@ function candidateKey(candidate: HouseManagingOrganization): string {
 interface HouseManagerLookupProps {
   house: House | null;
   onHouseChange: (house: House | null) => void;
-  /** Key of the candidate whose data is currently in the form (highlighted). */
   appliedKey: string | null;
-  /** Fill the form from the first candidate as soon as a house is picked - only while the
-   * admin hasn't typed requisites by hand, never overwriting their input. */
   autoApply: boolean;
   onApply: (prefill: RequisitesPrefill, key: string, candidate: HouseManagingOrganization) => void;
   onInfo: (info: HouseInfo | undefined) => void;
 }
 
-/**
- * Step one of registering a management company: pick a house it manages, and the
- * platform suggests the company from what it already knows about that house - open
- * registries (GIS ЖКХ, cian, ...) with requisites and contacts.
- */
 export function HouseManagerLookup({ house, onHouseChange, appliedKey, autoApply, onApply, onInfo }: HouseManagerLookupProps) {
   const info = useHouseInfo(house?.house_id);
   const autoAppliedFor = useRef<string | null>(null);
@@ -59,7 +51,6 @@ export function HouseManagerLookup({ house, onHouseChange, appliedKey, autoApply
     if (!info.data || !first || !autoApply || autoAppliedFor.current === info.data.house.house_id) return;
     autoAppliedFor.current = info.data.house.house_id;
     apply(first);
-    // `apply` only closes over `info.data`, already a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info.data, autoApply]);
 

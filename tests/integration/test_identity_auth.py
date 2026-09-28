@@ -169,8 +169,6 @@ def test_resident_auth_and_token_flow(api_client: TestClient) -> None:
     )
     assert admin_only.status_code == 403
 
-    # /geo/houses is intentionally public (unlike /reports and /incidents below): the
-    # resident house-picker (and admin-panel city filters) need it before login.
     assert api_client.get("/geo/houses").status_code == 200
     assert api_client.get("/reports").status_code == 401
     assert api_client.get("/incidents").status_code == 401
@@ -206,7 +204,7 @@ async def test_resident_web_login_redeems_bot_issued_code(api_client: TestClient
     assert logged_in.json()["resident_id"] == resident_id
 
     reused = api_client.post("/auth/residents/login", json={"code": code})
-    assert reused.status_code == 401  # single-use
+    assert reused.status_code == 401
 
     me = api_client.get("/identity/me", headers={"Authorization": f"Bearer {logged_in.json()['token']}"})
     assert me.status_code == 200
@@ -247,7 +245,6 @@ def test_staff_member_edits_own_profile_password_and_max_link(
 ) -> None:
     private_pem, _ = rsa_keypair
     subject = str(uuid4())
-    # Keycloak also puts its technical default role into every token.
     token = _staff_token(private_pem, subject=subject, roles=["default-roles-maxsmartcity", "housing_worker"])
     headers = {"Authorization": f"Bearer {token}"}
     keycloak_calls: list[tuple[str, dict[str, object]]] = []
@@ -292,7 +289,6 @@ def test_staff_member_edits_own_profile_password_and_max_link(
         json={"current_password": "guess", "new_password": "brand-new-pass"},
         headers=headers,
     )
-    # 400, never 401 - a 401 would sign the staff member out of the panel.
     assert wrong_current.status_code == 400
     too_short = api_client.post(
         "/auth/staff/password",
@@ -315,3 +311,53 @@ def test_staff_member_edits_own_profile_password_and_max_link(
     assert api_client.get("/auth/staff/profile", headers=headers).json()["max_user_id"] == 777001
     assert api_client.delete("/auth/staff/max-id", headers=headers).status_code == 204
     assert api_client.get("/auth/staff/profile", headers=headers).json()["max_user_id"] is None
+
+
+def test_staff_refresh_token_lives_only_in_an_http_only_cookie(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ended: list[str] = []
+
+    async def fake_login(_settings: object, *, username: str, password: str) -> dict[str, object]:
+        return {
+            "access_token": "access-1",
+            "refresh_token": "refresh-1",
+            "expires_in": 300,
+            "refresh_expires_in": 86400,
+        }
+
+    async def fake_refresh(_settings: object, *, refresh_token: str) -> dict[str, object]:
+        assert refresh_token == "refresh-1"
+        return {
+            "access_token": "access-2",
+            "refresh_token": "refresh-2",
+            "expires_in": 300,
+            "refresh_expires_in": 86000,
+        }
+
+    async def fake_logout(_settings: object, *, refresh_token: str) -> None:
+        ended.append(refresh_token)
+
+    monkeypatch.setattr("src.domains.auth.controllers.login_staff_with_password", fake_login)
+    monkeypatch.setattr("src.domains.auth.controllers.refresh_staff_tokens", fake_refresh)
+    monkeypatch.setattr("src.domains.auth.controllers.logout_staff", fake_logout)
+
+    logged_in = api_client.post("/auth/staff/login", json={"username": "worker", "password": "secret-123"})
+    assert logged_in.status_code == 201, logged_in.text
+    assert logged_in.json()["token"] == "access-1"
+    assert logged_in.json()["refresh_token"] is None
+    set_cookie = logged_in.headers["set-cookie"]
+    assert set_cookie.startswith("sc_staff_refresh=refresh-1")
+    for attribute in ("HttpOnly", "Secure", "SameSite=strict", "Path=/api/auth/staff", "Max-Age=86400"):
+        assert attribute.lower() in set_cookie.lower()
+
+    assert api_client.post("/auth/staff/refresh").status_code == 401
+    refreshed = api_client.post("/auth/staff/refresh", headers={"Cookie": "sc_staff_refresh=refresh-1"})
+    assert refreshed.status_code == 201, refreshed.text
+    assert refreshed.json()["token"] == "access-2"
+    assert "sc_staff_refresh=refresh-2" in refreshed.headers["set-cookie"]
+
+    logged_out = api_client.post("/auth/staff/logout", headers={"Cookie": "sc_staff_refresh=refresh-2"})
+    assert logged_out.status_code == 204
+    assert ended == ["refresh-2"]
+    assert "max-age=0" in logged_out.headers["set-cookie"].lower()

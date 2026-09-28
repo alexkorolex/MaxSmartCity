@@ -13,7 +13,6 @@ import { apiErrorMessage } from '@/shared/lib';
 
 import './AddOrganizationEmployeeForm.css';
 
-/** Admin creates another employee login directly inside an existing organization. */
 export function AddOrganizationEmployeeForm({ organizationId }: { organizationId: string }) {
   const [account, setAccount] = useState<StaffAccountPayload>(EMPTY_STAFF_ACCOUNT);
   const [created, setCreated] = useState<{ login: string; email: CredentialsEmailResult } | null>(null);

@@ -218,9 +218,6 @@ def _insert_notification(database_url: str, *, resident_id: str, is_read: bool =
     return notification_id
 
 
-# --- Reports: create + "mine" -------------------------------------------------------
-
-
 def test_resident_creates_and_lists_own_reports_only(api_client: TestClient) -> None:
     resident_a, token_a = _resident_token(api_client, display_name="Alice")
     resident_b, token_b = _resident_token(api_client, display_name="Bob")
@@ -235,8 +232,6 @@ def test_resident_creates_and_lists_own_reports_only(api_client: TestClient) -> 
     )
     assert created.status_code == 201, created.text
     body = created.json()
-    # server-side override: always MAX-sourced and stamped with the caller's own identity,
-    # regardless of what the client attempted to send.
     assert body["source_type"] == "MAX"
     assert body["resident_id"] == resident_a
 
@@ -274,9 +269,6 @@ def test_reports_mine_route_does_not_collide_with_item_route(api_client: TestCli
 
     mine = api_client.get("/reports/mine", headers={"Authorization": f"Bearer {token}"})
     assert mine.status_code == 200
-
-
-# --- Incidents: confirm/dispute resolution + "my house" -----------------------------
 
 
 def test_confirm_resolution_transitions_incident_and_requires_link(
@@ -482,9 +474,6 @@ def test_my_house_lists_incidents_affecting_residents_most_recent_house(
     assert incident_id in {item["id"] for item in result.json()}
 
 
-# --- Notifications --------------------------------------------------------------------
-
-
 def test_notifications_are_scoped_and_can_be_marked_read(api_client: TestClient, database_url: str) -> None:
     resident_id, token = _resident_token(api_client)
     other_resident_id, other_token = _resident_token(api_client)
@@ -515,9 +504,6 @@ def test_notifications_are_scoped_and_can_be_marked_read(api_client: TestClient,
 
     final = api_client.get("/notifications/", headers={"Authorization": f"Bearer {token}"})
     assert all(item["is_read"] for item in final.json() if item["id"] in {mine_1, mine_2})
-
-
-# --- News -------------------------------------------------------------------------
 
 
 def test_news_list_shows_only_published_and_writes_are_staff_only(
@@ -572,9 +558,6 @@ def test_news_list_shows_only_published_and_writes_are_staff_only(
     assert staff_delete.status_code == 204
 
 
-# --- Resident self-profile ---------------------------------------------------------
-
-
 def test_resident_self_profile_get_and_patch(api_client: TestClient, rsa_keypair: tuple[str, str]) -> None:
     private_pem, _ = rsa_keypair
     resident_id, token = _resident_token(api_client, display_name="Original Name")
@@ -603,9 +586,6 @@ def test_resident_self_profile_get_and_patch(api_client: TestClient, rsa_keypair
     assert refetched.json()["notifications_enabled"] is False
 
 
-# --- Geo: houses, and setting a resident's own home ------------------------------------
-
-
 def test_geo_house_search_matches_numbers_against_the_house_number_not_the_postcode(
     api_client: TestClient, database_url: str
 ) -> None:
@@ -618,7 +598,6 @@ def test_geo_house_search_matches_numbers_against_the_house_number_not_the_postc
 
     ten = house("10", f"{city}, улица Мира, дом 10")
     ten_a = house("10А", f"{city}, улица Мира, дом 10А")
-    # Postcode 241028 contains "10" - a number must still not match it.
     one = house("1", f"241028, {city}, ул. Мира, д. 1")
 
     def search(q: str) -> list[str]:

@@ -11,7 +11,6 @@ function getResidentInitial(name: string | null): string {
   return name?.trim().charAt(0).toLocaleUpperCase('ru-RU') || 'Ж';
 }
 
-/** The organization's inbox: every resident chat, unread first by recency. */
 export function MessagesPage() {
   const conversations = useChatConversations();
 

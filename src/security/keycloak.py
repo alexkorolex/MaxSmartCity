@@ -28,6 +28,13 @@ class KeycloakLoginError(RuntimeError):
     """Raised when the username/password (or refresh token) proxied to Keycloak is rejected."""
 
 
+class KeycloakPasswordChangeRequired(KeycloakLoginError):
+    pass
+
+
+PASSWORD_CHANGE_REQUIRED_DESCRIPTION = "Account is not fully set up"
+
+
 async def login_staff_with_password(
     settings: SecuritySettings, *, username: str, password: str
 ) -> dict[str, Any]:
@@ -51,7 +58,10 @@ async def login_staff_with_password(
             },
         )
     if response.status_code != httpx.codes.OK:
-        raise KeycloakLoginError(response.json().get("error_description", "Invalid credentials"))
+        description = response.json().get("error_description", "Invalid credentials")
+        if description == PASSWORD_CHANGE_REQUIRED_DESCRIPTION:
+            raise KeycloakPasswordChangeRequired(description)
+        raise KeycloakLoginError(description)
     return response.json()
 
 

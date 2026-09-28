@@ -27,7 +27,6 @@ export function OrganizationDetailPage() {
   const seesDirectoryOnly = isAuthority(principal) && principal?.organization_id !== organizationId;
   const members = useOrganizationMembers(seesDirectoryOnly ? '' : organizationId);
   const deactivate = useDeactivateOrganizationMember(organizationId);
-  // The admin manages every roster; staff manage their own organization's colleagues.
   const canManage = isAdmin(principal) || principal?.organization_id === organizationId;
   const org = organization.data;
   const isAuthorityOrganization = Boolean(org?.authority_kind);

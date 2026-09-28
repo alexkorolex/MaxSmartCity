@@ -11,8 +11,6 @@ import type {
 } from '../model/types';
 
 export function fetchOrganizations(): Promise<Organization[]> {
-  // Small dataset (a handful of organizations) - fetched whole and filtered by city
-  // client-side (see model/queries.ts), same as the resident app does for its house list.
   return http.get<Organization[]>('/identity/organizations/', { query: { limit: 100 } });
 }
 

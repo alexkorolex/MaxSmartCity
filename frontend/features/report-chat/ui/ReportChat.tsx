@@ -164,10 +164,6 @@ function Composer({ text, pending, hasError, onTextChange, onSubmit }: ComposerP
   );
 }
 
-/**
- * Chat between the resident and organizations working on the report. Fills its parent's
- * height: only the message list scrolls, never the page around it.
- */
 interface ReportChatProps {
   reportId: string;
   reportText?: string;
@@ -184,21 +180,16 @@ export function ReportChat({ reportId, reportText, backTo }: ReportChatProps) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Every fetch of the thread also reads the "new message" notifications about it on the
-    // server - refresh them so the notification badge drops right away.
     if (chat.dataUpdatedAt) void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
   }, [chat.dataUpdatedAt, queryClient]);
 
   useEffect(() => {
-    // Scroll the message list itself to the newest message, not the page around it.
     const list = endRef.current?.parentElement;
     if (count > 0 && list) list.scrollTop = list.scrollHeight;
   }, [count]);
 
   const hasMessages = count > 0;
   useEffect(() => {
-    // The list shrinks when the header or the composer grows, or the on-screen keyboard
-    // opens - keep the newest message in view unless the user scrolled up to read.
     const list = endRef.current?.parentElement;
     if (!hasMessages || !list) return undefined;
     let pinned = true;

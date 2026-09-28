@@ -2,13 +2,14 @@ import re
 from typing import Any
 
 import httpx
-from litestar import Controller, Router, delete, get, patch, post
+from litestar import Controller, Request, Response, Router, delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.exceptions import (
     ClientException,
     HTTPException,
     NotAuthorizedException,
     NotFoundException,
+    PermissionDeniedException,
     ServiceUnavailableException,
 )
 from sqlalchemy import select
@@ -22,6 +23,7 @@ from src.domains.auth.schemas import (
     ResidentTokenRequest,
     ResidentTokenResponse,
     ResidentWebAppLoginRequest,
+    StaffInitialPasswordRequest,
     StaffLinkMaxIdRequest,
     StaffLinkMaxIdResponse,
     StaffLoginRequest,
@@ -42,12 +44,14 @@ from src.max_bot.web_app import InvalidInitDataError, authenticate_web_app_resid
 from src.security.dependency import provide_principal
 from src.security.guards import (
     RESIDENT_TOKEN_ISSUER,
+    STAFF_BOOTSTRAP_STATE_KEY,
     require_admin_or_bootstrap_secret,
     require_bot_secret,
     require_staff,
 )
 from src.security.keycloak import (
     KeycloakLoginError,
+    KeycloakPasswordChangeRequired,
     login_staff_with_password,
     logout_staff,
     refresh_staff_tokens,
@@ -61,21 +65,33 @@ from src.security.keycloak_admin import (
 from src.security.principal import Principal
 from src.security.resident import resident_jwt_auth
 from src.security.settings import SecuritySettings
+from src.security.staff_bootstrap import StaffBootstrapClosedError, ensure_bootstrap_allowed
+from src.security.staff_password import (
+    InitialPasswordError,
+    PasswordChangeNotRequiredError,
+    change_initial_password,
+)
+from src.security.staff_session import STAFF_REFRESH_COOKIE, expired_refresh_cookie, refresh_cookie
 
 
-def _staff_tokens(tokens: dict[str, Any]) -> StaffLoginResponse:
-    return StaffLoginResponse(
+def _staff_tokens(tokens: dict[str, Any]) -> Response[StaffLoginResponse]:
+    body = StaffLoginResponse(
         token=tokens["access_token"],
-        refresh_token=tokens.get("refresh_token"),
+        refresh_token=None,
         expires_in=tokens.get("expires_in"),
         refresh_expires_in=tokens.get("refresh_expires_in"),
     )
+    refresh_token = tokens.get("refresh_token")
+    cookies = [refresh_cookie(refresh_token, tokens.get("refresh_expires_in"))] if refresh_token else []
+    return Response(content=body, cookies=cookies)
+
+
+def _refresh_token(request: Request, data: StaffRefreshRequest | StaffLogoutRequest | None) -> str | None:
+    return request.cookies.get(STAFF_REFRESH_COOKIE) or (data.refresh_token if data else None)
 
 
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-# Highest first - the one role a profile shows; Keycloak's technical roles
-# (``default-roles-<realm>``, ``offline_access``) are never it.
 _STAFF_ROLE_PRIORITY = ("admin", "district_admin", "housing_worker")
 
 
@@ -83,6 +99,12 @@ def _keycloak_admin_failure(exc: KeycloakAdminError) -> HTTPException:
     if exc.invalid:
         return ClientException(str(exc))
     return HTTPException(status_code=409 if exc.conflict else 502, detail=str(exc))
+
+
+def _password_change_required() -> HTTPException:
+    return PermissionDeniedException(
+        "The temporary password must be changed", extra={"code": "password_change_required"}
+    )
 
 
 def provide_resident_service(db_session: NamedDependency[AsyncSession]) -> ResidentService:
@@ -198,40 +220,72 @@ class StaffAuthController(Controller):
         }
 
     @post("/login", name="auth:Staff:login")
-    async def login(self, data: StaffLoginRequest) -> StaffLoginResponse:
+    async def login(self, data: StaffLoginRequest) -> Response[StaffLoginResponse]:
         settings = SecuritySettings.from_environment()
         try:
             tokens = await login_staff_with_password(settings, username=data.username, password=data.password)
+        except KeycloakPasswordChangeRequired as exc:
+            raise _password_change_required() from exc
+        except KeycloakLoginError as exc:
+            raise NotAuthorizedException(str(exc)) from exc
+        return _staff_tokens(tokens)
+
+    @post("/initial-password", name="auth:Staff:initial-password")
+    async def initial_password(self, data: StaffInitialPasswordRequest) -> Response[StaffLoginResponse]:
+        settings = SecuritySettings.from_environment()
+        try:
+            tokens = await change_initial_password(
+                settings, username=data.username, password=data.password, new_password=data.new_password
+            )
+        except InitialPasswordError as exc:
+            raise ClientException(str(exc)) from exc
+        except PasswordChangeNotRequiredError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except KeycloakAdminError as exc:
+            raise _keycloak_admin_failure(exc) from exc
         except KeycloakLoginError as exc:
             raise NotAuthorizedException(str(exc)) from exc
         return _staff_tokens(tokens)
 
     @post("/refresh", name="auth:Staff:refresh")
-    async def refresh(self, data: StaffRefreshRequest) -> StaffLoginResponse:
+    async def refresh(
+        self, request: Request, data: StaffRefreshRequest | None = None
+    ) -> Response[StaffLoginResponse]:
         """New access token for a still valid session (up to 24 hours after login) - no
         password. 401 once the session expired or was ended by ``/logout``."""
+        refresh_token = _refresh_token(request, data)
+        if not refresh_token:
+            raise NotAuthorizedException("No staff session")
         settings = SecuritySettings.from_environment()
         try:
-            tokens = await refresh_staff_tokens(settings, refresh_token=data.refresh_token)
+            tokens = await refresh_staff_tokens(settings, refresh_token=refresh_token)
         except KeycloakLoginError as exc:
             raise NotAuthorizedException(str(exc)) from exc
         return _staff_tokens(tokens)
 
     @post("/logout", status_code=204, name="auth:Staff:logout")
-    async def logout(self, data: StaffLogoutRequest) -> None:
+    async def logout(self, request: Request, data: StaffLogoutRequest | None = None) -> Response[None]:
         """End the session so the refresh token can't be used any more (e.g. on a shared
         computer) - dropping tokens in the browser alone would leave it valid for 24 hours."""
-        try:
-            await logout_staff(SecuritySettings.from_environment(), refresh_token=data.refresh_token)
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail="Could not reach the identity provider") from exc
+        refresh_token = _refresh_token(request, data)
+        if refresh_token:
+            try:
+                await logout_staff(SecuritySettings.from_environment(), refresh_token=refresh_token)
+            except httpx.HTTPError as exc:
+                raise HTTPException(status_code=502, detail="Could not reach the identity provider") from exc
+        return Response(content=None, status_code=204, cookies=[expired_refresh_cookie()])
 
     @post("/register", name="auth:Staff:register", guards=[require_admin_or_bootstrap_secret()])
     async def register(
-        self, data: StaffRegisterRequest, operator_service: NamedDependency[OperatorUserService]
+        self,
+        request: Request,
+        data: StaffRegisterRequest,
+        operator_service: NamedDependency[OperatorUserService],
     ) -> StaffRegisterResponse:
         settings = SecuritySettings.from_environment()
         try:
+            if request.state.get(STAFF_BOOTSTRAP_STATE_KEY):
+                await ensure_bootstrap_allowed(settings, data.role)
             subject = await create_staff_user(
                 settings,
                 login=data.login,
@@ -240,6 +294,8 @@ class StaffAuthController(Controller):
                 display_name=data.display_name,
                 role=data.role,
             )
+        except StaffBootstrapClosedError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except KeycloakAdminError as exc:
             raise _keycloak_admin_failure(exc) from exc
 
@@ -334,8 +390,6 @@ class StaffAuthController(Controller):
         try:
             await login_staff_with_password(settings, username=operator.login, password=data.current_password)
         except KeycloakLoginError as exc:
-            # 400, not 401: the session itself is fine, only the typed password is wrong -
-            # a 401 would make the panel sign the user out.
             raise ClientException("Current password is incorrect") from exc
         try:
             await set_staff_password(settings, subject=operator.keycloak_subject, password=data.new_password)

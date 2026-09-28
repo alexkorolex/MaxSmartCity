@@ -37,7 +37,6 @@ export interface HouseDataSource {
   retrieved_at: string;
 }
 
-/** A house's management company as published in open sources (GIS ЖКХ, cian, ...). */
 export interface HouseManagingOrganization {
   name: string;
   type: string;

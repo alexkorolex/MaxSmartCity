@@ -40,8 +40,6 @@ class AdministrativeArea(Entity):
 class Address(Entity):
     __tablename__ = "address"
     __table_args__ = (
-        # Exact-address matching (ingestion, see ``importer._house``) compares normalized
-        # city/street/number - without this every imported house scanned the whole table.
         Index(
             "ix_address_normalized",
             text("lower(trim(city))"),

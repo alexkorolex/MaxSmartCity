@@ -17,6 +17,7 @@ from litestar.handlers.base import BaseRouteHandler
 from litestar.types import Guard
 
 from src.security.guards import (
+    STAFF_BOOTSTRAP_STATE_KEY,
     is_keycloak_token,
     require_admin_or_bootstrap_secret,
     require_bot_secret,
@@ -92,13 +93,17 @@ def _keycloak_token(private_pem: str, *, roles: list[str], iss: str = ISSUER, au
     return jwt.encode(payload, private_pem, algorithm="RS256")
 
 
-def _run_guard(guard: Guard, headers: dict[str, str], verifier: KeycloakTokenVerifier | None = None) -> None:
+def _run_guard(guard: Guard, headers: dict[str, str], verifier: KeycloakTokenVerifier | None = None) -> State:
     app = type(
         "FakeApp", (), {"state": State({TOKEN_VERIFIER_STATE_KEY: verifier or KeycloakTokenVerifier()})}
     )()
-    connection = cast(ASGIConnection, type("FakeConnection", (), {"headers": headers, "app": app})())
-    route_handler = cast(BaseRouteHandler, None)  # unused by our guards
+    state = State()
+    connection = cast(
+        ASGIConnection, type("FakeConnection", (), {"headers": headers, "app": app, "state": state})()
+    )
+    route_handler = cast(BaseRouteHandler, None)
     guard(connection, route_handler)
+    return state
 
 
 def test_is_keycloak_token_distinguishes_issuer(
@@ -202,8 +207,6 @@ def test_require_admin_or_bootstrap_secret_rejects_non_admin_token(
 def test_require_admin_or_bootstrap_secret_rejects_missing_header_when_unconfigured(
     settings: SecuritySettings,
 ) -> None:
-    # STAFF_BOOTSTRAP_SECRET is unset in the `settings` fixture - the bootstrap path must
-    # be fully disabled, falling straight through to requiring an admin token.
     with pytest.raises(NotAuthorizedException):
         _run_guard(require_admin_or_bootstrap_secret(), {})
 
@@ -213,7 +216,9 @@ def test_require_admin_or_bootstrap_secret_accepts_correct_bootstrap_secret(
 ) -> None:
     monkeypatch.setenv("STAFF_BOOTSTRAP_SECRET", "test-bootstrap-secret")
 
-    _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "test-bootstrap-secret"})
+    state = _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "test-bootstrap-secret"})
+
+    assert state.get(STAFF_BOOTSTRAP_STATE_KEY) is True
 
 
 def test_require_admin_or_bootstrap_secret_rejects_wrong_bootstrap_secret(
@@ -221,8 +226,6 @@ def test_require_admin_or_bootstrap_secret_rejects_wrong_bootstrap_secret(
 ) -> None:
     monkeypatch.setenv("STAFF_BOOTSTRAP_SECRET", "test-bootstrap-secret")
 
-    # A wrong (or missing) bootstrap secret falls through to the admin-token check, which
-    # then fails on the missing Authorization header - never a silent bypass.
     with pytest.raises(NotAuthorizedException):
         _run_guard(require_admin_or_bootstrap_secret(), {"X-Bootstrap-Secret": "wrong"})
 

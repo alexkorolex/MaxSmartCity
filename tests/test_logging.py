@@ -39,7 +39,6 @@ async def missing() -> None:
 
 @pytest.fixture
 def client(capfd: pytest.CaptureFixture[str]) -> Iterator[TestClient]:
-    # ``capfd`` first: the loggers bind to whatever stdout/stderr is when the app starts.
     app = Litestar(
         [unhandled, missing],
         plugins=[structlog_plugin],

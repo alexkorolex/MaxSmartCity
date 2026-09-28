@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import urllib.error
 from dataclasses import dataclass
@@ -37,8 +38,6 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> MaxBotSettings:
     monkeypatch.setenv("MAX_BOT_TOKEN", "test-bot-token")
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "test-webhook-secret")
     monkeypatch.setenv("WEB_APP_LOGIN_URL", "https://app.example.com/auth/max")
-    # Deliberately absent by default (some tests set it back) - must not leak in from
-    # whatever the developer's own shell happens to have exported.
     monkeypatch.delenv("MAX_WEBHOOK_PUBLIC_URL", raising=False)
     return MaxBotSettings.from_environment()
 
@@ -85,6 +84,16 @@ def test_require_max_webhook_secret_rejects_wrong_secret(settings: MaxBotSetting
     connection = cast(ASGIConnection, _FakeConnection(headers={"X-Max-Bot-Api-Secret": "wrong"}))
     with pytest.raises(NotAuthorizedException):
         require_max_webhook_secret()(connection, cast(BaseRouteHandler, None))
+
+
+async def test_login_code_is_redeemed_once_even_by_concurrent_requests() -> None:
+    resident_id = UUID("11111111-1111-1111-1111-111111111111")
+    code = await dedup.create_login_code(resident_id)
+
+    results = await asyncio.gather(*(dedup.consume_login_code(code) for _ in range(8)))
+
+    assert results.count(resident_id) == 1
+    assert results.count(None) == 7
 
 
 async def test_login_code_round_trip() -> None:
@@ -157,7 +166,6 @@ async def test_handle_bot_started_registers_resident_and_sends_welcome(
 
     await handlers.handle_bot_started(update, cast(ResidentService, service), settings)
 
-    # The dialog's chat_id is stored - that's where the resident's notifications go.
     assert service.upserts == [
         {"max_user_id": 42, "username": "alex", "display_name": "Alex", "chat_id": 5551234}
     ]
@@ -289,7 +297,6 @@ async def test_bot_stopped_marks_the_resident(settings: MaxBotSettings) -> None:
 
 
 def test_webhook_secret_is_compared_constant_time(settings: MaxBotSettings) -> None:
-    # sanity: guard uses hmac.compare_digest, not `==`
     assert hmac.compare_digest("a", "a") is True
 
 
@@ -368,8 +375,6 @@ def test_fetch_raises_cert_fetch_error_after_exhausting_retries(
 async def test_auto_subscribe_skips_when_no_public_url_configured(
     settings: MaxBotSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Explicitly absent, regardless of what the ambient shell environment has set -
-    # nothing to register.
     monkeypatch.delenv("MAX_WEBHOOK_PUBLIC_URL", raising=False)
     calls: list[object] = []
 
@@ -411,7 +416,7 @@ async def test_auto_subscribe_never_raises_on_api_failure(
 
     monkeypatch.setattr(MaxClient, "subscribe", failing_subscribe)
 
-    await startup.auto_subscribe_max_webhook()  # must not raise
+    await startup.auto_subscribe_max_webhook()
 
 
 def test_every_listed_bot_command_is_handled() -> None:
@@ -531,7 +536,6 @@ async def test_bot_username_is_looked_up_once_per_client(
     assert await client.bot_username() == FAKE_BOT_USERNAME
     assert await client.bot_username() == FAKE_BOT_USERNAME
     assert calls == 1
-    # Nothing is shared between clients (no process-wide cache to reset between tests).
     assert await MaxClient(settings).bot_username() == FAKE_BOT_USERNAME
     assert calls == 2
 
@@ -661,6 +665,6 @@ async def test_notification_falls_back_to_a_browser_link_to_the_same_screen(
     ((button,),) = [sent[0]["attachments"][0]["payload"]["buttons"][0]]
     assert button["type"] == "link"
     assert button["text"] == "Открыть чат"
-    assert button["url"].startswith("https://app.example.com/auth/max?code=")
+    assert button["url"].startswith("https://app.example.com/auth/max#code=")
     assert "next=%2Freports%2F22222222-2222-2222-2222-222222222222%2Fchat" in button["url"]
     assert sent[0]["text"].endswith(notify.RELOGIN_HINT)

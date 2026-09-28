@@ -26,7 +26,6 @@ export function useHouseManagement(organizationId?: string) {
   });
 }
 
-/** Address search for the "take a house" picker - only runs once there's something to search. */
 export function useHouseSearch(q: string, city: string) {
   const query = q.trim();
   return useQuery({
@@ -50,7 +49,6 @@ export function useHouseInfo(houseId: string | null | undefined) {
 function useInvalidateHouses() {
   const queryClient = useQueryClient();
   return () => {
-    // Houses define what an organization sees - residents, reports and incidents too.
     for (const key of [['house-management'], ['houses'], ['residents'], ['reports'], ['incidents']]) {
       void queryClient.invalidateQueries({ queryKey: key });
     }

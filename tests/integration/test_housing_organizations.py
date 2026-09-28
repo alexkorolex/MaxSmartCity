@@ -163,7 +163,6 @@ async def test_admin_registers_organization_with_its_first_employee(
     assert extra.organization_id == organization.id
     assert len(keycloak_accounts) == 2
 
-    # Every local check runs before Keycloak is called - rejected requests create no login.
     with pytest.raises(IdentityConflictError, match="INN"):
         await service.register_with_employee(_registration(inn=request.inn), registered_by=uuid4())
     with pytest.raises(IdentityConflictError, match="Login"):

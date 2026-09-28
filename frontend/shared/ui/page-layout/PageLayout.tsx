@@ -15,7 +15,6 @@ interface PageLayoutProps {
   eyebrow?: string;
   children: ReactNode;
   withNavSpacing?: boolean;
-  /** Exactly the viewport's height: the page itself never scrolls, its content does (a chat). */
   fill?: boolean;
 }
 

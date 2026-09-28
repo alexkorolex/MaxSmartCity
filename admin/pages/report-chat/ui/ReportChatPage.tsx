@@ -5,7 +5,6 @@ import { ROUTES } from '@/shared/routes';
 
 import './ReportChatPage.css';
 
-/** The chat with the resident on its own page, sized to the viewport - see the CSS. */
 export function ReportChatPage() {
   const { reportId = '' } = useParams();
 

@@ -49,18 +49,10 @@ const EMPTY_REQUISITES: RequisitesState = {
 const DEFAULT_BASIS = 'Сведения открытых реестров (ГИС ЖКХ) об управлении домом';
 
 interface RegisterOrganizationFormProps {
-  /** `registration` carries whether the first employee was e-mailed their credentials. */
   onRegistered: (organizationId: string, registration: OrganizationRegistrationResult) => void;
   onCancel: () => void;
 }
 
-/**
- * Admin registers a management company (УК) or HOA (ТСЖ) together with its first
- * employee in one step - per Постановление №1616 a УК must hold a license, and only a
- * licensed УК can be on the Перечень of fallback managers. Starting from a house it
- * manages, the form is prefilled from what the platform already knows about that house,
- * and the house can be attached to the new organization right away.
- */
 export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrganizationFormProps) {
   const [requisites, setRequisites] = useState<RequisitesState>(EMPTY_REQUISITES);
   const [employee, setEmployee] = useState<StaffAccountPayload>(EMPTY_STAFF_ACCOUNT);
@@ -98,7 +90,6 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
   function changeHouse(next: House | null) {
     setHouse(next);
     setApplied(null);
-    // Taking a house from another platform organization is a deliberate step, not a default.
     setAttachHouse(Boolean(next) && !next?.managed_by_organization_id);
   }
 
@@ -107,14 +98,12 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
     setRequisites((current) => ({
       ...current,
       ...prefill,
-      // A registry never publishes the license - keep what the admin typed.
       licenseNumber: prefill.type === 'HOA' ? '' : current.licenseNumber,
       inReserveRegistry: prefill.type === 'HOA' ? false : current.inReserveRegistry,
     }));
   }
 
   function changeType(type: HousingOrganizationType) {
-    // An HOA is neither licensed nor eligible for the Перечень - drop what doesn't apply.
     setRequisites((current) =>
       type === 'HOA' ? { ...current, type, licenseNumber: '', inReserveRegistry: false } : { ...current, type },
     );
@@ -145,7 +134,6 @@ export function RegisterOrganizationForm({ onRegistered, onCancel }: RegisterOrg
             { house_id: house.house_id, organization_id: result.organization_id, basis: basis.trim() },
             {
               onSuccess: () => onRegistered(result.organization_id, result),
-              // The organization exists either way - say what's missing, don't lose it.
               onError: () => setRegistered(result),
             },
           );

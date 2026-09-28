@@ -80,7 +80,6 @@ def test_admin_registers_organization_with_employee_who_gets_houses_and_channels
     worker_login = f"worker-{uuid4().hex[:8]}"
     worker = {"login": worker_login, "password": "password-123", "display_name": "Мастер"}
     accounts_path = f"/identity/organizations/{organization_id}/members/accounts"
-    # Registering a colleague: the admin and the organization's own staff can, others can't.
     assert api_client.post(accounts_path, json=worker, headers=outsider).status_code == 403
     created = api_client.post(accounts_path, json=worker, headers=admin)
     assert created.status_code == 201, created.text
@@ -101,9 +100,7 @@ def test_admin_registers_organization_with_employee_who_gets_houses_and_channels
         "basis": "Решение администрации об определении УК из Перечня",
         "assigned_via_reserve_registry": True,
     }
-    # Any staff without that organization can't attach houses to it...
     assert api_client.post("/geo/house-management/", json=assignment, headers=outsider).status_code == 403
-    # ...but its own employee takes a free house for it themselves.
     assigned = api_client.post("/geo/house-management/", json=assignment, headers=director)
     assert assigned.status_code == 201, assigned.text
     assert assigned.json()["house_formatted"] == "г. Брянск, ул. Ленина, 1"
@@ -193,16 +190,14 @@ def test_housing_worker_works_only_through_their_own_houses(
 
     assert take(house_a, org_a, worker_a) == 201
     assert take(house_b, org_b, worker_b) == 201
-    assert take(house_a, org_b, worker_b) == 409  # already managed by another УК
-    assert take(house_b, org_a, worker_b) == 403  # not worker B's organization
+    assert take(house_a, org_b, worker_b) == 409
+    assert take(house_b, org_a, worker_b) == 403
 
-    # Other УК/ТСЖ are invisible.
     visible = api_client.get("/identity/organizations/", headers=worker_a).json()
     assert [org["id"] for org in visible] == [org_a]
     assert api_client.get(f"/identity/organizations/{org_b}", headers=worker_a).status_code == 404
     assert api_client.get(f"/identity/organizations/{org_b}", headers=admin).status_code == 200
 
-    # Residents: those living in (or reporting about) the organization's houses only.
     living_a, token_a = _resident_token(api_client)
     living_b, token_b = _resident_token(api_client)
     for token, house in ((token_a, house_a), (token_b, house_b)):
@@ -232,14 +227,12 @@ def test_housing_worker_works_only_through_their_own_houses(
     assert incident_b not in incidents
     assert api_client.get(f"/incidents/{incident_b}/card", headers=worker_a).status_code == 404
 
-    # Releasing a house: only one's own.
     managed_b = api_client.get("/geo/house-management/", headers=worker_b).json()
     assert [item["house_id"] for item in managed_b] == [house_b]
     terminate_b = f"/geo/house-management/{managed_b[0]['id']}/terminate"
     assert api_client.post(terminate_b, json={}, headers=worker_a).status_code == 404
     assert api_client.post(terminate_b, json={}, headers=worker_b).status_code == 200
 
-    # The house picker shows who manages what, and searches by address.
     found = api_client.get("/geo/houses/", params={"q": f"ул. Первая {marker}"}, headers=worker_a).json()
     picked = next(item for item in found if item["house_id"] == house_a)
     assert picked["managed_by_organization_name"] == "УК А"
@@ -310,7 +303,6 @@ def test_new_employees_get_their_sign_in_details_by_email(
         },
         headers=admin,
     )
-    # The account is created all the same - the admin is just told to hand the login over.
     assert created.status_code == 201, created.text
     assert created.json()["member"]["display_name"] == "Мастер"
     email = created.json()["credentials_email"]
@@ -368,7 +360,6 @@ def test_staff_register_colleagues_and_close_requests_residents_close_their_own(
     assert api_client.post(f"{base}/{own['id']}/deactivate", headers=worker_a).status_code == 409
     assert api_client.post(f"{base}/{colleague_member['id']}/deactivate", headers=worker_a).status_code == 200
 
-    # A resident's request on a house of УК А.
     house = _insert_house(database_url, formatted=f"ул. Закрытия, {uuid4().hex[:6]}")
     body = {"house_id": house, "organization_id": org_a, "basis": "Договор управления"}
     assert api_client.post("/geo/house-management/", json=body, headers=worker_a).status_code == 201
@@ -416,7 +407,6 @@ def test_report_from_the_resident_app_reaches_the_house_managers_channels(
     category = _insert_category(database_url)
     _resident_id, resident_token = _resident_token(api_client)
 
-    # Exactly what the resident app sends (frontend/entities/report/api/reports.ts).
     created = api_client.post(
         "/reports/",
         json={

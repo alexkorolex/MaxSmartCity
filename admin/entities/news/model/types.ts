@@ -5,7 +5,6 @@ export interface NewsPost {
   is_published: boolean;
   published_at: string | null;
   author_operator_id: string | null;
-  /** Who published it - `null` for the platform admin's posts, which every resident gets. */
   organization_id: string | null;
 }
 

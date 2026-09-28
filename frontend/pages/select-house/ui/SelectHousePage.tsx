@@ -37,7 +37,6 @@ export function SelectHousePage() {
       { house_id: houseId },
       {
         onSuccess: () => {
-          // News is per house (its managing organization and city) - the feed changes too.
           void queryClient.invalidateQueries({ queryKey: newsListQueryKey });
           navigate(isOnboarding ? ROUTES.home : ROUTES.profile, { replace: true });
         },

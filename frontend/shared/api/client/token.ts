@@ -16,16 +16,12 @@ export function setAuthToken(token: string): void {
   cachedToken = token;
   try {
     window.localStorage.setItem(STORAGE_KEY, token);
-  } catch {
-    /* private mode / storage disabled - session stays in-memory for this tab */
-  }
+  } catch {}
 }
 
 export function clearAuthToken(): void {
   cachedToken = null;
   try {
     window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* nothing to clean up if storage was never available */
-  }
+  } catch {}
 }

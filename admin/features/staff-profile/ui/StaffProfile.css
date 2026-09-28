@@ -29,7 +29,6 @@
   gap: var(--space-3);
 }
 
-/* Line the button up with the field, not with its label or hint. */
 .profile-link-max > .btn {
   margin-top: 22px;
 }

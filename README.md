@@ -701,7 +701,7 @@ API. Админка ходит в него через `/api/map/…` (nginx `adm
 | Эндпоинт | Что отдаёт |
 |---|---|
 | `GET /map/summary` | по городам: домов всего / с координатами / с контуром, фоновых зданий, bbox; зумы слоёв; атрибуция |
-| `GET /map/districts` | GeoJSON районов со статистикой: домов, активных заявок и инцидентов |
+| `GET /map/districts` | GeoJSON границ со статистикой (домов, активных заявок и инцидентов): города (`type: CITY`, на карте пунктиром) и районы/округа |
 | `GET /map/incidents?bbox=w,s,e,n&include_closed=false` | GeoJSON домов с инцидентами (точки, на любом зуме) и список инцидентов на доме; в `metadata` — сколько таких домов без координат |
 | `GET /map/tiles/houses/{z}/{x}/{y}` | векторный тайл (MVT) слоя `houses`: с z12 точки, с z15 контуры и адрес; `house_id`, `active_reports`, `active_incidents` |
 | `GET /map/tiles/buildings/{z}/{x}/{y}` | MVT слоя `buildings` — фоновая застройка Microsoft, с z14 |
@@ -718,4 +718,29 @@ API. Админка ходит в него через `/api/map/…` (nginx `adm
 застройка `microsoft_buildings_*.geojsonl`. Граница города без районов задаётся отдельно — `--city-boundary Бахчисарай=bakhchisaray.geojson`:
 она заменяет объединение районов, а дома этого города без территории привязываются к нему. Импорт идемпотентный; при деплое он пропускается,
 если ни геоданные, ни датасет домов не менялись. Файлы должны лежать в бакете рядом с датасетом домов.
+
+## Безопасность
+
+- **Keycloak.** В прод realm импортируется без тестовых пользователей (`jq '.users = []'` при деплое);
+  шаг CI «Harden Keycloak» (`deploy/keycloak-hardening.sh`) на уже работающем Keycloak удаляет
+  `admin_test`/`housing_test`/`uprava_test`, включает `sslRequired=external` и отключает у клиента
+  backend browser-flow и wildcard-redirect. Образ — `keycloak:26.7.4`.
+- **Временные пароли.** Сотрудник, созданный другим человеком, получает временный пароль: Keycloak не
+  выдаёт токены, пока он не сменён. `/auth/staff/login` отвечает `403` с `code: password_change_required`,
+  админка показывает форму смены, `/auth/staff/initial-password` меняет пароль только после того, как
+  Keycloak подтвердил временный.
+- **Bootstrap-секрет** создаёт только роль `admin` и только пока в realm нет ни одного администратора,
+  дальше `/auth/staff/register` по секрету отвечает `409`.
+- **Refresh-токен сотрудника** живёт только в cookie `sc_staff_refresh` (`HttpOnly; Secure; SameSite=Strict`,
+  путь `STAFF_REFRESH_COOKIE_PATH`, по умолчанию `/api/auth/staff`) и не отдаётся в JSON.
+- **Webhook-каналы** принимают только `https://` на публичные адреса; перед каждой отправкой имя
+  резолвится, и приватные, loopback-, link-local- и служебные IP отклоняются.
+- **Фото обращений**: лимит тела запроса на уровне фреймворка, тип определяется по сигнатуре файла
+  (JPEG/PNG/WebP), а не по `Content-Type` клиента.
+- **Код входа из бота** передаётся во фрагменте `#code=` (не попадает в логи и Referer), гасится
+  атомарно (`GETDEL`) и стирается из адресной строки.
+- **Заголовки nginx** (`nginx/snippets/*-security-headers.conf`): в админке строгая CSP, `X-Frame-Options`,
+  `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS; воркер MapLibre собирается в свой бандл.
+  У приложения жителя CSP пока в режиме `Report-Only` — проверьте консоль внутри MAX и переключите на
+  `Content-Security-Policy`.
 

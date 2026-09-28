@@ -19,8 +19,6 @@ export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
   );
 }
 
-/** A small solid-color swatch for the same tone scale as `StatusBadge` - for compact
- * contexts (radio/checkbox rows) where a full pill badge would be too heavy. */
 export function ToneDot({ tone = 'neutral' }: { tone?: StatusTone }) {
   return <span className={`tone-dot tone-dot--${tone}`} aria-hidden="true" />;
 }

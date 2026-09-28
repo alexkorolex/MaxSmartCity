@@ -22,9 +22,6 @@ def database_url() -> str:
     return url
 
 
-# `src.main` loads the developer's `.env`, which may hold real credentials - tests must never
-# talk to the real MAX bot or mail server, nor run the background delivery loop (it would
-# race the tests and deliver notifications about test data).
 _OFFLINE_ENVIRONMENT = {
     "BACKGROUND_JOBS_INTERVAL_SECONDS": "0",
     "MAX_WEBHOOK_PUBLIC_URL": "",

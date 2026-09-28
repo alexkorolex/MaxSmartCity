@@ -232,7 +232,6 @@ class HouseController(Controller):
         with database_action("list", "geo.House"):
             words = _search_words(q)
             numbers = [word.lower() for word in words if word[0].isdigit()]
-            # A typed house number first ("Мира 10" -> дом 10, then 10А, 10 корп. 1, ...).
             exact_number_first = (
                 case((func.lower(Address.house_number).in_(numbers), 0), else_=1) if numbers else literal(1)
             )
@@ -246,7 +245,6 @@ class HouseController(Controller):
                 statement = statement.where(Address.city == city)
             for word in words:
                 if word[0].isdigit():
-                    # Numbers match the house number itself - never a postcode ("241028" holds "10").
                     statement = statement.where(Address.house_number.ilike(f"{word}%"))
                 else:
                     statement = statement.where(Address.formatted.ilike(f"%{word}%"))

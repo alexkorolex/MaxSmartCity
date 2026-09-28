@@ -15,11 +15,6 @@ function completionError(error: unknown): string {
   return apiErrorMessage(error);
 }
 
-/**
- * "Работы выполнены": the staff member's organization finished its part. The incident
- * moves to «Решён», residents get asked to confirm, and it closes on their confirmation
- * or automatically after 3 days.
- */
 export function CompleteIncidentCard({ incident }: { incident: Incident }) {
   const [comment, setComment] = useState('');
   const complete = useCompleteIncident(incident.id);

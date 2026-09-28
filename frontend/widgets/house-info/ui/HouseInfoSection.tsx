@@ -8,7 +8,6 @@ interface HouseInfoSectionProps {
   title?: string;
 }
 
-/** "Кто обслуживает дом": the management company and its contacts for `houseId`. */
 export function HouseInfoSection({ houseId, title = 'Кто обслуживает дом' }: HouseInfoSectionProps) {
   const info = useHouseInfo(houseId);
 

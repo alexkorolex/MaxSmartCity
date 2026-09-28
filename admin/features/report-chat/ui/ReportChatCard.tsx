@@ -159,10 +159,6 @@ function Composer({ text, pending, error, onTextChange, onSubmit }: ComposerProp
   );
 }
 
-/**
- * The organization's side of the chat with the resident who filed the report. Fills its
- * parent's height: only the message list scrolls, never the card or the page around it.
- */
 export function ReportChatCard({ reportId, backTo }: { reportId: string; backTo: string }) {
   const chat = useChatThread(reportId);
   useChatLiveUpdates(reportId, chat.isSuccess);
@@ -172,15 +168,12 @@ export function ReportChatCard({ reportId, backTo }: { reportId: string; backTo:
   const count = chat.data?.messages.length ?? 0;
 
   useEffect(() => {
-    // Scroll the message list itself to the newest message, not the page around it.
     const list = endRef.current?.parentElement;
     if (count > 0 && list) list.scrollTop = list.scrollHeight;
   }, [count]);
 
   const hasMessages = count > 0;
   useEffect(() => {
-    // The list shrinks when the header or the composer grows, or the on-screen keyboard
-    // opens - keep the newest message in view unless the user scrolled up to read.
     const list = endRef.current?.parentElement;
     if (!hasMessages || !list) return undefined;
     let pinned = true;

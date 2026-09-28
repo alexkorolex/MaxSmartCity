@@ -19,8 +19,6 @@ interface SearchSelectProps {
   emptyMessage: string;
   disabled?: boolean;
   onChange: (option: SearchOption | null) => void;
-  /** Server-side search: the typed text is reported here and `options` are shown as
-   * given (already filtered by the server) instead of being filtered locally. */
   onQueryChange?: (query: string) => void;
 }
 

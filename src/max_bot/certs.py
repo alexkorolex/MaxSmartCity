@@ -39,7 +39,7 @@ def _fetch(url: str) -> bytes:
             if attempt == _MAX_ATTEMPTS:
                 raise OSError(str(exc)) from exc
             time.sleep(_RETRY_DELAY_SECONDS)
-    raise AssertionError("unreachable")  # loop above always returns or raises
+    raise AssertionError("unreachable")
 
 
 def fetch_russian_trusted_ca_certs(target_dir: Path = CERTS_DIR) -> list[FetchedCert]:

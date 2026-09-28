@@ -113,8 +113,6 @@ class OrganizationNotificationDispatcher:
                 await self.strategies[channel.type].send(self.session, channel, message)
             except ChannelDeliveryError as exc:
                 errors.append(f"{channel.type.value}: {exc}")
-                # Per channel, with the traceback: its cause (SMTP, MAX, the CRM's webhook) is
-                # chained to ``exc`` - the summary below only has the messages.
                 logger.warning(
                     "Organization notification channel failed",
                     extra={
@@ -131,7 +129,6 @@ class OrganizationNotificationDispatcher:
 
         now = utc_now()
         event.attempts += 1
-        # Reassign (not mutate) so SQLAlchemy notices the JSONB change.
         event.payload = {
             **event.payload,
             "delivered_channels": sorted(delivered),

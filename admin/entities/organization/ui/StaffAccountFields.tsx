@@ -7,7 +7,6 @@ interface StaffAccountFieldsProps {
   onChange: (value: StaffAccountPayload) => void;
 }
 
-/** Login, password, name and e-mail of a new employee account (Keycloak, role «Жилищник»). */
 export function StaffAccountFields({ idPrefix, value, onChange }: StaffAccountFieldsProps) {
   const passwordTooShort = value.password.length > 0 && value.password.length < MIN_PASSWORD_LENGTH;
 

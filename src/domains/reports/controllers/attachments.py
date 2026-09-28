@@ -21,6 +21,7 @@ from src.domains.reports.controllers.reports import (
     provide_s3_settings,
 )
 from src.domains.reports.enums import AttachmentType
+from src.domains.reports.images import sniff_image_type
 from src.domains.reports.models import ReportAttachment
 from src.domains.reports.schemas import (
     ReportAttachmentRead,
@@ -42,6 +43,7 @@ ALLOWED_ATTACHMENT_CONTENT_TYPES = {
 
 
 MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
+MAX_ATTACHMENT_REQUEST_BYTES = MAX_ATTACHMENT_SIZE_BYTES + 256 * 1024
 
 
 class ReportAttachmentController(Controller):
@@ -64,6 +66,7 @@ class ReportAttachmentController(Controller):
         name="reports:Report:upload-attachment",
         guards=[require_resident()],
         return_dto=None,
+        request_max_body_size=MAX_ATTACHMENT_REQUEST_BYTES,
     )
     async def upload_attachment(
         self,
@@ -79,20 +82,23 @@ class ReportAttachmentController(Controller):
         if report.resident_id != principal.actor_id:
             raise PermissionDeniedException("Residents may only attach photos to their own reports")
 
-        extension = ALLOWED_ATTACHMENT_CONTENT_TYPES.get(data.content_type)
-        if extension is None:
+        if data.content_type not in ALLOWED_ATTACHMENT_CONTENT_TYPES:
             raise HTTPException(status_code=415, detail=f"Unsupported content type: {data.content_type}")
 
         body = await data.read()
         if len(body) > MAX_ATTACHMENT_SIZE_BYTES:
             raise HTTPException(status_code=413, detail="File exceeds the 10 MB upload limit")
+        content_type = sniff_image_type(body)
+        if content_type is None:
+            raise HTTPException(status_code=415, detail="The file is not a JPEG, PNG or WebP image")
+        extension = ALLOWED_ATTACHMENT_CONTENT_TYPES[content_type]
 
         checksum = hashlib.sha256(body).hexdigest()
         storage_key = f"reports/{item_id}/{uuid4()}{extension}"
 
         async with s3_settings.internal_client() as client:
             await client.put_object(
-                Bucket=s3_settings.bucket, Key=storage_key, Body=body, ContentType=data.content_type
+                Bucket=s3_settings.bucket, Key=storage_key, Body=body, ContentType=content_type
             )
 
         with database_action("create", "reports.ReportAttachment"):
@@ -101,7 +107,7 @@ class ReportAttachmentController(Controller):
                 type=AttachmentType.IMAGE,
                 storage_key=storage_key,
                 original_name=data.filename,
-                mime_type=data.content_type,
+                mime_type=content_type,
                 size_bytes=len(body),
                 checksum=checksum,
             )

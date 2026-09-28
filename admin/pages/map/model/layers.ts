@@ -26,9 +26,7 @@ export function useLayerVisibility(): [MapLayerVisibility, (layer: keyof MapLaye
       const next = { ...current, [layer]: !current[layer] };
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        /* the choice just won't survive a reload */
-      }
+      } catch {}
       return next;
     });
   }, []);

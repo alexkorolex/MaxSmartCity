@@ -1,5 +1,3 @@
-// Mirrors src/domains/identity/validation.py so the form can flag a typo before submit;
-// the backend re-checks everything and stays the source of truth.
 
 const INN10_WEIGHTS = [2, 4, 10, 3, 5, 9, 4, 6, 8];
 const INN12_FIRST_WEIGHTS = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8];

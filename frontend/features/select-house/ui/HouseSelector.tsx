@@ -37,7 +37,6 @@ export function HouseSelector({ value, onChange }: HouseSelectorProps) {
   const cities = useMemo(() => cityOptions(selection.cities), [selection.cities]);
   const houses = useMemo(() => houseOptions(selection.housesInCity), [selection.housesInCity]);
   const city = cities.find((option) => option.id === selection.selectedCity) ?? null;
-  // The chosen house need not be among the current search results.
   const house = useMemo(
     () => (selectedHouse.data ? (houseOptions([selectedHouse.data])[0] ?? null) : null),
     [selectedHouse.data],

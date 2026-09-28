@@ -41,7 +41,8 @@ def build_credentials_email(
         "Smart City. В ней вы будете видеть дома организации, их жителей и заявки.\n\n"
         f"{link_line}\n"
         f"Логин: {login}\n"
-        f"Временный пароль: {password}\n\n"
+        f"Временный пароль: {password}\n"
+        "При первом входе панель попросит заменить его на собственный.\n\n"
         "Никому не сообщайте пароль. Если вы не ожидали этого письма, сообщите администратору "
         "платформы.\n\n"
         "— Smart City"
@@ -71,7 +72,6 @@ async def send_credentials_email(
     try:
         await send_email(recipient, subject, body)
     except MailDeliveryError as exc:
-        # The error text never contains the password - only SMTP's own diagnostics.
         logger.warning("Staff credentials e-mail was not sent", extra={"login": login}, exc_info=True)
         return CredentialsEmailResult(recipient=recipient, sent=False, error=str(exc))
     return CredentialsEmailResult(recipient=recipient, sent=True)

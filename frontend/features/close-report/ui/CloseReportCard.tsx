@@ -5,10 +5,6 @@ import { FINAL_REPORT_STATUSES, useCloseReport, type Report } from '@/entities/r
 
 import './CloseReportCard.css';
 
-/**
- * "Проблема решилась": the resident closes their own report. Two steps - a tap first
- * reveals the (optional) comment and the confirmation, so it can't happen by accident.
- */
 export function CloseReportCard({ report }: { report: Report }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [comment, setComment] = useState('');

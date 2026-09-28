@@ -175,8 +175,6 @@ class IncidentResolutionMixin(IncidentTransitionsMixin):
                 ),
                 resident_id=resident_id,
             )
-            # Closing the incident moves its LINKED reports; the closer's own report is
-            # closed whatever stage it was at.
             if report.status not in FINAL_REPORT_STATUSES:
                 self._transition_report(
                     report,

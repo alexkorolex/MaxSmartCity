@@ -26,10 +26,6 @@ JPEG_BYTES = bytes.fromhex("ffd8ffe000104a46494600010100000100010000ffd9")
 def s3_env(monkeypatch: pytest.MonkeyPatch) -> None:
     if not os.environ.get("MINIO_ROOT_PASSWORD"):
         pytest.skip("Set MINIO_ROOT_PASSWORD and run `docker compose up -d minio minio-init`")
-    # Tests run on the host, not inside the Docker network - override the container-network
-    # endpoint (".env"'s ``S3_INTERNAL_ENDPOINT_URL=http://minio:9000``, unreachable here)
-    # with the host-published port. ``S3_BUCKET``/``MINIO_ROOT_USER``/``MINIO_ROOT_PASSWORD``
-    # come from ".env" as-is, matching the real bucket ``minio-init`` created.
     host_endpoint = f"http://localhost:{os.environ.get('MINIO_PORT', '9000')}"
     monkeypatch.setenv("S3_INTERNAL_ENDPOINT_URL", host_endpoint)
     monkeypatch.setenv("S3_PUBLIC_ENDPOINT_URL", host_endpoint)
@@ -119,8 +115,6 @@ def test_list_attachments_is_scoped_to_the_owning_resident(api_client: TestClien
     names = [item["original_name"] for item in listed.json()]
     assert names == ["a.jpg", "b.png"]
 
-    # 404, not 403: viewing (unlike uploading) never reveals that another resident's
-    # report exists at all.
     forbidden = api_client.get(
         f"/reports/{report_id}/attachments", headers={"Authorization": f"Bearer {other_token}"}
     )
@@ -137,3 +131,15 @@ def test_upload_to_missing_report_is_not_found(api_client: TestClient) -> None:
         files={"file": ("photo.jpg", JPEG_BYTES, "image/jpeg")},
     )
     assert response.status_code == 404
+
+
+def test_upload_with_a_spoofed_content_type_is_rejected(api_client: TestClient, database_url: str) -> None:
+    resident_id, token = _resident_token(api_client)
+    report_id = _insert_report(database_url, resident_id=resident_id)
+
+    response = api_client.post(
+        f"/reports/{report_id}/attachments",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("photo.jpg", b"<html><script>alert(1)</script></html>", "image/jpeg")},
+    )
+    assert response.status_code == 415

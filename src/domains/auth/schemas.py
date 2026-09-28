@@ -62,16 +62,23 @@ class StaffLoginResponse:
 
 
 @dataclass
+class StaffInitialPasswordRequest:
+    username: str
+    password: str
+    new_password: str
+
+
+@dataclass
 class StaffRefreshRequest:
     """Keeps a staff member signed in: the refresh token from ``/auth/staff/login`` (or
     the previous refresh) buys a new access token without re-entering the password."""
 
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 @dataclass
 class StaffLogoutRequest:
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 @dataclass

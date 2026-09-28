@@ -1,6 +1,3 @@
-// Mirrors the channel strategies' validation (src/domains/notifications/channels.py), so
-// a wrong value is caught in the form; the backend checks again. No `@/` imports - this
-// file is unit-tested with plain node.
 
 import type { ChannelType } from '../model/types';
 
@@ -45,7 +42,6 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
 
 export const CHANNEL_TYPES: ChannelType[] = ['MAX_CHAT', 'EMAIL', 'MAX_MEMBERS', 'WEBHOOK'];
 
-/** Error text for an unusable target, or null when it's fine. */
 export function channelTargetError(type: ChannelType, target: string): string | null {
   const value = target.trim();
   switch (type) {

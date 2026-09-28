@@ -57,7 +57,6 @@ function housesLabel(count: number): string {
   return `${count} домов`;
 }
 
-/** Who gets a post the signed-in staff member publishes - mirrors the backend's `news.audience`. */
 function useAudienceNote(principal: Principal | undefined): string | null {
   const { data: profile } = useProfile();
   const organizationId = principal?.organization_id ?? undefined;

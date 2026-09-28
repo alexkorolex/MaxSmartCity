@@ -5,7 +5,6 @@ import { apiErrorMessage } from '@/shared/lib';
 
 import './StaffProfile.css';
 
-/** Link (or unlink) the staff member's own MAX account for personal request notifications. */
 export function MaxAccountForm({ profile }: { profile: StaffProfile }) {
   const link = useLinkMaxAccount();
   const unlink = useUnlinkMaxAccount();

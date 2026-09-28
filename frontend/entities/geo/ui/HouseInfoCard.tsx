@@ -103,11 +103,6 @@ function ManagingOrganizationCard({
   );
 }
 
-/**
- * Who manages the resident's house and how to reach them: the management company from
- * open sources (with contacts and provenance), plus whether the УК/ТСЖ is connected to
- * Smart City and gets residents' requests directly.
- */
 export function HouseInfoCard({ info }: { info: HouseInfo }) {
   const platformManager = info.platform_manager;
   const platformManagerListed = info.managing_organizations.some((organization) => organization.is_platform_manager);

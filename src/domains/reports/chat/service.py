@@ -112,7 +112,6 @@ class ReportChatService:
             organization_id=organization_id,
             text=_clean_text(text),
         )
-        # Answering implies having read what the resident wrote.
         await self._mark_read(report.id, sent_by=ActorType.RESIDENT)
         return await self._save(message, own_side=ActorType.OPERATOR)
 

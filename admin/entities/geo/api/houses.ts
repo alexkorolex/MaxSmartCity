@@ -6,14 +6,11 @@ export function searchHouses(params: { q?: string; city?: string }): Promise<Hou
   return http.get<House[]>('/geo/houses/', { query: { q: params.q, city: params.city, limit: 50 } });
 }
 
-/** Reference data about a house: its management company from open sources with requisites
- * and contacts, plus the platform organization managing it (if any). */
 export function fetchHouseInfo(houseId: string): Promise<HouseInfo> {
   return http.get<HouseInfo>(`/geo/houses/${houseId}/info`);
 }
 
 export function fetchHouseManagement(params: { organizationId?: string } = {}): Promise<HouseManagement[]> {
-  // Scoped server-side: a housing worker only ever gets their own organization's houses.
   return http.get<HouseManagement[]>('/geo/house-management/', {
     query: { organization_id: params.organizationId, limit: 200 },
   });

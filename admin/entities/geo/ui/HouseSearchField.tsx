@@ -8,9 +8,7 @@ import './HouseSearchField.css';
 interface HouseSearchFieldProps {
   value: House | null;
   onChange: (house: House | null) => void;
-  /** Houses that can't be picked in this context (e.g. managed by another organization). */
   isDisabled?: (house: House) => boolean;
-  /** One-line note under each result - who manages it on the platform by default. */
   describe?: (house: House) => string;
 }
 
@@ -18,10 +16,6 @@ function defaultDescription(house: House): string {
   return house.managed_by_organization_name ? `Обслуживает: ${house.managed_by_organization_name}` : 'Свободен';
 }
 
-/**
- * City + address search over the whole house registry (server-side, tens of thousands of
- * houses) - shared by every admin form that starts from a house.
- */
 export function HouseSearchField({ value, onChange, isDisabled, describe = defaultDescription }: HouseSearchFieldProps) {
   const idPrefix = useId();
   const { data: cities } = useCities();

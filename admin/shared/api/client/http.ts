@@ -10,7 +10,6 @@ type QueryValue = string | number | boolean | undefined | null;
 interface RequestOptions {
   query?: Record<string, QueryValue>;
   signal?: AbortSignal;
-  /** Don't try to renew the session on 401 - for the auth calls themselves. */
   skipAuthRefresh?: boolean;
 }
 
@@ -56,8 +55,6 @@ function send(method: string, path: string, body: unknown, options?: RequestOpti
 async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
   let response = await send(method, path, body, options);
 
-  // The access token lives minutes; on its expiry renew it with the refresh token and
-  // retry once, so staff stay signed in for the whole 24-hour session.
   if (response.status === 401 && !options?.skipAuthRefresh && getAuthToken() && (await refreshAuthToken())) {
     response = await send(method, path, body, options);
   }

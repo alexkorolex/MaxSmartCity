@@ -6,7 +6,6 @@ import { ROUTES } from '@/shared/routes';
 
 import './ReportChatPage.css';
 
-/** The chat on its own screen, exactly as tall as the viewport - no page scroll. */
 export function ReportChatPage() {
   const { reportId = '' } = useParams<{ reportId: string }>();
   const report = useReport(reportId);

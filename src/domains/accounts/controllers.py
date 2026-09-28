@@ -1,4 +1,3 @@
-# my_app/domains/accounts/controllers.py
 from litestar import Controller, get
 
 

@@ -5,6 +5,7 @@ import {
   fetchMe,
   fetchProfile,
   linkMaxAccount,
+  staffInitialPassword,
   staffLogin,
   unlinkMaxAccount,
   updateProfile,
@@ -32,11 +33,22 @@ export function useStaffLogin() {
   });
 }
 
+export function useStaffInitialPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ username, password, newPassword }: { username: string; password: string; newPassword: string }) =>
+      staffInitialPassword(username, password, newPassword),
+    onSuccess: (response) => {
+      setSession(response);
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
 export function useLinkMaxAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (maxUserId: number) => linkMaxAccount(maxUserId),
-    // `has_max_account` in the organization's member list changes.
     onSuccess: () => invalidateOwnAccount(queryClient),
   });
 }
@@ -60,7 +72,6 @@ export function useUpdateProfile() {
     mutationFn: updateProfile,
     onSuccess: (profile) => {
       queryClient.setQueryData(profileQueryKey, profile);
-      // The name/e-mail also show up in the staff lists and on the home page.
       void queryClient.invalidateQueries({ queryKey: ['staff'] });
       void queryClient.invalidateQueries({ queryKey: ['organizations'] });
     },

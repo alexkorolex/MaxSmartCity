@@ -11,9 +11,7 @@ function readPreference(): ThemePreference {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-  } catch {
-    /* fall through to default */
-  }
+  } catch {}
   return 'system';
 }
 
@@ -51,9 +49,7 @@ export function useTheme(): {
     preference = next;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* preference just won't survive a reload in private mode */
-    }
+    } catch {}
     for (const listener of listeners) listener();
   }, []);
 

@@ -106,9 +106,7 @@ def test_only_housing_organizations_self_register() -> None:
 def test_resident_request_closes_and_reopens_with_its_incident() -> None:
     ensure_report_transition(ReportStatus.LINKED, ReportStatus.CLOSED)
     ensure_report_transition(ReportStatus.CLOSED, ReportStatus.LINKED)
-    # A resident may close their own report at any open stage...
     ensure_report_transition(ReportStatus.RECEIVED, ReportStatus.CLOSED)
-    # ...but not one that was already turned down.
     with pytest.raises(InvalidStateTransition):
         ensure_report_transition(ReportStatus.REJECTED, ReportStatus.CLOSED)
 
@@ -158,6 +156,13 @@ def test_organization_message_round_trips_through_outbox_payload() -> None:
 @pytest.mark.anyio
 async def test_webhook_is_signed_with_the_channel_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     sent: dict[str, object] = {}
+
+    async def resolves_publicly(_url: str) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "src.domains.notifications.channels.ensure_webhook_url_resolves_publicly", resolves_publicly
+    )
 
     class FakeResponse:
         status_code = 204

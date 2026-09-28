@@ -72,8 +72,6 @@ class MLDecisionClient:
             ) as client:
                 response = await client.request(method, path, json=json)
         except (httpx.TimeoutException, httpx.NetworkError) as exc:
-            # Callers fall back to rules, so this is not an error for the request - but a
-            # silently dead ML service would never be noticed otherwise.
             logger.warning(
                 "ML service is unreachable, falling back",
                 extra={"method": method, "path": path, "ml_base_url": self._base_url},

@@ -1,6 +1,5 @@
 import { isApiError } from '@/shared/api';
 
-/** A human-readable message for a failed mutation, preferring the backend's own detail. */
 export function apiErrorMessage(error: unknown): string {
   if (isApiError(error)) {
     if (error.status === 403) return 'Недостаточно прав для этого действия';

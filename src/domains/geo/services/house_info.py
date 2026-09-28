@@ -162,8 +162,6 @@ async def load_managing_organizations(
         )
     ).all()
 
-    # Rows are freshest first, so the first spelling of a name (usually the short, human
-    # one from a contacts source) wins over e.g. the full legal name from GIS ЖКХ.
     merged: list[HouseManagingOrganization] = []
     name_keys: list[set[str]] = []
     for row in rows:

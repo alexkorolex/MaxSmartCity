@@ -5,7 +5,6 @@ export interface MaxBridgeInitDataUnsafe {
     first_name?: string;
     last_name?: string;
     username?: string;
-    /** Profile photo supplied by MAX Bridge for the current mini-app user. */
     photo_url?: string;
   };
 }
@@ -19,8 +18,6 @@ export interface MaxBridgeWebApp {
 
 declare global {
   interface Window {
-    /** Present only when the page is running as a mini app inside MAX
-     * (https://st.max.ru/js/max-web-app.js, loaded unconditionally in index.html). */
     WebApp?: MaxBridgeWebApp;
   }
 }

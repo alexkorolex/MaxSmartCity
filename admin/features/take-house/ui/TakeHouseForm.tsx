@@ -7,12 +7,6 @@ import { apiErrorMessage } from '@/shared/lib';
 
 import './TakeHouseForm.css';
 
-/**
- * Attach a house to a management company / HOA. A housing worker takes a house nobody
- * manages yet for their own organization; the admin and the district administration pick
- * any housing organization and may also move a house away from its current manager
- * (e.g. appointing a УК from the Перечень).
- */
 export function TakeHouseForm() {
   const { data: principal } = useMe();
   const isAuthority = canBrowseOrganizations(principal);

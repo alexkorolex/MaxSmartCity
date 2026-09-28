@@ -46,7 +46,7 @@ async def test_a_failing_job_is_logged_and_does_not_stop_the_others(
 
     async def broken(_session: AsyncSession) -> int:
         ran.append("broken")
-        raise ConnectionError("MAX API is unreachable")  # not a database error
+        raise ConnectionError("MAX API is unreachable")
 
     async def healthy(_session: AsyncSession) -> int:
         ran.append("healthy")

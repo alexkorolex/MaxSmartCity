@@ -57,7 +57,6 @@ def test_house_info_shows_managing_company_contacts_and_platform_connection(
     assert company["sources"][0]["url"] == "https://www.cian.ru/dom/example/"
     assert company["sources"][0]["data_kind"] == "DEMO"
 
-    # The same company (by INN) joins Smart City and takes the house.
     organization_id = str(uuid4())
     run_sql(
         database_url,
@@ -100,7 +99,6 @@ def test_bulk_import_in_batches_and_one_company_from_two_sources_is_one_card(
     totals = asyncio.run(
         bulk_import(save(tmp_path / "registry.json", registry), batch_size=1, database_url=database_url)
     )
-    # house-1 is the contacts source's house (same exact address), house-2 is new.
     assert totals == {
         "houses_created": 1,
         "houses_updated": 1,

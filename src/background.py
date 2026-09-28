@@ -47,10 +47,6 @@ async def run_jobs_once(db_config: SQLAlchemyAsyncConfig) -> None:
             try:
                 processed = await job(session)
                 await session.commit()
-            # The loop's isolation boundary, so deliberately broad: one job's failure - a
-            # database error, an unreachable MAX/SMTP, a bug - must neither stop the others
-            # nor kill the loop (the task would die silently, and every job with it, until
-            # the next restart). Cancellation is a ``BaseException`` and still stops it.
             except Exception:
                 await session.rollback()
                 logger.exception("Background job failed", extra={"job": name})

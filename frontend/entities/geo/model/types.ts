@@ -11,12 +11,10 @@ export interface House {
 export interface HouseDataSource {
   code: string;
   url: string | null;
-  /** `DEMO` data must never be presented to a resident as a real fact. */
   data_kind: 'REAL' | 'DEMO' | string;
   retrieved_at: string;
 }
 
-/** The house's management company as published in open sources, with its contacts. */
 export interface HouseManagingOrganization {
   name: string;
   type: string;
@@ -27,7 +25,6 @@ export interface HouseManagingOrganization {
   website: string | null;
   basis: string | null;
   period_from: string | null;
-  /** Connected to Smart City - residents' requests reach it directly. */
   is_platform_manager: boolean;
   sources: HouseDataSource[];
 }
@@ -55,10 +52,6 @@ export const MANAGING_ORGANIZATION_TYPE_LABELS: Record<string, string> = {
   HOA: 'ТСЖ',
 };
 
-/**
- * Open registries (GIS ЖКХ) tag every manager as `MANAGING_COMPANY`, so an HOA is told
- * apart by the house's management method or by its name.
- */
 export function managingOrganizationLabel(
   organization: Pick<HouseManagingOrganization, 'type' | 'name'>,
   managementMethod: string | null,

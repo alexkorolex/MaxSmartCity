@@ -84,7 +84,7 @@ class ReportChatController(Controller):
             raise NotFoundException(str(exc)) from exc
         await db_session.commit()
         if service.marked_read:
-            await chat_events.publish(report_id)  # the writer's "прочитано" appears right away
+            await chat_events.publish(report_id)
         return thread
 
     @get("/updates", name="reports:ReportChat:updates")

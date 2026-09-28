@@ -1,7 +1,13 @@
 import os
 from dataclasses import dataclass
+from typing import cast
 
 from litestar.stores.redis import RedisStore
+
+
+class ConsumableRedisStore(RedisStore):
+    async def consume(self, key: str) -> bytes | None:
+        return await self._redis.getdel(self._make_key(key))
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,5 +27,7 @@ class CacheSettings:
     def max_webhook_dedup_store(self) -> RedisStore:
         return RedisStore.with_client(self.url, namespace="max_webhook_dedup")
 
-    def max_login_code_store(self) -> RedisStore:
-        return RedisStore.with_client(self.url, namespace="max_login_code")
+    def max_login_code_store(self) -> ConsumableRedisStore:
+        return cast(
+            ConsumableRedisStore, ConsumableRedisStore.with_client(self.url, namespace="max_login_code")
+        )

@@ -17,7 +17,6 @@ function passwordErrorMessage(error: unknown): string {
   return apiErrorMessage(error);
 }
 
-/** Change one's own password - the current one is re-checked on the server. */
 export function ChangePasswordForm() {
   const change = useChangePassword();
   const [current, setCurrent] = useState('');

@@ -19,7 +19,6 @@ import { AsyncState, CitySelect, EmptyState, InboxIcon, Pill } from '@/shared/ui
 
 export function OrganizationsPage() {
   const { data: principal } = useMe();
-  // A housing worker only ever sees their own organization - no directory of other УК/ТСЖ.
   if (principal && !canBrowseOrganizations(principal)) {
     if (principal.organization_id) return <Navigate to={ROUTES.organization(principal.organization_id)} replace />;
     return <EmptyState icon={<InboxIcon />} title="Вы не привязаны к организации" />;
@@ -101,7 +100,6 @@ function OrganizationsDirectory() {
               onCancel={() => setRegistering(null)}
               onRegistered={(organizationId, registration) => {
                 setRegistering(null);
-                // The organization card tells the admin whether the credentials e-mail went out.
                 navigate(ROUTES.organization(organizationId), { state: { registration } });
               }}
             />

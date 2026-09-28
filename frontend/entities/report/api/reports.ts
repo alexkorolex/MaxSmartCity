@@ -47,12 +47,10 @@ export function fetchReportAttachments(reportId: string): Promise<ReportAttachme
   return http.get<ReportAttachment[]>(`/reports/${reportId}/attachments`);
 }
 
-/** The resident closes their own report - the problem went away. */
 export function closeReport(reportId: string, comment: string | null): Promise<CloseReportResult> {
   return http.post<CloseReportResult>(`/reports/${reportId}/close`, { comment });
 }
 
-/** Opening the chat marks the organization's messages as read. */
 export function fetchReportChat(reportId: string): Promise<ReportChatThread> {
   return http.get<ReportChatThread>(`/reports/${reportId}/messages`);
 }

@@ -34,11 +34,9 @@ from litestar.types import Logger, Scope
 from opentelemetry import trace
 from structlog.typing import EventDict, Processor, WrappedLogger
 
-# Header values that must never reach the logs - bearer tokens and shared secrets.
 _SECRET_HEADERS = frozenset(
     {"Authorization", "Cookie", "X-API-KEY", "X-Bot-Secret", "X-Bootstrap-Secret", "X-Max-Bot-Api-Secret"}
 )
-# ``logging.Formatter`` leftovers ``ExtraAdder`` would otherwise copy into every entry.
 _NOISE_KEYS = ("message", "color_message")
 
 
@@ -86,7 +84,6 @@ _RECORD_PROCESSORS: list[Processor] = [
     _add_exception_fields,
     structlog.processors.format_exc_info,
 ]
-# Litestar's own structlog entries are rendered in the calling context - take it directly.
 _SHARED_PROCESSORS: list[Processor] = [
     structlog.contextvars.merge_contextvars,
     _add_trace_context,
@@ -148,8 +145,6 @@ def _standard_lib_logging_config() -> LoggingConfig:
         formatters={
             "standard": {
                 "()": structlog.stdlib.ProcessorFormatter,
-                # Context and trace ids were captured by ``StructuredQueueHandler.prepare`` and
-                # arrive as record attributes, which ``ExtraAdder`` copies like any ``extra``.
                 "foreign_pre_chain": [structlog.stdlib.ExtraAdder(), *_RECORD_PROCESSORS, _drop_noise],
                 "processors": [
                     structlog.stdlib.ProcessorFormatter.remove_processors_meta,
@@ -159,7 +154,6 @@ def _standard_lib_logging_config() -> LoggingConfig:
         },
         handlers={
             "console": {"class": "logging.StreamHandler", "level": "DEBUG", "formatter": "standard"},
-            # Writing to stdout happens on a listener thread, never blocking the event loop.
             "queue_listener": {
                 "class": f"{__name__}.StructuredQueueHandler",
                 "level": "DEBUG",
@@ -189,7 +183,6 @@ def _log_unhandled_exception(logger: Logger, scope: Scope, _traceback: list[str]
 
 
 logging_config = StructLoggingConfig(
-    # Litestar's structlog logger writes bytes, the standard library handler writes text.
     processors=[*_SHARED_PROCESSORS, structlog.processors.JSONRenderer(serializer=default_json_serializer)],
     standard_lib_logging_config=_standard_lib_logging_config(),
     pretty_print_tty=False,

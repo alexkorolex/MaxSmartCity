@@ -141,7 +141,6 @@ async def test_one_of_several_reporters_closing_tells_the_organization(db_sessio
     neighbour = Resident(max_user_id=40_000 + int(uuid4().hex[:6], 16))
     db_session.add(neighbour)
     await db_session.flush()
-    # A neighbour reports the same problem and confirms it's the same incident.
     neighbour_report = Report(
         source_type=report.source_type,
         source_external_id=uuid4().hex,

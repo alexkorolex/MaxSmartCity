@@ -68,6 +68,9 @@ def require_roles(*roles: str) -> Guard:
     return guard
 
 
+STAFF_BOOTSTRAP_STATE_KEY = "staff_bootstrap"
+
+
 def require_admin_or_bootstrap_secret() -> Guard:
     """Guard factory: an authenticated ``admin`` staff member, OR - only when
     ``STAFF_BOOTSTRAP_SECRET`` is configured - a caller presenting that value via the
@@ -83,6 +86,7 @@ def require_admin_or_bootstrap_secret() -> Guard:
         if settings.staff_bootstrap_secret:
             provided = connection.headers.get("X-Bootstrap-Secret", "")
             if provided and hmac.compare_digest(provided, settings.staff_bootstrap_secret):
+                connection.state[STAFF_BOOTSTRAP_STATE_KEY] = True
                 return
         token = extract_bearer_token(connection)
         if not is_keycloak_token(token, settings):

@@ -13,21 +13,26 @@ export function staffLogin(username: string, password: string): Promise<StaffTok
   return http.post<StaffTokens>('/auth/staff/login', { username, password }, { skipAuthRefresh: true });
 }
 
-/** New access token for the still valid (24 h) session - no password. */
-export function staffRefresh(refreshToken: string): Promise<StaffTokens> {
-  return http.post<StaffTokens>('/auth/staff/refresh', { refresh_token: refreshToken }, { skipAuthRefresh: true });
+export function staffInitialPassword(username: string, password: string, newPassword: string): Promise<StaffTokens> {
+  return http.post<StaffTokens>(
+    '/auth/staff/initial-password',
+    { username, password, new_password: newPassword },
+    { skipAuthRefresh: true },
+  );
 }
 
-/** Ends the session server-side, so the refresh token stops working too. */
-export function staffLogout(refreshToken: string): Promise<void> {
-  return http.post<void>('/auth/staff/logout', { refresh_token: refreshToken }, { skipAuthRefresh: true });
+export function staffRefresh(): Promise<StaffTokens> {
+  return http.post<StaffTokens>('/auth/staff/refresh', undefined, { skipAuthRefresh: true });
+}
+
+export function staffLogout(): Promise<void> {
+  return http.post<void>('/auth/staff/logout', undefined, { skipAuthRefresh: true });
 }
 
 export function fetchMe(): Promise<Principal> {
   return http.get<Principal>('/identity/me/');
 }
 
-/** Link the signed-in staff member's own MAX account - for personal request notifications. */
 export function linkMaxAccount(maxUserId: number): Promise<{ operator_id: string; max_user_id: number }> {
   return http.post('/auth/staff/max-id', { max_user_id: maxUserId });
 }

@@ -18,7 +18,6 @@ test('concurrent 401s share one refresh call', async () => {
   assert.deepEqual(await Promise.all([first, second]), [true, true]);
   assert.equal(calls, 1);
 
-  // Once settled, the next expiry triggers a fresh refresh.
   const third = refreshAuthToken();
   release(true);
   await third;

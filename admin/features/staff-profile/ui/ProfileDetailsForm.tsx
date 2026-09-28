@@ -13,7 +13,6 @@ function updateErrorMessage(error: unknown): string {
   return apiErrorMessage(error);
 }
 
-/** The staff member's own name and e-mail - kept in step with their Keycloak account. */
 export function ProfileDetailsForm({ profile }: { profile: StaffProfile }) {
   const update = useUpdateProfile();
   const [displayName, setDisplayName] = useState(profile.display_name);

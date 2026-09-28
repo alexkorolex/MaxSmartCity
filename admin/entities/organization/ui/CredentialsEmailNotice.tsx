@@ -1,7 +1,5 @@
 import type { CredentialsEmailResult } from '../model/types';
 
-/** Tells the admin whether the new employee got their login by e-mail - and, if not,
- * that handing it over is now on them. */
 export function CredentialsEmailNotice({ result, login }: { result: CredentialsEmailResult; login: string }) {
   if (result.sent) {
     return (

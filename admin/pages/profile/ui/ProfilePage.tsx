@@ -4,7 +4,6 @@ import { AsyncState } from '@/shared/ui';
 
 import './ProfilePage.css';
 
-/** The signed-in staff member's own account: personal data, password and MAX link. */
 export function ProfilePage() {
   const { data: principal } = useMe();
   const profile = useProfile();
@@ -37,7 +36,6 @@ export function ProfilePage() {
                 </div>
               </div>
               <div className="card__body">
-                {/* Re-mount after a save so the form starts from the stored values. */}
                 <ProfileDetailsForm key={`${profile.data.display_name}|${profile.data.email}`} profile={profile.data} />
               </div>
             </section>

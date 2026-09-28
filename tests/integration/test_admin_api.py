@@ -175,9 +175,6 @@ def _full_incident_chain(
     return incident_id, report_id, assignment_id
 
 
-# --- Admin: unrestricted visibility --------------------------------------------------
-
-
 def test_admin_sees_all_organization_scoped_resources(
     api_client: TestClient,
     database_url: str,
@@ -201,21 +198,14 @@ def test_admin_sees_all_organization_scoped_resources(
 
     headers = {"Authorization": f"Bearer {admin_token}"}
 
-    # Direct-id fetches, not the list endpoint: the list is paginated (default limit 50)
-    # and the shared dev/test database accumulates organizations across every previous
-    # test run, so a freshly created org is not guaranteed to land on the first page.
     assert api_client.get(f"/identity/organizations/{org_a}", headers=headers).status_code == 200
     assert api_client.get(f"/identity/organizations/{org_b}", headers=headers).status_code == 200
 
-    # Same reasoning: operator-users sorts ascending by login and incidents sorts
-    # ascending by id, neither of which puts freshly created rows anywhere near a
-    # 50-row first page once the shared database has accumulated more than that.
     assert api_client.get(f"/identity/operator-users/{operator_a}", headers=headers).status_code == 200
     assert api_client.get(f"/identity/operator-users/{operator_b}", headers=headers).status_code == 200
     assert api_client.get(f"/incidents/{incident_a}", headers=headers).status_code == 200
     assert api_client.get(f"/incidents/{incident_b}", headers=headers).status_code == 200
 
-    # Residents/reports/comments sort newest-first, so a plain list check is safe.
     residents = api_client.get("/identity/residents/", headers=headers)
     assert residents.status_code == 200
     assert resident_id in {item["id"] for item in residents.json()}
@@ -229,9 +219,6 @@ def test_admin_sees_all_organization_scoped_resources(
     assert comments.status_code == 200
     comment_ids = {item["id"] for item in comments.json()}
     assert {comment_a, comment_b} <= comment_ids
-
-
-# --- Non-admin staff: confined to their own organization ------------------------------
 
 
 def test_organization_staff_sees_only_their_own_organization_and_404s_on_other_org_resources(
@@ -258,7 +245,6 @@ def test_organization_staff_sees_only_their_own_organization_and_404s_on_other_o
 
     headers_a = {"Authorization": f"Bearer {token_a}"}
 
-    # --- Lists: org A's own data appears, org B's does not -----------------------
     operators = api_client.get("/identity/operator-users/", headers=headers_a)
     assert operators.status_code == 200
     operator_ids = {item["id"] for item in operators.json()}
@@ -289,11 +275,9 @@ def test_organization_staff_sees_only_their_own_organization_and_404s_on_other_o
     assert comment_a in comment_ids
     assert comment_b not in comment_ids
 
-    # --- Direct-id fetches of another organization's resources 404, not 403 ------
     assert api_client.get(f"/identity/operator-users/{operator_b}", headers=headers_a).status_code == 404
     assert api_client.get(f"/identity/residents/{resident_b}", headers=headers_a).status_code == 404
 
-    # organization_id filter: passing another org's id is a 403 (probing by id)
     forbidden_org_filter = api_client.get(
         "/identity/operator-users/", params={"organization_id": org_b}, headers=headers_a
     )
@@ -370,9 +354,6 @@ def test_incident_comment_create_scoped_to_assigned_organization(
     assert forbidden.status_code == 403
 
 
-# --- City filtering ---------------------------------------------------------------
-
-
 def test_city_filters_operator_users_and_residents(
     api_client: TestClient,
     database_url: str,
@@ -441,9 +422,6 @@ def test_city_filters_reports(
     assert report_crimea not in filtered_ids
 
 
-# --- Single report: owning resident / org-scoped staff / everyone else ---------------
-
-
 def test_report_detail_and_attachments_scoped_by_owner_or_organization(
     api_client: TestClient,
     database_url: str,
@@ -462,21 +440,16 @@ def test_report_detail_and_attachments_scoped_by_owner_or_organization(
         database_url, organization_id=org_a, resident_id=owner_id
     )
 
-    # No token at all: the detail endpoint requires authentication now, full stop.
     assert api_client.get(f"/reports/{report_id}").status_code == 401
 
-    # Owning resident: sees both the report and its (empty) attachment list.
     owner_headers = {"Authorization": f"Bearer {owner_token}"}
     assert api_client.get(f"/reports/{report_id}", headers=owner_headers).status_code == 200
     assert api_client.get(f"/reports/{report_id}/attachments", headers=owner_headers).status_code == 200
 
-    # A different resident gets 404, not 403 - the report's existence isn't revealed.
     other_headers = {"Authorization": f"Bearer {other_token}"}
     assert api_client.get(f"/reports/{report_id}", headers=other_headers).status_code == 404
     assert api_client.get(f"/reports/{report_id}/attachments", headers=other_headers).status_code == 404
 
-    # Staff at the assigned organization (org_a) can see it; staff at an unrelated
-    # organization (org_b) cannot, even though both are legitimate district_admins.
     scoped_headers = {"Authorization": f"Bearer {token_a}"}
     assert api_client.get(f"/reports/{report_id}", headers=scoped_headers).status_code == 200
     assert api_client.get(f"/reports/{report_id}/attachments", headers=scoped_headers).status_code == 200
@@ -485,13 +458,9 @@ def test_report_detail_and_attachments_scoped_by_owner_or_organization(
     assert api_client.get(f"/reports/{report_id}", headers=unrelated_headers).status_code == 404
     assert api_client.get(f"/reports/{report_id}/attachments", headers=unrelated_headers).status_code == 404
 
-    # Admin sees any report regardless of organization.
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     assert api_client.get(f"/reports/{report_id}", headers=admin_headers).status_code == 200
     assert api_client.get(f"/reports/{report_id}/attachments", headers=admin_headers).status_code == 200
-
-
-# --- News: resident / admin / non-admin staff visibility ------------------------------
 
 
 def test_news_visibility_for_resident_admin_and_non_admin_staff(
@@ -504,7 +473,6 @@ def test_news_visibility_for_resident_admin_and_non_admin_staff(
     _org, _operator, worker_token = _org_a_staff_setup(database_url, private_pem)
     _resident_id, resident_token = _resident_token(api_client)
 
-    # Admin creates a published post and its own draft.
     published = api_client.post(
         "/news/",
         json={"title": "Published", "body": "Body"},
@@ -525,7 +493,6 @@ def test_news_visibility_for_resident_admin_and_non_admin_staff(
     assert admin_draft.status_code == 201
     admin_draft_id = admin_draft.json()["id"]
 
-    # The district_admin/housing_worker creates their own draft.
     worker_draft = api_client.post(
         "/news/",
         json={"title": "Worker draft", "body": "Body"},
@@ -534,19 +501,16 @@ def test_news_visibility_for_resident_admin_and_non_admin_staff(
     assert worker_draft.status_code == 201
     worker_draft_id = worker_draft.json()["id"]
 
-    # Resident: published only.
     resident_list = api_client.get("/news/", headers={"Authorization": f"Bearer {resident_token}"})
     resident_ids = {item["id"] for item in resident_list.json()}
     assert published_id in resident_ids
     assert admin_draft_id not in resident_ids
     assert worker_draft_id not in resident_ids
 
-    # Admin: everything.
     admin_list = api_client.get("/news/", headers={"Authorization": f"Bearer {admin_token}"})
     admin_ids = {item["id"] for item in admin_list.json()}
     assert {published_id, admin_draft_id, worker_draft_id} <= admin_ids
 
-    # Non-admin staff: published + their own draft, not someone else's draft.
     worker_list = api_client.get("/news/", headers={"Authorization": f"Bearer {worker_token}"})
     worker_ids = {item["id"] for item in worker_list.json()}
     assert published_id in worker_ids
@@ -582,7 +546,6 @@ def test_news_update_and_delete_scoped_to_author(
     assert worker_post.status_code == 201
     worker_post_id = worker_post.json()["id"]
 
-    # Worker cannot edit or delete the admin's post.
     forbidden_update = api_client.patch(
         f"/news/{admin_post_id}",
         json={"title": "Hijacked"},
@@ -595,7 +558,6 @@ def test_news_update_and_delete_scoped_to_author(
     )
     assert forbidden_delete.status_code == 403
 
-    # Worker can edit and delete their own post.
     own_update = api_client.patch(
         f"/news/{worker_post_id}",
         json={"title": "Updated by author"},
@@ -604,7 +566,6 @@ def test_news_update_and_delete_scoped_to_author(
     assert own_update.status_code == 200, own_update.text
     assert own_update.json()["title"] == "Updated by author"
 
-    # Admin can edit and delete anyone's post.
     admin_edit_of_worker_post = api_client.patch(
         f"/news/{worker_post_id}",
         json={"title": "Edited by admin"},
@@ -618,9 +579,6 @@ def test_news_update_and_delete_scoped_to_author(
     assert admin_delete_of_worker_post.status_code == 204
 
 
-# --- Staff with no active organization membership: empty, not an error ----------------
-
-
 def test_staff_without_active_membership_gets_empty_lists(
     api_client: TestClient,
     database_url: str,
@@ -630,8 +588,6 @@ def test_staff_without_active_membership_gets_empty_lists(
     unassigned_token = _staff_token(private_pem, subject=str(uuid4()), roles=["housing_worker"])
     headers = {"Authorization": f"Bearer {unassigned_token}"}
 
-    # Seed some organization-scoped data elsewhere so an empty result is a real assertion,
-    # not a vacuous one.
     org_a, operator_a, _token_a = _org_a_staff_setup(database_url, private_pem)
     incident_a, _report_a, _assignment_a = _full_incident_chain(database_url, organization_id=org_a)
     _insert_incident_comment(database_url, incident_id=incident_a, author_user_id=operator_a)

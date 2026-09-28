@@ -88,7 +88,6 @@ export interface CloseReportResult {
   incident_status: string | null;
 }
 
-/** A report the resident can no longer close - it already is closed or was turned down. */
 export const FINAL_REPORT_STATUSES: ReadonlySet<ReportStatus> = new Set<ReportStatus>([
   'CLOSED',
   'REJECTED',
@@ -106,7 +105,6 @@ export interface ChatMessage {
   is_mine: boolean;
 }
 
-/** The chat between the resident and the organizations working on their report. */
 export interface ReportChatThread {
   report_id: string;
   report_text: string | null;

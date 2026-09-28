@@ -24,6 +24,11 @@ from src.common.models import utc_now
 from src.domains.identity.models import OperatorUser, OrganizationMember
 from src.domains.notifications.enums import OrganizationChannelType
 from src.domains.notifications.mailer import MailDeliveryError, send_email
+from src.domains.notifications.webhook_targets import (
+    UnsafeWebhookTargetError,
+    ensure_webhook_url_resolves_publicly,
+    validate_webhook_url,
+)
 from src.max_bot.client import MaxApiError, MaxClient
 from src.max_bot.settings import MaxBotSettings
 
@@ -136,7 +141,6 @@ class MaxMembersStrategy(ChannelStrategy):
             )
         ).all()
         if not recipients:
-            # Nobody linked a MAX account yet - nothing to retry until someone does.
             return
         client = _max_client()
         failed = 0
@@ -144,8 +148,6 @@ class MaxMembersStrategy(ChannelStrategy):
             try:
                 await client.send_message(text=message.text, user_id=max_user_id)
             except (MaxApiError, OSError):
-                # One member's blocked bot or a MAX hiccup must not stop the others - but
-                # stays visible: a member who never gets anything is otherwise a mystery.
                 failed += 1
                 logger.warning(
                     "Could not message an organization member in MAX",
@@ -194,8 +196,12 @@ class WebhookStrategy(ChannelStrategy):
     type = OrganizationChannelType.WEBHOOK
 
     def validate(self, target: str | None, secret: str | None) -> None:
-        if not target or not target.startswith("https://"):
+        if not target:
             raise ChannelConfigurationError("WEBHOOK target must be an https:// URL")
+        try:
+            validate_webhook_url(target)
+        except UnsafeWebhookTargetError as exc:
+            raise ChannelConfigurationError(str(exc)) from exc
 
     async def send(self, session: AsyncSession, channel: ChannelTarget, message: OrganizationMessage) -> None:
         assert channel.target is not None
@@ -207,7 +213,11 @@ class WebhookStrategy(ChannelStrategy):
             signature = hmac.new(channel.secret.encode(), body, hashlib.sha256).hexdigest()
             headers["X-SmartCity-Signature"] = f"sha256={signature}"
         try:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+            await ensure_webhook_url_resolves_publicly(channel.target)
+        except UnsafeWebhookTargetError as exc:
+            raise ChannelDeliveryError(str(exc)) from exc
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=False, trust_env=False) as client:
                 response = await client.post(channel.target, content=body, headers=headers)
         except httpx.HTTPError as exc:
             raise ChannelDeliveryError(f"Webhook request failed: {exc}") from exc

@@ -16,11 +16,6 @@ export function isAdmin(principal: Principal | undefined): boolean {
   return Boolean(principal?.roles.includes(STAFF_ROLES.admin));
 }
 
-/**
- * The platform admin and the district administration (Управа) browse every organization;
- * a housing worker (жилищник) only ever sees their own - mirrors the backend's
- * `_ORGANIZATION_DIRECTORY_ROLES` / `_HOUSE_MANAGEMENT_AUTHORITY_ROLES`.
- */
 export function isAuthority(principal: Principal | undefined): boolean {
   return Boolean(principal && !isAdmin(principal) && principal.roles.includes(STAFF_ROLES.districtAdmin));
 }
@@ -37,10 +32,6 @@ export function canBrowseOrganizations(principal: Principal | undefined): boolea
 
 const ROLE_PRIORITY: readonly string[] = [STAFF_ROLES.admin, STAFF_ROLES.districtAdmin, STAFF_ROLES.housingWorker];
 
-/**
- * The caller's staff role, highest first. The token also carries Keycloak's technical
- * roles (`default-roles-<realm>`, `offline_access`, ...) - those are never shown.
- */
 export function primaryRole(principal: Principal | undefined): string | null {
   if (!principal) return null;
   return ROLE_PRIORITY.find((role) => principal.roles.includes(role)) ?? null;

@@ -151,6 +151,7 @@ jobs:
           mkdir -p "$CI_LOGS" "$DEPLOY_DIR/keycloak" "$DEPLOY_DIR/observability" "$DEPLOY_DIR/max-certs"
           install -m 644 docker-compose.prod.yml "$DEPLOY_DIR/docker-compose.prod.yml"
           rsync -a --inplace --delete keycloak/ "$DEPLOY_DIR/keycloak/"
+          jq '.users = []' keycloak/realm-export.json >"$DEPLOY_DIR/keycloak/realm-export.json"
           rsync -a --inplace --delete observability/ "$DEPLOY_DIR/observability/"
           echo "PREVIOUS_TAG=$(cat "$DEPLOY_DIR/.deployed_tag" 2>/dev/null || true)" >>"$GITHUB_ENV"
 
@@ -186,6 +187,13 @@ jobs:
           docker compose up --detach --no-build --remove-orphans 2>&1 | tee "$CI_LOGS/up.log"
           "$GITHUB_WORKSPACE/deploy/wait-healthy.sh" 2>&1 | tee "$CI_LOGS/health.log"
           echo "$IMAGE_TAG" >.deployed_tag
+
+      - name: Harden Keycloak
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          KEYCLOAK_REALM: ${{ vars.KEYCLOAK_REALM || 'maxsmartcity' }}
+          KEYCLOAK_CLIENT_ID: ${{ vars.KEYCLOAK_CLIENT_ID || 'maxsmartcity-backend' }}
+        run: '"$GITHUB_WORKSPACE/deploy/keycloak-hardening.sh" 2>&1 | tee "$CI_LOGS/keycloak-hardening.log"'
 
       - name: Bootstrap main admin
         working-directory: ${{ env.DEPLOY_DIR }}

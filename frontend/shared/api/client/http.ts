@@ -48,8 +48,6 @@ async function request<T>(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const isFormData = body instanceof FormData;
-  // Never set Content-Type ourselves for FormData - the browser needs to add the
-  // multipart boundary itself, which it only does when the header is left unset.
   if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
 
   const response = await fetch(buildUrl(path, options?.query), {

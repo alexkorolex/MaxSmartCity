@@ -55,8 +55,8 @@ async def create_staff_user(
                 "lastName": last_name or "-",
                 "enabled": True,
                 "emailVerified": True,
-                "requiredActions": [],
-                "credentials": [{"type": "password", "value": password, "temporary": False}],
+                "requiredActions": ["UPDATE_PASSWORD"],
+                "credentials": [{"type": "password", "value": password, "temporary": True}],
             },
         )
         if created.status_code == httpx.codes.CONFLICT:
@@ -112,8 +112,48 @@ async def set_staff_password(settings: SecuritySettings, *, subject: str, passwo
             json={"type": "password", "value": password, "temporary": False},
         )
         if reset.status_code == httpx.codes.BAD_REQUEST:
-            # Keycloak's realm password policy rejected it - the message is user-facing.
             detail = reset.json().get("error_description") or "Password rejected by the password policy"
             raise KeycloakAdminError(detail, invalid=True)
         if reset.status_code != httpx.codes.NO_CONTENT:
             raise KeycloakAdminError(f"Could not set Keycloak password: {reset.text}")
+
+
+async def complete_initial_password(settings: SecuritySettings, *, username: str, password: str) -> None:
+    async with httpx.AsyncClient(timeout=10) as client:
+        headers = {"Authorization": f"Bearer {await _admin_token(settings, client)}"}
+        found = await client.get(
+            settings.keycloak_admin_users_url,
+            headers=headers,
+            params={"username": username, "exact": "true"},
+        )
+        if found.status_code != httpx.codes.OK or not found.json():
+            raise KeycloakAdminError("Staff account was not found")
+        subject = found.json()[0]["id"]
+        reset = await client.put(
+            f"{settings.keycloak_admin_users_url}/{subject}/reset-password",
+            headers=headers,
+            json={"type": "password", "value": password, "temporary": False},
+        )
+        if reset.status_code == httpx.codes.BAD_REQUEST:
+            detail = reset.json().get("error_description") or "Password rejected by the password policy"
+            raise KeycloakAdminError(detail, invalid=True)
+        if reset.status_code != httpx.codes.NO_CONTENT:
+            raise KeycloakAdminError(f"Could not set Keycloak password: {reset.text}")
+        cleared = await client.put(
+            f"{settings.keycloak_admin_users_url}/{subject}", headers=headers, json={"requiredActions": []}
+        )
+        if cleared.status_code != httpx.codes.NO_CONTENT:
+            raise KeycloakAdminError(f"Could not finish the password change: {cleared.text}")
+
+
+async def realm_role_has_users(settings: SecuritySettings, role: str) -> bool:
+    async with httpx.AsyncClient(timeout=10) as client:
+        headers = {"Authorization": f"Bearer {await _admin_token(settings, client)}"}
+        response = await client.get(
+            f"{settings.keycloak_internal_url}/admin/realms/{settings.keycloak_realm}/roles/{role}/users",
+            headers=headers,
+            params={"first": 0, "max": 1},
+        )
+        if response.status_code != httpx.codes.OK:
+            raise KeycloakAdminError(f"Could not list users of role {role!r}: {response.text}")
+        return bool(response.json())

@@ -5,6 +5,7 @@ export {
   useLinkMaxAccount,
   useMe,
   useProfile,
+  useStaffInitialPassword,
   useStaffLogin,
   useUnlinkMaxAccount,
   useUpdateProfile,

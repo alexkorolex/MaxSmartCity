@@ -62,7 +62,6 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert api_client.post("/geo/house-management/", json=body, headers=worker).status_code == 201
     resident_id, token = _resident_token(api_client, display_name="Ольга Житель")
     resident = _headers(token)
-    # The resident pressed /start in the bot: their dialog's chat_id is known.
     run_sql(database_url, "UPDATE identity.resident SET max_chat_id = 90210 WHERE id = :id", id=resident_id)
     report = api_client.post(
         "/reports/",
@@ -98,7 +97,6 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert reply.status_code == 201, reply.text
     assert reply.json()["organization_name"] == "УК Чат"
 
-    # The resident is away: after a minute unread, they're told in MAX and in the app.
     delivered: list[tuple[int | None, str, str]] = []
 
     async def fake_send(resident: Resident, text: str, _bot: object, target: AppTarget) -> bool:
@@ -107,7 +105,7 @@ def test_resident_and_organization_chat_and_are_told_when_away(
 
     monkeypatch.setattr("src.domains.notifications.resident_push.send_to_resident", fake_send)
     monkeypatch.setattr("src.domains.notifications.resident_push.max_bot_from_environment", object)
-    _run_notifier(database_url, push_resident_notifications)  # whatever the report itself caused
+    _run_notifier(database_url, push_resident_notifications)
     delivered.clear()
     run_sql(
         database_url,
@@ -115,7 +113,6 @@ def test_resident_and_organization_chat_and_are_told_when_away(
         "WHERE report_id = :report",
         report=report,
     )
-    # ...and the organization is away too, for the resident's follow-up.
     assert api_client.post(chat, json={"text": "Спасибо!"}, headers=resident).status_code == 201
     run_sql(
         database_url,
@@ -145,11 +142,9 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert "Спасибо!" in queued[0].body
     assert "Ольга Житель" in queued[0].body
 
-    # Each message is announced once.
     assert _run_notifier(database_url) == 0
     assert _run_notifier(database_url, push_resident_notifications) == 0
 
-    # The resident turned MAX notifications off in the web app: in-app only from now on.
     toggled = api_client.patch(
         "/identity/me/resident", json={"notifications_enabled": False}, headers=resident
     )
@@ -167,7 +162,6 @@ def test_resident_and_organization_chat_and_are_told_when_away(
     assert len(delivered) == 1
     assert len(api_client.get("/notifications/", headers=resident).json()) == 2
 
-    # Back in the chat: the "new message" notifications about it are read along with it.
     assert api_client.get(chat, headers=resident).status_code == 200
     notifications = api_client.get("/notifications/", headers=resident).json()
     assert [(item["type"], item["is_read"]) for item in notifications] == [("CHAT_MESSAGE", True)] * 2
@@ -202,12 +196,10 @@ def test_platform_admin_only_observes_report_chats(
     chat = f"/reports/{report}/messages"
     assert api_client.post(chat, json={"text": "Когда придёте?"}, headers=resident).status_code == 201
 
-    # The admin sees the chat, but it isn't theirs to answer...
     admin_view = api_client.get(chat, headers=admin).json()
     assert admin_view["can_write"] is False
     assert [m["text"] for m in admin_view["messages"]] == ["Когда придёте?"]
     assert api_client.post(chat, json={"text": "Разберёмся"}, headers=admin).status_code == 403
-    # ...nor to read for the organization: it still has the message as new.
     inbox = api_client.get("/chat/conversations", headers=worker).json()
     assert [(item["report_id"], item["unread_count"]) for item in inbox] == [(report, 1)]
     receipts = [m["read_at"] for m in api_client.get(chat, headers=resident).json()["messages"]]
@@ -251,7 +243,6 @@ def test_long_poll_answers_at_once_when_the_chat_changed_and_times_out_otherwise
     assert poll(worker) is True
     assert poll(worker, since=sent["created_at"]) is False
 
-    # The organization reading the message is a change for the resident ("прочитано").
     api_client.get(chat, headers=worker)
     assert poll(resident, since=sent["created_at"]) is True
     assert api_client.get(f"/reports/{uuid4()}/messages/updates", headers=resident).status_code == 404

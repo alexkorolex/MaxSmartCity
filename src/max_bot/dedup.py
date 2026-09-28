@@ -28,8 +28,7 @@ async def create_login_code(resident_id: UUID) -> str:
 
 async def consume_login_code(code: str) -> UUID | None:
     store = CacheSettings.from_environment().max_login_code_store()
-    value = await store.get(code)
+    value = await store.consume(code)
     if value is None:
         return None
-    await store.delete(code)
     return UUID(value.decode())

@@ -50,6 +50,5 @@ async def test_presigned_url_is_signed_against_the_public_not_internal_endpoint(
 
     assert parsed.netloc == public_parsed.netloc
     assert parsed.netloc != internal_parsed.netloc
-    # Path-style addressing: bucket is a path segment, not a subdomain.
     assert parsed.path == "/test-bucket/reports/some-report/some-key.jpg"
     assert "Signature" in parsed.query or "X-Amz-Signature" in parsed.query

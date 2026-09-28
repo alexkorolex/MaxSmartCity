@@ -9,6 +9,7 @@ files=(
   bryansk_districts.geojson
   microsoft_buildings_bryansk.geojsonl
   microsoft_buildings_bakhchysarai.geojsonl
+  bakhchisaray.geojson
 )
 
 mkdir -p "$dataset_dir"

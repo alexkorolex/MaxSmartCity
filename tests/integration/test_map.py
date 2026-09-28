@@ -345,3 +345,60 @@ def test_authority_sees_only_its_own_territory_on_the_map(
     admin_summary = map_client.get("/map/summary", headers=admin).json()
     assert admin_summary["scope"] is None
     assert {city_a, city_b} <= {item["city"] for item in admin_summary["cities"]}
+
+
+def test_city_boundary_import_sets_city_geometry_and_places_unassigned_houses(
+    database_url: str, tmp_path: Path
+) -> None:
+    city = f"Бахчиград-{uuid4().hex[:8]}"
+    key = f"test-map:{uuid4()}"
+    dataset = {
+        "version": 1,
+        "source": {
+            "code": f"test-map-{uuid4()}",
+            "data_kind": "DEMO",
+            "retrieved_at": "2026-09-28T00:00:00+03:00",
+        },
+        "houses": [{"key": key, "city": city, "street": "улица Ханская", "house_number": "1"}],
+        "organizations": [],
+        "links": [],
+    }
+    asyncio.run(import_dataset(dataset, uuid4().hex, database_url))
+    boundary = tmp_path / "boundary.geojson"
+    boundary.write_text(
+        json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [{"type": "Feature", "properties": {"name": city}, "geometry": DISTRICT}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = asyncio.run(
+        geodata.run(
+            geolocation=None,
+            districts=None,
+            districts_city=city,
+            buildings=[],
+            city_boundaries=[(city, boundary)],
+            database_url=database_url,
+        )
+    )
+
+    assert summary[f"city_boundary:{city}"] == 1
+    assert summary[f"houses_placed_into_city:{city}"] == 1
+    assert scalar(
+        database_url,
+        "SELECT ST_IsValid(geometry) FROM geo.administrative_area WHERE parent_id IS NULL AND name = :city",
+        city=city,
+    )
+    assert (
+        scalar(
+            database_url,
+            "SELECT a.name FROM geo.house h JOIN ingestion.house_source hs ON hs.house_id = h.id "
+            "JOIN geo.administrative_area a ON a.id = h.administrative_area_id WHERE hs.source_key = :key",
+            key=key,
+        )
+        == city
+    )

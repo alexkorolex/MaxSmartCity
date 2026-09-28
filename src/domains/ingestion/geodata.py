@@ -194,12 +194,39 @@ async def import_buildings(connection: AsyncConnection, geometries: list[str], c
     ).scalar_one()
 
 
+async def import_city_boundary(
+    connection: AsyncConnection, features: list[dict[str, Any]], city: str
+) -> dict[str, int]:
+    city_id = await _city_id(connection, city)
+    geometries = [json.dumps(feature["geometry"], separators=(",", ":")) for feature in features]
+    await connection.execute(
+        text(
+            "UPDATE geo.administrative_area SET geometry = ("
+            f" SELECT ST_Multi(ST_CollectionExtract(ST_Union({_VALID_POLYGONS.format('g')}), 3))"
+            " FROM unnest(CAST(:geometries AS text[])) AS g"
+            "), updated_at = now() WHERE id = :city_id"
+        ),
+        {"city_id": city_id, "geometries": geometries},
+    )
+    placed = await connection.execute(
+        text(
+            "UPDATE geo.house h SET administrative_area_id = :city_id, updated_at = now() "
+            "FROM geo.address a "
+            "WHERE a.id = h.address_id AND h.administrative_area_id IS NULL "
+            "AND lower(trim(a.city)) = lower(trim(:city_name))"
+        ),
+        {"city_id": city_id, "city_name": city},
+    )
+    return {f"city_boundary:{city}": len(features), f"houses_placed_into_city:{city}": placed.rowcount}
+
+
 async def run(
     *,
     geolocation: Path | None,
     districts: Path | None,
     districts_city: str,
     buildings: list[tuple[str, Path]],
+    city_boundaries: list[tuple[str, Path]] | None = None,
     database_url: str | None = None,
 ) -> dict[str, Any]:
     engine = create_async_engine(database_url or DatabaseSettings.from_environment().url)
@@ -214,6 +241,10 @@ async def run(
             features = json.loads(await asyncio.to_thread(districts.read_text, encoding="utf-8"))["features"]
             async with engine.begin() as connection:
                 summary |= await import_districts(connection, features, districts_city)
+        for city, path in city_boundaries or []:
+            features = json.loads(await asyncio.to_thread(path.read_text, encoding="utf-8"))["features"]
+            async with engine.begin() as connection:
+                summary |= await import_city_boundary(connection, features, city)
         for city, path in buildings:
             geometries = await asyncio.to_thread(read_building_geometries, path)
             async with engine.begin() as connection:
@@ -241,6 +272,14 @@ def main() -> None:
     parser.add_argument("--districts", type=Path, help="GeoJSON FeatureCollection of city districts")
     parser.add_argument("--districts-city", default="Брянск")
     parser.add_argument("--buildings", type=_city_path, action="append", default=[], metavar="CITY=PATH")
+    parser.add_argument(
+        "--city-boundary",
+        type=_city_path,
+        action="append",
+        default=[],
+        metavar="CITY=PATH",
+        help="GeoJSON FeatureCollection with the city boundary; replaces the union of its districts",
+    )
     args = parser.parse_args()
     load_dotenv()
     summary = asyncio.run(
@@ -249,6 +288,7 @@ def main() -> None:
             districts=args.districts,
             districts_city=args.districts_city,
             buildings=args.buildings,
+            city_boundaries=args.city_boundary,
         )
     )
     print(json.dumps(summary, ensure_ascii=False))

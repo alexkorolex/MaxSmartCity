@@ -249,6 +249,8 @@ services:
         - Брянск=/datasets/microsoft_buildings_bryansk.geojsonl
         - --buildings
         - Бахчисарай=/datasets/microsoft_buildings_bakhchysarai.geojsonl
+        - --city-boundary
+        - Бахчисарай=/datasets/bakhchisaray.geojson
       depends_on:
         migrate:
           condition: service_completed_successfully

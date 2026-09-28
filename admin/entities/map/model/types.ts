@@ -17,10 +17,17 @@ export interface MapZooms {
   max_zoom: number;
 }
 
+export interface MapScope {
+  territory_id: string;
+  name: string;
+  type: string;
+}
+
 export interface MapSummary {
   cities: MapCity[];
   zooms: MapZooms;
   attribution: string[];
+  scope: MapScope | null;
 }
 
 export interface DistrictProperties {

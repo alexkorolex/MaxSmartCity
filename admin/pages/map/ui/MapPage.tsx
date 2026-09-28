@@ -86,6 +86,9 @@ export function MapPage() {
           <aside className="absolute top-3 left-3 z-10 flex w-72 max-w-[calc(100%-24px)] flex-col gap-3 rounded-xl border border-border bg-popover/95 p-3 text-sm text-popover-foreground shadow-md backdrop-blur">
             <div>
               <div className="text-base font-semibold">Карта</div>
+              {summary.data.scope && (
+                <div className="text-xs font-medium text-primary">Территория: {summary.data.scope.name}</div>
+              )}
               <div className="text-xs text-muted-foreground">
                 Инцидентов на карте: {incidents.data?.features.length ?? 0}
                 {incidents.data?.metadata.unlocated_houses

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(slots=True)
@@ -21,7 +22,15 @@ class MapCity:
 
 
 @dataclass(slots=True)
+class MapScope:
+    territory_id: UUID
+    name: str
+    type: str
+
+
+@dataclass(slots=True)
 class MapSummary:
     cities: list[MapCity]
     zooms: MapLayerZooms
     attribution: list[str]
+    scope: MapScope | None = None

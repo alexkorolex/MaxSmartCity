@@ -9,6 +9,7 @@ export type {
   IncidentHouseProperties,
   MapCity,
   MapIncident,
+  MapScope,
   MapSummary,
   MapZooms,
 } from './model/types';

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from src.domains.ingestion import geodata
 from src.domains.ingestion.importer import import_dataset
 from src.map.app import create_map_app
+from tests.integration.test_authorities import _register_authority
 from tests.integration.test_resident_api import (  # noqa: F401
     _insert_category,
     _insert_incident,
@@ -176,7 +177,7 @@ def test_map_is_only_for_admins_and_authorities(
     assert map_client.get("/map/summary", headers=_headers(private_pem, "housing_worker")).status_code == 403
     assert map_client.get("/map/summary", headers=_headers(private_pem, "admin")).status_code == 200
     assert (
-        map_client.get("/map/incidents", headers=_headers(private_pem, "district_admin")).status_code == 200
+        map_client.get("/map/incidents", headers=_headers(private_pem, "district_admin")).status_code == 403
     )
 
 
@@ -234,7 +235,7 @@ def test_map_shows_houses_with_incidents_at_any_zoom(
     tmp_path: Path,
 ) -> None:
     private_pem, _ = rsa_keypair
-    headers = _headers(private_pem, "district_admin")
+    headers = _headers(private_pem, "admin")
     house_id = _import_city(database_url, f"Картоград-{uuid4().hex[:8]}", tmp_path)
     category_id = _insert_category(database_url)
     active = _insert_incident(database_url, category_id=category_id, status="IN_PROGRESS")
@@ -264,3 +265,83 @@ def test_map_shows_houses_with_incidents_at_any_zoom(
 
     assert house_feature(bbox="30.0,50.0,30.1,50.1") is None
     assert map_client.get("/map/incidents", params={"bbox": "1,2,3"}, headers=headers).status_code == 400
+
+
+def _territory_id(database_url: str, city: str, district: str | None = None) -> str:
+    if district is None:
+        sql = "SELECT id::text FROM geo.administrative_area WHERE parent_id IS NULL AND name = :city"
+        return str(scalar(database_url, sql, city=city))
+    sql = (
+        "SELECT d.id::text FROM geo.administrative_area d "
+        "JOIN geo.administrative_area c ON c.id = d.parent_id "
+        "WHERE c.name = :city AND d.name = :district"
+    )
+    return str(scalar(database_url, sql, city=city, district=district))
+
+
+def test_authority_sees_only_its_own_territory_on_the_map(
+    map_client: TestClient,
+    api_client: TestClient,
+    database_url: str,
+    rsa_keypair: tuple[str, str],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    private_pem, _ = rsa_keypair
+    admin = _headers(private_pem, "admin")
+    city_a, city_b = f"Картоград-{uuid4().hex[:8]}", f"Картоград-{uuid4().hex[:8]}"
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    house_a = _import_city(database_url, city_a, tmp_path / "a")
+    house_b = _import_city(database_url, city_b, tmp_path / "b")
+    category_id = _insert_category(database_url)
+    for house_id in (house_a, house_b):
+        incident_id = _insert_incident(database_url, category_id=category_id, status="IN_PROGRESS")
+        run_sql(
+            database_url,
+            "INSERT INTO incidents.incident_affected_house(incident_id, house_id, source) "
+            "VALUES (:incident, :house, 'REPORT')",
+            incident=incident_id,
+            house=house_id,
+        )
+
+    def authority(name: str, kind: str, territory_id: str) -> dict[str, str]:
+        _, headers = _register_authority(
+            api_client, monkeypatch, private_pem, admin, name=name, kind=kind, territory_id=territory_id
+        )
+        return headers
+
+    city_hall = authority("Администрация А", "CITY_ADMINISTRATION", _territory_id(database_url, city_a))
+    district_a = authority(
+        "Район А", "DISTRICT_ADMINISTRATION", _territory_id(database_url, city_a, "Тестовый район")
+    )
+    district_b = authority(
+        "Район Б", "DISTRICT_ADMINISTRATION", _territory_id(database_url, city_b, "Тестовый район")
+    )
+    z, x, y = _tile(16)
+
+    for headers, own, other, scope_type in (
+        (city_hall, house_a, house_b, "CITY"),
+        (district_a, house_a, house_b, "DISTRICT"),
+        (district_b, house_b, house_a, "DISTRICT"),
+    ):
+        tile = map_client.get(f"/map/tiles/houses/{z}/{x}/{y}", headers=headers)
+        assert tile.status_code == 200
+        assert own.encode() in tile.content
+        assert other.encode() not in tile.content
+
+        incidents = map_client.get("/map/incidents", headers=headers).json()
+        assert [feature["id"] for feature in incidents["features"]] == [own]
+
+        own_city = city_a if own == house_a else city_b
+        districts = map_client.get("/map/districts", headers=headers).json()
+        assert {feature["properties"]["city"] for feature in districts["features"]} == {own_city}
+
+        summary = map_client.get("/map/summary", headers=headers).json()
+        assert [item["city"] for item in summary["cities"]] == [own_city]
+        assert summary["scope"]["type"] == scope_type
+        assert map_client.get(f"/map/tiles/buildings/{z}/{x}/{y}", headers=headers).status_code == 200
+
+    admin_summary = map_client.get("/map/summary", headers=admin).json()
+    assert admin_summary["scope"] is None
+    assert {city_a, city_b} <= {item["city"] for item in admin_summary["cities"]}

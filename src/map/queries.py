@@ -120,9 +120,9 @@ _AREAS = text(
     f"""
 WITH RECURSIVE {_SCOPE_AREAS},
 areas AS (
-    SELECT d.id, d.name, d.geometry
+    SELECT d.id, d.name, d.type, d.geometry
     FROM geo.administrative_area d
-    WHERE d.geometry IS NOT NULL AND d.type <> 'CITY'
+    WHERE d.geometry IS NOT NULL
         AND (CAST(:scope_root AS uuid) IS NULL OR d.id IN (SELECT id FROM scope_areas))
 ),
 area_nodes AS (
@@ -141,7 +141,7 @@ lineage AS (
     SELECT l.area_id, p.id, p.parent_id, p.name
     FROM lineage l JOIN geo.administrative_area p ON p.id = l.parent_id
 )
-SELECT a.id, a.name,
+SELECT a.id, a.name, a.type,
     (SELECT l.name FROM lineage l WHERE l.area_id = a.id AND l.parent_id IS NULL) AS city,
     ST_AsGeoJSON(ST_SimplifyPreserveTopology(a.geometry, :tolerance), 6) AS geometry,
     (SELECT count(*) FROM area_houses ah WHERE ah.area_id = a.id) AS house_count,
@@ -152,7 +152,7 @@ SELECT a.id, a.name,
      JOIN incidents.incident i ON i.id = iah.incident_id
      WHERE ah.area_id = a.id AND i.status NOT IN :inactive_incidents) AS active_incidents
 FROM areas a
-ORDER BY city, a.name
+ORDER BY city, a.type = 'CITY' DESC, a.name
 """
 ).bindparams(
     bindparam("inactive_reports", expanding=True),
@@ -315,6 +315,7 @@ async def districts_feature_collection(session: AsyncSession, *, scope_root: UUI
                 "properties": {
                     "district_id": str(row.id),
                     "name": row.name,
+                    "type": row.type,
                     "city": row.city,
                     "house_count": int(row.house_count),
                     "active_reports": int(row.active_reports),

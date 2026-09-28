@@ -15,7 +15,7 @@ import { MapSelectionPopup } from './MapSelectionPopup';
 
 const LAYER_OPTIONS: { key: keyof MapLayerVisibility; label: string; hint: string }[] = [
   { key: 'incidents', label: 'Инциденты', hint: 'дома с активными инцидентами, на любом масштабе' },
-  { key: 'districts', label: 'Районы', hint: 'чем больше инцидентов, тем насыщеннее заливка' },
+  { key: 'districts', label: 'Границы', hint: 'города и районы: чем больше инцидентов, тем насыщеннее' },
   { key: 'houses', label: 'Дома', hint: 'точки с 12 зума, контуры с 15' },
   { key: 'buildings', label: 'Застройка', hint: 'все здания без адресов, с 14 зума' },
 ];

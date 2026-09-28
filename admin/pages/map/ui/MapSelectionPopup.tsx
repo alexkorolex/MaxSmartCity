@@ -75,7 +75,9 @@ export function MapSelectionPopup({ selection, onClose }: { selection: MapSelect
         {selection.kind === 'district' && (
           <>
             <div className="font-semibold">{selection.properties.name}</div>
-            <div className="text-muted-foreground">{selection.properties.city}</div>
+            {selection.properties.type !== 'CITY' && (
+              <div className="text-muted-foreground">{selection.properties.city}</div>
+            )}
             <div className="mt-3 flex flex-col gap-1">
               <Counter label="Домов" value={selection.properties.house_count} />
               <Counter label="Активные инциденты" value={selection.properties.active_incidents} />

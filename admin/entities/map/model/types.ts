@@ -33,6 +33,7 @@ export interface MapSummary {
 export interface DistrictProperties {
   district_id: string;
   name: string;
+  type: string;
   city: string;
   house_count: number;
   active_reports: number;

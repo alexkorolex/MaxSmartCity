@@ -29,8 +29,10 @@ const SOURCES = {
 
 const LAYERS = {
   buildings: 'sc-buildings-fill',
+  citiesFill: 'sc-cities-fill',
   districtsFill: 'sc-districts-fill',
   districtsLine: 'sc-districts-line',
+  citiesLine: 'sc-cities-line',
   housesFill: 'sc-houses-fill',
   housesLine: 'sc-houses-line',
   housesPoint: 'sc-houses-point',
@@ -40,7 +42,7 @@ const LAYERS = {
 
 const VISIBILITY_GROUPS: Record<keyof MapLayerVisibility, string[]> = {
   buildings: [LAYERS.buildings],
-  districts: [LAYERS.districtsFill, LAYERS.districtsLine],
+  districts: [LAYERS.citiesFill, LAYERS.districtsFill, LAYERS.districtsLine, LAYERS.citiesLine],
   houses: [LAYERS.housesFill, LAYERS.housesLine, LAYERS.housesPoint],
   incidents: [LAYERS.incidentsHalo, LAYERS.incidentsPoint],
 };
@@ -64,6 +66,8 @@ const HOUSE_COLOR: ExpressionSpecification = [
   MAP_COLORS.reports,
   MAP_COLORS.calm,
 ];
+
+const IS_CITY: ExpressionSpecification = ['==', ['get', 'type'], 'CITY'];
 
 const EMPTY_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
@@ -120,9 +124,20 @@ export function MapDataLayers({ zooms, districts, incidents, visibility, onSelec
       paint: { 'fill-color': colors.building, 'fill-opacity': 0.22 },
     });
     add({
+      id: LAYERS.citiesFill,
+      type: 'fill',
+      source: SOURCES.districts,
+      filter: IS_CITY,
+      paint: {
+        'fill-color': colors.districtFill,
+        'fill-opacity': ['interpolate', ['linear'], ['get', 'active_incidents'], 0, 0.02, 5, 0.1, 20, 0.2],
+      },
+    });
+    add({
       id: LAYERS.districtsFill,
       type: 'fill',
       source: SOURCES.districts,
+      filter: ['!', IS_CITY],
       paint: {
         'fill-color': colors.districtFill,
         'fill-opacity': [
@@ -142,7 +157,20 @@ export function MapDataLayers({ zooms, districts, incidents, visibility, onSelec
       id: LAYERS.districtsLine,
       type: 'line',
       source: SOURCES.districts,
+      filter: ['!', IS_CITY],
       paint: { 'line-color': colors.districtLine, 'line-width': 1.6, 'line-opacity': 0.75 },
+    });
+    add({
+      id: LAYERS.citiesLine,
+      type: 'line',
+      source: SOURCES.districts,
+      filter: IS_CITY,
+      paint: {
+        'line-color': colors.districtLine,
+        'line-width': 2.4,
+        'line-opacity': 0.9,
+        'line-dasharray': [3, 2],
+      },
     });
     add({
       id: LAYERS.housesFill,
@@ -202,7 +230,13 @@ export function MapDataLayers({ zooms, districts, incidents, visibility, onSelec
       },
     });
 
-    const interactive = [LAYERS.incidentsPoint, LAYERS.housesFill, LAYERS.housesPoint, LAYERS.districtsFill];
+    const interactive = [
+      LAYERS.incidentsPoint,
+      LAYERS.housesFill,
+      LAYERS.housesPoint,
+      LAYERS.districtsFill,
+      LAYERS.citiesFill,
+    ];
     const handleClick = (event: MapMouseEvent) => {
       const layers = interactive.filter((id) => map.getLayer(id));
       const [feature] = map.queryRenderedFeatures(event.point, { layers });
@@ -223,7 +257,7 @@ export function MapDataLayers({ zooms, districts, incidents, visibility, onSelec
             incidents: typeof incidentsValue === 'string' ? JSON.parse(incidentsValue) : incidentsValue,
           },
         });
-      } else if (feature.layer.id === LAYERS.districtsFill) {
+      } else if (feature.layer.id === LAYERS.districtsFill || feature.layer.id === LAYERS.citiesFill) {
         onSelectRef.current({
           kind: 'district',
           longitude,

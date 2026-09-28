@@ -215,7 +215,9 @@ def test_map_serves_lazy_vector_tiles_and_district_stats(
     assert map_client.get("/map/tiles/houses/3/9/0", headers=headers).status_code == 400
 
     districts = map_client.get("/map/districts", headers=headers).json()
-    (district,) = [feature for feature in districts["features"] if feature["properties"]["city"] == city]
+    own = [feature for feature in districts["features"] if feature["properties"]["city"] == city]
+    assert sorted(feature["properties"]["type"] for feature in own) == ["CITY", "DISTRICT"]
+    (district,) = [feature for feature in own if feature["properties"]["type"] == "DISTRICT"]
     assert district["geometry"]["type"] in ("Polygon", "MultiPolygon")
     assert district["properties"]["house_count"] == 1
     assert district["properties"]["active_reports"] == 1
@@ -336,6 +338,8 @@ def test_authority_sees_only_its_own_territory_on_the_map(
         own_city = city_a if own == house_a else city_b
         districts = map_client.get("/map/districts", headers=headers).json()
         assert {feature["properties"]["city"] for feature in districts["features"]} == {own_city}
+        expected_types = {"CITY", "DISTRICT"} if scope_type == "CITY" else {"DISTRICT"}
+        assert {feature["properties"]["type"] for feature in districts["features"]} == expected_types
 
         summary = map_client.get("/map/summary", headers=headers).json()
         assert [item["city"] for item in summary["cities"]] == [own_city]

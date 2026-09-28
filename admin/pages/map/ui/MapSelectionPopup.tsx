@@ -37,8 +37,6 @@ export function MapSelectionPopup({ selection, onClose }: { selection: MapSelect
       longitude={selection.longitude}
       latitude={selection.latitude}
       onClose={onClose}
-      closeButton
-      maxWidth="none"
       className="map-selection-popup w-72 max-w-72 text-sm"
     >
       <div className="pr-5">

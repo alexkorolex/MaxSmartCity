@@ -72,7 +72,7 @@ export function MapPage() {
             transformRequest={withMapAuth}
             attributionControl={{ compact: true, customAttribution: attribution }}
           >
-            <MapControls position="bottom-right" showZoom showCompass showFullscreen />
+            <MapControls />
             <MapDataLayers
               zooms={summary.data.zooms}
               districts={districts.data}

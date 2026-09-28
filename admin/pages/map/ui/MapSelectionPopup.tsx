@@ -8,6 +8,7 @@ import { Pill } from '@/shared/ui';
 import { MapPopup } from '@/shared/ui/map';
 
 import type { MapSelection } from './MapDataLayers';
+import './MapSelectionPopup.css';
 
 function Counter({ label, value }: { label: string; value: number }) {
   return (
@@ -38,7 +39,7 @@ export function MapSelectionPopup({ selection, onClose }: { selection: MapSelect
       onClose={onClose}
       closeButton
       maxWidth="none"
-      className="w-72 max-w-72 text-sm"
+      className="map-selection-popup w-72 max-w-72 text-sm"
     >
       <div className="pr-5">
         {selection.kind === 'incident' && (

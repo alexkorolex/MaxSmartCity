@@ -4,7 +4,13 @@
     align-items: stretch !important;
 }
 
+.house-info > * {
+    width: 100%;
+    max-width: 100%;
+}
+
 .house-info__company {
+    width: 100%;
     min-width: 0;
     padding: clamp(15px, 4vw, 20px);
 }

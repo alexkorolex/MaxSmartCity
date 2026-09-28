@@ -64,3 +64,13 @@ test('dark theme remaps MAX UI surfaces and contextual back navigation', () => {
   assert.match(pageLayout, /backLabel/);
   assert.match(pageLayout, /page-heading__back-label/);
 });
+
+test('house selection content keeps a consistent full-width mobile rhythm', () => {
+  const pageStyles = read('pages/select-house/ui/SelectHousePage.css');
+  const houseStyles = read('entities/geo/ui/HouseInfoCard.css');
+  const sectionStyles = read('shared/ui/styles/sections.css');
+
+  assert.match(pageStyles, /\.house-selection-page\s*>\s*\*\s*{[^}]*width:\s*100%/s);
+  assert.match(houseStyles, /\.house-info\s*>\s*\*\s*{[^}]*width:\s*100%/s);
+  assert.match(sectionStyles, /\.app-section\s*{[^}]*width:\s*100%/s);
+});

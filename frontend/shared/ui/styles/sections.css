@@ -1,5 +1,6 @@
 .app-section {
     display: flex;
+    width: 100%;
     min-width: 0;
     flex-direction: column;
     gap: var(--space-2);

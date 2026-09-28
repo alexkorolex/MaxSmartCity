@@ -50,6 +50,12 @@
         text-transform: uppercase;
     }
     .data-table td:last-child { border-bottom: none; }
+    .data-table td > .pill { align-self: start; justify-self: start; }
     .data-table td[data-label="Действия"] { grid-template-columns: 1fr; }
     .data-table td[data-label="Действия"]::before { display: none; }
+
+    [data-theme="dark"] .data-table tbody tr,
+    [data-theme="dark"] .data-table td {
+        border-color: color-mix(in srgb, var(--border-soft) 62%, transparent);
+    }
 }

@@ -35,7 +35,7 @@ a.surface-card:active {
 }
 
 [data-theme="dark"] :is(.surface-card, .content-card) {
-    border-color: color-mix(in srgb, var(--border) 72%, transparent);
+    border-color: color-mix(in srgb, var(--border-soft) 58%, transparent);
     box-shadow: var(--shadow-sm);
 }
 

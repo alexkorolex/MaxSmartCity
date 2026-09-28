@@ -4,6 +4,15 @@
     min-width: 0;
 }
 
+.house-selection-page {
+    align-items: stretch !important;
+}
+
+.house-selection-page > * {
+    width: 100%;
+    max-width: 100%;
+}
+
 .house-selection-actions > button:first-child:not(:disabled) {
     background: var(--blue-strong);
 }

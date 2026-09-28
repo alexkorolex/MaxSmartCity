@@ -1,0 +1,8 @@
+.map-selection-popup {
+    border-color: var(--border-soft);
+}
+
+[data-theme="dark"] .map-selection-popup {
+    border-color: color-mix(in srgb, var(--border-soft) 54%, transparent);
+    box-shadow: var(--shadow-md);
+}

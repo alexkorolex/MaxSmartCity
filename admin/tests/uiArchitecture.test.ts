@@ -109,3 +109,15 @@ test('detail pages use the shared breadcrumb navigation', () => {
   assert.match(sharedExports, /Breadcrumbs/);
   for (const page of detailPages) assert.match(read(page), /<Breadcrumbs/);
 });
+
+test('mobile status pills stay compact and dark card outlines stay subtle', () => {
+  const feedback = read('shared/ui/styles/feedback.css');
+  const tables = read('shared/ui/styles/tables.css');
+  const surfaces = read('shared/ui/styles/surfaces.css');
+  const mapPopup = read('pages/map/ui/MapSelectionPopup.css');
+
+  assert.match(feedback, /\.pill\s*{[^}]*width:\s*fit-content/s);
+  assert.match(tables, /\.data-table td\s*>\s*\.pill\s*{[^}]*justify-self:\s*start/s);
+  assert.match(surfaces, /\[data-theme="dark"\][^{]*{[^}]*var\(--border-soft\)/s);
+  assert.match(mapPopup, /\[data-theme="dark"\] \.map-selection-popup/);
+});
